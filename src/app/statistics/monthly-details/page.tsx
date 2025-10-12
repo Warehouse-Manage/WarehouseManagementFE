@@ -212,29 +212,29 @@ export default function MonthlyDetailsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {/* Tiêu đề */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Chi tiết yêu cầu theo tháng</h1>
-          <p className="text-gray-600 mt-1">Xem danh sách các tháng có yêu cầu được phê duyệt</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Chi tiết yêu cầu theo tháng</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Xem danh sách các tháng có yêu cầu được phê duyệt</p>
         </div>
         
         <Link 
           href="/statistics" 
-          className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+          className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm sm:text-base"
         >
           Quay lại
         </Link>
       </div>
 
       {/* Danh sách tháng */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {monthlyData.length > 0 ? (
           monthlyData.map((month, index) => (
             <div 
               key={index} 
-              className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+              className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => fetchRequestDetails(month.year, month.month)}
             >
               <div className="text-center">

@@ -240,21 +240,21 @@ export default function StatisticsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       {/* Tiêu đề */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-gray-900">Thống kê tài chính</h1>
-          <p className="text-gray-600 mt-1">Tổng quan chi tiêu và quản lý tài chính</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Thống kê tài chính</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Tổng quan chi tiêu và quản lý tài chính</p>
         </div>
         
         {/* Bộ chọn khoảng thời gian */}
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
           <label className="text-sm font-bold text-gray-700">Khoảng thời gian:</label>
           <select
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value as 'tuần' | 'tháng' | 'quý' | 'năm')}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+            className="w-full sm:w-auto rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
           >
             <option value="tuần">Tuần này</option>
             <option value="tháng">Tháng này</option>
@@ -265,9 +265,9 @@ export default function StatisticsPage() {
       </div>
 
       {/* Thẻ tóm tắt */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {/* Tổng yêu cầu */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -284,7 +284,7 @@ export default function StatisticsPage() {
         </div>
 
         {/* Yêu cầu đã duyệt */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
@@ -301,7 +301,7 @@ export default function StatisticsPage() {
         </div>
 
         {/* Yêu cầu chờ duyệt */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
@@ -318,7 +318,7 @@ export default function StatisticsPage() {
         </div>
 
         {/* Tổng chi tiêu */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center">
@@ -343,7 +343,7 @@ export default function StatisticsPage() {
       {/* Biểu đồ và thống kê chi tiết */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Biểu đồ chi tiêu theo tháng */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
           <h3 className="text-lg font-black text-gray-900 mb-4">Chi tiêu theo tháng</h3>
           <div className="space-y-3">
             {statistics.monthlySpending.length > 0 ? (
@@ -372,7 +372,7 @@ export default function StatisticsPage() {
         </div>
 
         {/* Chi tiêu theo phòng ban */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Chi tiêu theo phòng ban</h3>
           <div className="space-y-3">
             {statistics.departmentSpending.length > 0 ? (
@@ -405,7 +405,7 @@ export default function StatisticsPage() {
       {/* Vật tư và thống kê bổ sung */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Nút chi tiết theo tháng */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Chi tiết yêu cầu theo tháng</h3>
           <div className="text-center">
             <button
@@ -422,7 +422,7 @@ export default function StatisticsPage() {
         </div>
 
         {/* Giá trị trung bình yêu cầu */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Giá trị trung bình</h3>
           <div className="text-center">
             <div 
@@ -436,7 +436,7 @@ export default function StatisticsPage() {
         </div>
 
         {/* Phân bố trạng thái yêu cầu */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Phân bố trạng thái</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">

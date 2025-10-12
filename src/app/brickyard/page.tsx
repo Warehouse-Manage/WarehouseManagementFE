@@ -188,28 +188,29 @@ export default function BrickYardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tình trạng lò gạch</h1>
-          <p className="text-gray-600 mt-1">Theo dõi số lượng gói gạch theo thời gian</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Tình trạng lò gạch</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Theo dõi số lượng gói gạch theo thời gian</p>
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+          className="bg-orange-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2 text-sm sm:text-base"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
           </svg>
-          Thêm dữ liệu
+          <span className="hidden sm:inline">Thêm dữ liệu</span>
+          <span className="sm:hidden">Thêm</span>
         </button>
       </div>
 
       {/* Filter Controls */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <h2 className="text-lg font-semibold mb-4">Bộ lọc</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border">
+        <h2 className="text-base sm:text-lg font-semibold mb-4">Bộ lọc</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
           {/* Filter Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Loại lọc</label>
