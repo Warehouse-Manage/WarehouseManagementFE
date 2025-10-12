@@ -79,7 +79,7 @@ export default function MonthlyDetailsPage() {
         setLoading(true);
         setError(null);
         
-        const response = await fetch('https://localhost:7149/api/statistics/monthly-spending', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/statistics/monthly-spending`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -108,7 +108,7 @@ export default function MonthlyDetailsPage() {
       setSelectedMonth(`${year}-${month}`);
       
         // Lấy yêu cầu đã duyệt cho tháng cụ thể
-      const response = await fetch(`https://localhost:7149/api/materialrequests?status=approved&year=${year}&month=${month}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materialrequests?status=approved&year=${year}&month=${month}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });

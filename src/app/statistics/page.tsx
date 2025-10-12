@@ -100,7 +100,7 @@ export default function StatisticsPage() {
         setError(null);
         
         // Fetch statistics summary
-        const summaryResponse = await fetch('https://localhost:7149/api/statistics/summary', {
+        const summaryResponse = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/statistics/summary`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -112,7 +112,7 @@ export default function StatisticsPage() {
         const summary = await summaryResponse.json();
         
         // Fetch monthly spending
-        const monthlyResponse = await fetch('https://localhost:7149/api/statistics/monthly-spending', {
+        const monthlyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/statistics/monthly-spending`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -120,7 +120,7 @@ export default function StatisticsPage() {
         const monthlySpending: MonthlySpendingResponse[] = monthlyResponse.ok ? await monthlyResponse.json() : [];
         
         // Fetch department spending
-        const deptResponse = await fetch('https://localhost:7149/api/statistics/department-spending', {
+        const deptResponse = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/statistics/department-spending`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -128,7 +128,7 @@ export default function StatisticsPage() {
         const departmentSpending: DepartmentSpendingResponse[] = deptResponse.ok ? await deptResponse.json() : [];
         
         // Fetch top materials
-        const materialsResponse = await fetch('https://localhost:7149/api/statistics/top-materials?limit=10', {
+        const materialsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/statistics/top-materials?limit=10`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });

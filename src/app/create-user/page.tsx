@@ -137,7 +137,7 @@ export default function CreateUserPage() {
     setErrors({});
 
     try {
-      const response = await fetch('https://localhost:7149/api/User', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/User`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

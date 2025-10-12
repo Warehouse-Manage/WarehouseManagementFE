@@ -69,7 +69,7 @@ export default function BrickYardPage() {
       setLoading(true);
       setError(null);
       
-      let url = 'https://localhost:7149/api/brickyardstatus';
+      let url = `${process.env.NEXT_PUBLIC_API_HOST}/api/brickyardstatus`;
       const params = new URLSearchParams();
 
       switch (filter.type) {
@@ -126,7 +126,7 @@ export default function BrickYardPage() {
 
   const addNewStatus = async () => {
     try {
-      const response = await fetch('https://localhost:7149/api/brickyardstatus', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/brickyardstatus`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

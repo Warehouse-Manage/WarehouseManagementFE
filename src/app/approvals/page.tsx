@@ -110,7 +110,7 @@ export default function ApprovalsPage() {
         params.append('userName', userName);
         
         const queryString = params.toString();
-        const url = `https://localhost:7149/api/materialrequests?${queryString}`;
+        const url = `${process.env.NEXT_PUBLIC_API_HOST}/api/materialrequests?${queryString}`;
         
         const resp = await fetch(url, {
           method: 'GET',
@@ -203,7 +203,7 @@ export default function ApprovalsPage() {
         })),
       };
       
-      const response = await fetch(`https://localhost:7149/api/materialrequests/${editingRequest.id}/approve`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materialrequests/${editingRequest.id}/approve`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(approvalData),
@@ -275,7 +275,7 @@ export default function ApprovalsPage() {
         comments: 'Yêu cầu bị từ chối'
       };
       
-      const response = await fetch(`https://localhost:7149/api/materialrequests/${requestId}/reject`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materialrequests/${requestId}/reject`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(rejectionData),

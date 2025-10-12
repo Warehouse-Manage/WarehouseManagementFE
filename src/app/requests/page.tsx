@@ -81,7 +81,7 @@ export default function RequestsPage() {
     const fetchMaterials = async () => {
       try {
         setLoadingMaterials(true);
-        const response = await fetch('https://localhost:7149/api/materials', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materials`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -135,7 +135,7 @@ export default function RequestsPage() {
     setSearchLoading(true);
     debounceRef.current = window.setTimeout(async () => {
       try {
-        const response = await fetch(`https://localhost:7149/api/materials/search?term=${encodeURIComponent(value)}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materials/search?term=${encodeURIComponent(value)}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -178,7 +178,7 @@ export default function RequestsPage() {
         creatorId: userId,
       };
 
-      const response = await fetch('https://localhost:7149/api/materials', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -279,7 +279,7 @@ export default function RequestsPage() {
           })),
       };
 
-      const response = await fetch('https://localhost:7149/api/materialrequests', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materialrequests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

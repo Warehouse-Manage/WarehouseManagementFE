@@ -43,7 +43,7 @@ export default function MaterialsPage() {
         setLoading(true);
         setError(null);
         
-        const response = await fetch('https://localhost:7149/api/materials', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materials`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
