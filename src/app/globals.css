@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #000000;
+  --border: #d1d5db; /* neutral gray fits black text on white */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #000000;
+    --border: #d1d5db;
+  }
+}
+
+body {
+  background: #ffffff;
+  color: #000000; /* force all text to black */
+  font-family: var(--font-inter), var(--font-noto-sans), 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Make bold fonts visually thinner across the app */
+@layer utilities {
+  .font-semibold {
+    font-weight: 500; /* thinner than default 600 */
+  }
+  .font-bold {
+    font-weight: 500; /* thinner than default 700 */
+  }
+  .font-black {
+    font-weight: 600; /* much thinner than default 900 */
+  }
+}
+
+/* Ensure semantic tags also use the thinner bold look */
+@layer base {
+  strong,
+  b {
+    font-weight: 500;
+  }
+
+  /* Normalize border color across the app to match the new text color scheme */
+  *, *::before, *::after {
+    border-color: var(--border);
+  }
+}
+
+/* 自定义滚动条样式 - 使用Tailwind兼容的方式 */
+::-webkit-scrollbar {
+  @apply w-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 rounded;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-orange-400 rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-orange-500;
+}
