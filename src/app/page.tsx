@@ -144,7 +144,7 @@ export default function MaterialsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-gray-800">Danh sách vật tư 1</h1>
+        <h1 className="text-2xl font-black text-gray-800">Danh sách vật tư</h1>
       </div>
 
       {/* Loading state */}
