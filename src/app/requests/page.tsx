@@ -65,8 +65,14 @@ export default function RequestsPage() {
   useEffect(() => {
     const userUserId = getCookie('userId');
     const userUserName = getCookie('userName');
+    const userDepartment = getCookie('department');
     
     setUserId(userUserId);
+    
+    // Set department from cookies if available
+    if (userDepartment) {
+      setDepartment(userDepartment);
+    }
     
     // Redirect to login if userId or userName is missing
     if (!userUserId || !userUserName) {
@@ -166,8 +172,8 @@ export default function RequestsPage() {
       setCreatingMaterial(true);
       setCreateError(null);
 
-      // Use default user ID since authentication is removed
-      const userId = 1;
+      // Use actual user ID from cookies
+      const currentUserId = userId ? parseInt(userId) : 1;
 
       const payload = {
         name: newMaterial.name,
@@ -175,7 +181,7 @@ export default function RequestsPage() {
         description: newMaterial.description,
         imageUrl: newMaterial.imageUrl ?? "",
         amount: 0,
-        creatorId: userId,
+        creatorId: currentUserId,
       };
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materials`, {
@@ -296,8 +302,7 @@ export default function RequestsPage() {
       console.log("Đề nghị mua vật tư đã tạo:", result);
       alert("Gửi đề nghị thành công!");
       
-      // Reset form
-      setDepartment("");
+      // Reset form (keep department from cookies)
       setItems([{ id: 1, name: "", type: "", quantity: "", note: "", isNew: true }]);
       
     } catch (error) {
@@ -325,8 +330,8 @@ export default function RequestsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-black text-black">Đề nghị mua vật tư</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <h1 className="text-xl sm:text-2xl font-black text-black">Đề nghị mua vật tư</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Thông tin chung */}
@@ -336,9 +341,9 @@ export default function RequestsPage() {
             <input
               type="text"
               value={department}
-              onChange={e => setDepartment(e.target.value)}
-              placeholder="VD: Vật tư, Kế toán..."
-              className="w-full rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-black placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-4 focus:ring-orange-100"
+              readOnly
+              disabled
+              className="w-full rounded-lg border-2 border-gray-200 bg-gray-100 px-3 py-2 text-black"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -354,25 +359,16 @@ export default function RequestsPage() {
         </div>
 
         {/* Danh mục vật tư */}
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-3 text-left text-xs font-black uppercase tracking-wider text-gray-600">STT</th>
-                <th className="px-3 py-3 text-left text-xs font-black uppercase tracking-wider text-gray-600">Hình ảnh</th>
-                <th className="px-3 py-3 text-left text-xs font-black uppercase tracking-wider text-gray-600">Tên vật tư</th>
-                <th className="px-3 py-3 text-left text-xs font-black uppercase tracking-wider text-gray-600">ĐVT</th>
-                <th className="px-3 py-3 text-left text-xs font-black uppercase tracking-wider text-gray-600">Số lượng</th>
-                <th className="px-3 py-3 text-left text-xs font-black uppercase tracking-wider text-gray-600">Ghi chú</th>
-                <th className="px-3 py-3 text-left text-xs font-black uppercase tracking-wider text-gray-600">Hành động</th>
-                <th className="px-3 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
-              {items.map((it, idx) => (
-                <tr key={it.id}>
-                  <td className="px-3 py-2 text-sm text-gray-700">{idx + 1}</td>
-                  <td className="px-3 py-2">
+        <div className="space-y-4">
+          {items.map((it, idx) => (
+            <div key={it.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              {/* Mobile Layout */}
+              <div className="block sm:hidden">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-bold text-orange-600">{idx + 1}</span>
+                    </div>
                     <div className="h-12 w-12 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
                       {it.imageUrl ? (
                         <img
@@ -387,8 +383,141 @@ export default function RequestsPage() {
                         </svg>
                       )}
                     </div>
-                  </td>
-                  <td className="px-3 py-2 relative">
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveItem(it.id)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="relative">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Tên vật tư</label>
+                    <input
+                      type="text"
+                      value={it.name}
+                      onChange={e => handleNameInputChange(it.id, e.target.value)}
+                      placeholder="Nhập tên để tìm..."
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                    />
+                    {openSearchFor === it.id && (
+                      <div className="absolute z-50 mt-1 w-full max-h-72 overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                        {searchLoading ? (
+                          <div className="px-3 py-2 text-sm text-gray-500">Đang tìm...</div>
+                        ) : (
+                          <>
+                            {(searchResultsByItem[it.id] && searchResultsByItem[it.id].length > 0) ? (
+                              searchResultsByItem[it.id].map(s => (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => handlePickSearchedMaterial(it.id, s)}
+                                  className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-gray-50"
+                                >
+                                  <div className="h-8 w-8 overflow-hidden rounded border border-gray-200 bg-gray-50 flex items-center justify-center">
+                                    {s.imageUrl ? (
+                                      <img src={s.imageUrl} alt={s.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                      <svg className="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7a2 2 0 012-2h3l2-2h4l2 2h3a2 2 0 012 2v11a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-bold text-gray-900">{s.name}</div>
+                                    <div className="truncate text-xs text-gray-500">ĐVT: {s.type} • Tồn: {s.amount.toLocaleString('vi-VN')}</div>
+                                  </div>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-3 py-2 text-sm text-gray-500">Không tìm thấy kết quả</div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">ĐVT</label>
+                      <input
+                        type="text"
+                        value={it.type}
+                        onChange={e => handleItemChange(it.id, "type", e.target.value)}
+                        placeholder="Cây, Kg, Bao..."
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Số lượng</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={it.quantity}
+                        onChange={e => handleItemChange(it.id, "quantity", e.target.value)}
+                        placeholder="0"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-black focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Ghi chú</label>
+                    <input
+                      type="text"
+                      value={it.note ?? ""}
+                      onChange={e => handleItemChange(it.id, "note", e.target.value)}
+                      placeholder="Ghi chú"
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                    />
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenMaterialSelector(it.id)}
+                      className="flex-1 inline-flex items-center justify-center rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-700 hover:bg-orange-100"
+                    >
+                      Chọn từ kho
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCreateNewItem(it.id)}
+                      className="flex-1 inline-flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100"
+                    >
+                      Tạo mới
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop Layout */}
+              <div className="hidden sm:block">
+                <div className="flex items-center gap-4">
+                  <div className="w-8 text-center">
+                    <span className="text-sm font-bold text-gray-700">{idx + 1}</span>
+                  </div>
+                  <div className="h-12 w-12 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
+                    {it.imageUrl ? (
+                      <img
+                        src={it.imageUrl}
+                        alt={it.name}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <svg className="h-6 w-6 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7a2 2 0 012-2h3l2-2h4l2 2h3a2 2 0 012 2v11a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1 relative">
                     <input
                       type="text"
                       value={it.name}
@@ -432,27 +561,27 @@ export default function RequestsPage() {
                         )}
                       </div>
                     )}
-                  </td>
-                  <td className="px-3 py-2">
+                  </div>
+                  <div className="w-24">
                     <input
                       type="text"
                       value={it.type}
                       onChange={e => handleItemChange(it.id, "type", e.target.value)}
-                      placeholder="Cây, Kg, Bao..."
+                      placeholder="ĐVT"
                       className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
                     />
-                  </td>
-                  <td className="px-3 py-2">
+                  </div>
+                  <div className="w-28">
                     <input
                       type="number"
                       min="0"
                       value={it.quantity}
                       onChange={e => handleItemChange(it.id, "quantity", e.target.value)}
                       placeholder="0"
-                      className="w-28 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-black focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-black focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
                     />
-                  </td>
-                  <td className="px-3 py-2">
+                  </div>
+                  <div className="w-32">
                     <input
                       type="text"
                       value={it.note ?? ""}
@@ -460,26 +589,24 @@ export default function RequestsPage() {
                       placeholder="Ghi chú"
                       className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-black placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
                     />
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenMaterialSelector(it.id)}
-                        className="inline-flex h-8 items-center justify-center rounded-lg border border-orange-200 bg-orange-50 px-3 text-xs font-bold text-orange-700 hover:bg-orange-100"
-                      >
-                        Chọn từ kho
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleCreateNewItem(it.id)}
-                        className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-gray-700 hover:bg-gray-100"
-                      >
-                        Tạo mới
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-right">
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenMaterialSelector(it.id)}
+                      className="inline-flex h-8 items-center justify-center rounded-lg border border-orange-200 bg-orange-50 px-3 text-xs font-bold text-orange-700 hover:bg-orange-100"
+                    >
+                      Chọn từ kho
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCreateNewItem(it.id)}
+                      className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-gray-700 hover:bg-gray-100"
+                    >
+                      Tạo mới
+                    </button>
+                  </div>
+                  <div>
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(it.id)}
@@ -487,16 +614,17 @@ export default function RequestsPage() {
                     >
                       Xóa
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="border-t border-gray-100 bg-gray-50 px-3 py-3">
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
             <button
               type="button"
               onClick={handleAddItem}
-              className="inline-flex items-center rounded-lg bg-white px-3 py-2 text-sm font-bold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-200 hover:bg-gray-50"
+              className="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-200 hover:bg-gray-50"
             >
               + Thêm dòng
             </button>
@@ -504,7 +632,7 @@ export default function RequestsPage() {
         </div>
 
         {/* Hành động */}
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
           <button
             type="button"
             onClick={() => setShowCreateMaterial(true)}
@@ -515,7 +643,6 @@ export default function RequestsPage() {
           <button
             type="button"
             onClick={() => {
-              setDepartment("");
               setItems([{ id: 1, name: "", type: "", quantity: "", note: "", isNew: true }]);
             }}
             className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
@@ -538,9 +665,9 @@ export default function RequestsPage() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={() => setShowMaterialSelector(false)}></div>
-            <div className="relative w-full max-w-4xl rounded-xl bg-white p-6 shadow-xl">
+            <div className="relative w-full max-w-4xl mx-4 rounded-xl bg-white p-4 sm:p-6 shadow-xl">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-black text-gray-900">Chọn vật tư từ kho</h2>
+                <h2 className="text-lg sm:text-xl font-black text-gray-900">Chọn vật tư từ kho</h2>
                 <button
                   onClick={() => setShowMaterialSelector(false)}
                   className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -562,7 +689,7 @@ export default function RequestsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {materials.map((material) => (
                     <div
                       key={material.id}
@@ -614,9 +741,9 @@ export default function RequestsPage() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={() => setShowCreateMaterial(false)}></div>
-            <div className="relative w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+            <div className="relative w-full max-w-lg mx-4 rounded-xl bg-white p-4 sm:p-6 shadow-xl">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Thêm vật tư mới</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Thêm vật tư mới</h2>
                 <button
                   onClick={() => setShowCreateMaterial(false)}
                   className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"

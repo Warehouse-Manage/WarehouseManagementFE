@@ -194,15 +194,15 @@ export default function CreateUserPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-8 sm:py-12 px-2 sm:px-4 lg:px-8">
       <div className="max-w-md mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-black text-gray-900">Tạo người dùng mới</h1>
-          <p className="mt-2 text-gray-600">Điền thông tin để tạo tài khoản người dùng mới</p>
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Tạo người dùng mới</h1>
+          <p className="mt-2 text-sm sm:text-base text-gray-600">Điền thông tin để tạo tài khoản người dùng mới</p>
         </div>
 
-        <div className="bg-white py-8 px-6 shadow rounded-lg">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-white py-6 sm:py-8 px-4 sm:px-6 shadow rounded-lg">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {/* General Error */}
             {errors.general && (
               <div className="rounded-md bg-red-50 p-4">
@@ -358,7 +358,7 @@ export default function CreateUserPage() {
             </div>
 
             {/* Submit Button */}
-            <div className="flex space-x-4">
+            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
               <button
                 type="submit"
                 disabled={isLoading}

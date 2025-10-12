@@ -332,9 +332,9 @@ export default function ApprovalsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-gray-800">Duyệt yêu cầu mua vật tư</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <h1 className="text-xl sm:text-2xl font-black text-gray-800">Duyệt yêu cầu mua vật tư</h1>
         <div className="text-sm text-gray-600">
           Tổng: {requests.length} yêu cầu
         </div>
@@ -350,16 +350,63 @@ export default function ApprovalsPage() {
       {!loading && !error && (
         <div className="space-y-4">
           {requests.map((request) => (
-          <div key={request.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-3">
-                    <h3 className="text-lg font-black text-gray-900">Yêu cầu #{request.id}</h3>
+            <div key={request.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="p-4 sm:p-6">
+                {/* Header with title, status and action buttons */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                    <h3 className="text-base sm:text-lg font-black text-gray-900">Yêu cầu #{request.id}</h3>
                     {getStatusBadge(request.status)}
                   </div>
                   
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-4 mb-4">
+                  {/* Action buttons - moved to header for mobile */}
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    {request.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleApprove(request.id)}
+                          disabled={actionLoading === request.id}
+                          className="inline-flex items-center justify-center rounded-lg bg-green-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {actionLoading === request.id ? (
+                            <>
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              <span className="hidden sm:inline">Đang xử lý...</span>
+                              <span className="sm:hidden">Đang xử lý</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="hidden sm:inline">Duyệt và mua</span>
+                              <span className="sm:hidden">Duyệt</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleReject(request.id)}
+                          disabled={actionLoading === request.id}
+                          className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Từ chối
+                        </button>
+                      </>
+                    )}
+                    
+                    <button
+                      onClick={() => setSelectedRequest(request)}
+                      className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    >
+                      <span className="hidden sm:inline">Xem chi tiết</span>
+                      <span className="sm:hidden">Chi tiết</span>
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Request details */}
+                <div className="flex-1">
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
                     <div>
                       <p className="text-sm text-gray-500">Người đề nghị</p>
                       <p className="font-bold text-gray-900">{request.requester}</p>
@@ -380,6 +427,7 @@ export default function ApprovalsPage() {
                     )}
                   </div>
 
+                  {/* Materials section */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -396,8 +444,8 @@ export default function ApprovalsPage() {
                       <div className="space-y-3">
                         {request.items.map((item, index) => (
                           <div key={item.id} className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-start gap-3 flex-1">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                              <div className="flex items-start gap-3 flex-1 min-w-0">
                                 <div className="flex-shrink-0 w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
                                   <span className="text-sm font-bold text-orange-600">{index + 1}</span>
                                 </div>
@@ -408,7 +456,7 @@ export default function ApprovalsPage() {
                                   )}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-4 ml-4">
+                              <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
                                 <div className="text-center">
                                   <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">ĐVT</div>
                                   <div className="text-sm font-bold text-gray-700 mt-1">{item.unit}</div>
@@ -439,47 +487,8 @@ export default function ApprovalsPage() {
                     </div>
                   </div>
                 </div>
-
-                <div className="ml-6 flex flex-col gap-2">
-                  {request.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => handleApprove(request.id)}
-                        disabled={actionLoading === request.id}
-                        className="inline-flex items-center rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {actionLoading === request.id ? (
-                          <>
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Đang xử lý...
-                          </>
-                        ) : (
-                          'Duyệt và mua'
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleReject(request.id)}
-                        disabled={actionLoading === request.id}
-                        className="inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Từ chối
-                      </button>
-                    </>
-                  )}
-                  
-                  <button
-                    onClick={() => setSelectedRequest(request)}
-                    className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  >
-                    Xem chi tiết
-                  </button>
-                </div>
               </div>
             </div>
-          </div>
           ))}
           {requests.length === 0 && (
             <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-600">Không có yêu cầu nào</div>
@@ -492,21 +501,21 @@ export default function ApprovalsPage() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={() => setSelectedRequest(null)}></div>
-            <div className="relative w-full max-w-4xl rounded-xl bg-white p-6 shadow-xl">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Chi tiết yêu cầu #{selectedRequest.id}</h2>
+            <div className="relative w-full max-w-4xl rounded-xl bg-white mx-4 p-4 sm:p-6 shadow-xl">
+              <div className="mb-4 sm:mb-6 flex items-center justify-between">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Chi tiết yêu cầu #{selectedRequest.id}</h2>
                 <button
                   onClick={() => setSelectedRequest(null)}
                   className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                 >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div>
                     <p className="text-sm text-gray-500">Người đề nghị</p>
                     <p className="font-medium text-gray-900">{selectedRequest.requester}</p>
@@ -522,40 +531,40 @@ export default function ApprovalsPage() {
                   {selectedRequest.totalPrice && (
                     <div>
                       <p className="text-sm text-gray-500">Tổng tiền</p>
-                      <p className="font-semibold text-lg text-green-600">{selectedRequest.totalPrice.toLocaleString('vi-VN')} VNĐ</p>
+                      <p className="font-semibold text-base sm:text-lg text-green-600">{selectedRequest.totalPrice.toLocaleString('vi-VN')} đ</p>
                     </div>
                   )}
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <svg className="h-5 w-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <svg className="h-4 sm:h-5 w-4 sm:w-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                       </svg>
                       Danh mục vật tư
                     </h3>
-                    <span className="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-sm font-medium text-orange-800">
+                    <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium text-orange-800">
                       {selectedRequest.items.length} mục
                     </span>
                   </div>
-                  <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                  <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 sm:p-4">
                     <div className="space-y-3">
                       {selectedRequest.items.map((item, index) => (
-                        <div key={item.id} className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3 flex-1">
+                        <div key={item.id} className="bg-white rounded-lg border border-gray-100 p-3 sm:p-4 shadow-sm">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
                               <div className="flex-shrink-0 w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
                                 <span className="text-sm font-bold text-orange-600">{index + 1}</span>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <h5 className="text-sm font-semibold text-gray-900">{item.name}</h5>
+                                <h5 className="text-sm font-semibold text-gray-900 truncate">{item.name}</h5>
                                 {item.note && (
                                   <p className="text-xs text-gray-500 mt-1 italic">Ghi chú: {item.note}</p>
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-6 ml-4">
+                            <div className="flex items-center gap-2 sm:gap-3 lg:gap-6 w-full sm:w-auto justify-between sm:justify-end">
                               <div className="text-center">
                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">ĐVT</div>
                                 <div className="text-sm font-bold text-gray-700 mt-1">{item.unit}</div>
@@ -592,23 +601,23 @@ export default function ApprovalsPage() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={handleCancelApproval}></div>
-            <div className="relative w-full max-w-6xl rounded-xl bg-white p-6 shadow-xl">
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">Duyệt và mua yêu cầu #{editingRequest.id}</h2>
+            <div className="relative w-full max-w-6xl rounded-xl bg-white mx-4 p-4 sm:p-6 shadow-xl">
+              <div className="mb-4 sm:mb-6 flex items-center justify-between">
+                <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Duyệt và mua yêu cầu #{editingRequest.id}</h2>
                 <button
                   onClick={handleCancelApproval}
                   className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                 >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Thông tin yêu cầu */}
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     <div>
                       <p className="text-sm text-gray-500">Người đề nghị</p>
                       <p className="font-medium text-gray-900">{editingRequest.requester}</p>
@@ -626,7 +635,7 @@ export default function ApprovalsPage() {
 
                 {/* Bảng chỉnh sửa vật tư */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Chỉnh sửa thông tin mua hàng</h3>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Chỉnh sửa thông tin mua hàng</h3>
                   {editedItems.length === 0 ? (
                     <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
                       <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -636,68 +645,132 @@ export default function ApprovalsPage() {
                       <p className="mt-1 text-sm text-gray-500">Tất cả vật tư đã bị xóa khỏi yêu cầu.</p>
                     </div>
                   ) : (
-                    <div className="overflow-hidden rounded-lg border border-gray-200">
-                      <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">STT</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Tên vật tư</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">ĐVT</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Số lượng</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Đơn giá (VNĐ)</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Thành tiền</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Hành động</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 bg-white">
-                        {editedItems.map((item, index) => {
-                          const unitPrice = item.unitPrice || 0;
-                          const quantity = item.quantity;
-                          const subtotal = unitPrice * quantity;
-                          
-                          return (
-                            <tr key={item.id}>
-                              <td className="px-4 py-3 text-sm text-gray-700">{index + 1}</td>
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.name}</td>
-                              <td className="px-4 py-3 text-sm text-gray-700">{item.unit}</td>
-                              <td className="px-4 py-3">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={quantity}
-                                  onChange={(e) => handleItemChange(item.id, 'quantity', Number(e.target.value))}
-                                  className="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                                />
-                              </td>
-                              <td className="px-4 py-3">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={unitPrice}
-                                  onChange={(e) => handleItemChange(item.id, 'unitPrice', Number(e.target.value))}
-                                  className="w-32 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                                  placeholder="0"
-                                />
-                              </td>
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                                {subtotal.toLocaleString('vi-VN')} VNĐ
-                              </td>
-                              <td className="px-4 py-3">
+                    <div className="space-y-3">
+                      {editedItems.map((item, index) => {
+                        const unitPrice = item.unitPrice || 0;
+                        const quantity = item.quantity;
+                        const subtotal = unitPrice * quantity;
+                        
+                        return (
+                          <div key={item.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                            {/* Mobile Layout */}
+                            <div className="block sm:hidden">
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
+                                    <span className="text-xs font-bold text-orange-600">{index + 1}</span>
+                                  </div>
+                                  <h4 className="text-sm font-semibold text-gray-900 truncate">{item.name}</h4>
+                                </div>
                                 <button
                                   onClick={() => handleRemoveItem(item.id)}
                                   className="inline-flex items-center rounded-lg bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500"
                                 >
-                                  <svg className="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                   </svg>
-                                  Xóa
                                 </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 mb-1">ĐVT</label>
+                                  <div className="text-sm font-semibold text-gray-900">{item.unit}</div>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 mb-1">Số lượng</label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={quantity}
+                                    onChange={(e) => handleItemChange(item.id, 'quantity', Number(e.target.value))}
+                                    className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 mb-1">Đơn giá (đ)</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={unitPrice}
+                                    onChange={(e) => handleItemChange(item.id, 'unitPrice', Number(e.target.value))}
+                                    className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                                    placeholder="0"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 mb-1">Thành tiền</label>
+                                  <div className="text-sm font-bold text-green-600">
+                                    {subtotal.toLocaleString('vi-VN')} đ
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Desktop Layout */}
+                            <div className="hidden sm:block">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 flex-1">
+                                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                                    <span className="text-sm font-bold text-orange-600">{index + 1}</span>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="text-sm font-semibold text-gray-900 truncate">{item.name}</h4>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-4">
+                                  <div className="text-center">
+                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">ĐVT</div>
+                                    <div className="text-sm font-bold text-gray-700 mt-1">{item.unit}</div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Số lượng</div>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={quantity}
+                                      onChange={(e) => handleItemChange(item.id, 'quantity', Number(e.target.value))}
+                                      className="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                                    />
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Đơn giá (đ)</div>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={unitPrice}
+                                      onChange={(e) => handleItemChange(item.id, 'unitPrice', Number(e.target.value))}
+                                      className="w-32 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                                      placeholder="0"
+                                    />
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Thành tiền</div>
+                                    <div className="text-sm font-bold text-green-600 mt-1">
+                                      {subtotal.toLocaleString('vi-VN')} đ
+                                    </div>
+                                  </div>
+                                  <div className="text-center">
+                                    <button
+                                      onClick={() => handleRemoveItem(item.id)}
+                                      className="inline-flex items-center rounded-lg bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    >
+                                      <svg className="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                      Xóa
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -709,10 +782,10 @@ export default function ApprovalsPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-700">Tổng phụ:</span>
                         <span className="text-sm font-semibold text-gray-900">
-                          {calculateSubtotal().toLocaleString('vi-VN')} VNĐ
+                          {calculateSubtotal().toLocaleString('vi-VN')} đ
                         </span>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-gray-700">Giảm giá tiền mặt:</span>
                           <input
@@ -721,20 +794,20 @@ export default function ApprovalsPage() {
                             max={calculateSubtotal()}
                             value={totalDiscountAmount}
                             onChange={(e) => setTotalDiscountAmount(Number(e.target.value))}
-                            className="w-32 rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                            className="w-24 sm:w-32 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs sm:text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
                             placeholder="0"
                           />
-                          <span className="text-sm text-gray-500">VNĐ</span>
+                          <span className="text-xs sm:text-sm text-gray-500">đ</span>
                         </div>
                         <span className="text-sm font-semibold text-red-600">
-                          -{totalDiscountAmount.toLocaleString('vi-VN')} VNĐ
+                          -{totalDiscountAmount.toLocaleString('vi-VN')} đ
                         </span>
                       </div>
                       <div className="border-t border-gray-200 pt-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-lg font-semibold text-gray-900">Tổng cộng:</span>
-                          <span className="text-2xl font-bold text-orange-600">
-                            {calculateTotal().toLocaleString('vi-VN')} VNĐ
+                          <span className="text-base sm:text-lg font-semibold text-gray-900">Tổng cộng:</span>
+                          <span className="text-lg sm:text-2xl font-bold text-orange-600">
+                            {calculateTotal().toLocaleString('vi-VN')} đ
                           </span>
                         </div>
                       </div>
@@ -744,7 +817,7 @@ export default function ApprovalsPage() {
               </div>
 
               {/* Nút hành động */}
-              <div className="mt-6 flex items-center justify-end gap-3">
+              <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
                 <button
                   onClick={handleCancelApproval}
                   disabled={isSubmitting}
@@ -755,7 +828,7 @@ export default function ApprovalsPage() {
                 <button
                   onClick={handleConfirmApproval}
                   disabled={isSubmitting || editedItems.length === 0}
-                  className="inline-flex items-center rounded-lg bg-gradient-to-r from-green-500 via-green-600 to-green-700 px-6 py-2.5 text-sm font-bold text-white shadow hover:from-green-600 hover:via-green-700 hover:to-green-800 focus:outline-none focus:ring-4 focus:ring-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-green-500 via-green-600 to-green-700 px-4 sm:px-6 py-2.5 text-sm font-bold text-white shadow hover:from-green-600 hover:via-green-700 hover:to-green-800 focus:outline-none focus:ring-4 focus:ring-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <>
@@ -763,10 +836,14 @@ export default function ApprovalsPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Đang xử lý...
+                      <span className="hidden sm:inline">Đang xử lý...</span>
+                      <span className="sm:hidden">Đang xử lý</span>
                     </>
                   ) : (
-                    'Xác nhận duyệt và mua'
+                    <>
+                      <span className="hidden sm:inline">Xác nhận duyệt và mua</span>
+                      <span className="sm:hidden">Duyệt và mua</span>
+                    </>
                   )}
                 </button>
               </div>

@@ -142,9 +142,9 @@ export default function MaterialsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-gray-800">Danh sách vật tư</h1>
+        <h1 className="text-xl sm:text-2xl font-black text-gray-800">Danh sách vật tư</h1>
       </div>
 
       {/* Loading state */}
@@ -176,7 +176,7 @@ export default function MaterialsPage() {
 
       {/* Materials table */}
       {!loading && !error && (
-        <div className="overflow-visible rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -184,7 +184,7 @@ export default function MaterialsPage() {
                   <th
                     key={col.key}
                     scope="col"
-                    className={`px-4 py-3 text-xs font-black uppercase tracking-wider text-gray-600 ${
+                    className={`px-2 sm:px-4 py-3 text-xs font-black uppercase tracking-wider text-gray-600 ${
                       col.key === 'actions' ? 'text-center' : 'text-left'
                     }`}
                   >
@@ -196,16 +196,16 @@ export default function MaterialsPage() {
             <tbody className="divide-y divide-gray-100 bg-white">
               {materials.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={columns.length} className="px-2 sm:px-4 py-8 text-center text-gray-500">
                     Không có vật tư nào
                   </td>
                 </tr>
               ) : (
                 materials.map((m, index) => (
               <tr key={m.id} className="hover:bg-orange-50/40">
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-700">{index + 1}</td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  <div className="h-12 w-12 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
+                <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm text-gray-700">{index + 1}</td>
+                <td className="whitespace-nowrap px-2 sm:px-4 py-3">
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
                     {m.imageUrl ? (
                       // 使用原生 img 以避免 next/image 额外配置
                       <img
@@ -222,10 +222,10 @@ export default function MaterialsPage() {
                     )}
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm font-bold text-gray-800">{m.name}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-700">{m.type}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-700">{m.amount.toLocaleString('vi-VN')}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm relative">
+                <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm font-bold text-gray-800">{m.name}</td>
+                <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm font-semibold text-gray-700">{m.type}</td>
+                <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm font-semibold text-gray-700">{m.amount.toLocaleString('vi-VN')}</td>
+                <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm relative">
                   <div className="relative flex justify-center" ref={el => { dropdownRefs.current[m.id] = el; }}>
                     <button
                       type="button"
@@ -239,9 +239,9 @@ export default function MaterialsPage() {
                     </button>
 
                     {openDropdown === m.id && (
-                      <div className="fixed z-[9999] w-48 origin-top rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none" 
+                      <div className="fixed z-[9999] w-40 sm:w-48 origin-top rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none" 
                            style={{
-                             left: `${(dropdownRefs.current[m.id]?.getBoundingClientRect().left || 0) + (dropdownRefs.current[m.id]?.getBoundingClientRect().width || 0) / 2 - 96}px`,
+                             left: `${Math.max(8, Math.min((dropdownRefs.current[m.id]?.getBoundingClientRect().left || 0) + (dropdownRefs.current[m.id]?.getBoundingClientRect().width || 0) / 2 - 80, window.innerWidth - 168))}px`,
                              top: `${(dropdownRefs.current[m.id]?.getBoundingClientRect().bottom || 0) + 8}px`
                            }}>
                         <div className="py-1">
@@ -290,9 +290,9 @@ export default function MaterialsPage() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={handleCancelRequest}></div>
-            <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <div className="relative w-full max-w-md mx-4 rounded-xl bg-white p-4 sm:p-6 shadow-xl">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-black text-gray-900">Yêu cầu sử dụng vật tư</h2>
+                <h2 className="text-lg sm:text-xl font-black text-gray-900">Yêu cầu sử dụng vật tư</h2>
                 <button
                   onClick={handleCancelRequest}
                   className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"

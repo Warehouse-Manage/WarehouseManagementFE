@@ -84,11 +84,12 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Save role, userName, name, id, and token to cookies (24 hours)
+        // Save role, userName, name, id, department, and token to cookies (24 hours)
         document.cookie = `role=${data.user.role}; path=/; max-age=86400`;
         document.cookie = `userName=${encodeURIComponent(data.user.userName || '')}; path=/; max-age=86400`;
         document.cookie = `name=${encodeURIComponent(data.user.name || '')}; path=/; max-age=86400`;
         document.cookie = `userId=${data.user.id}; path=/; max-age=86400`;
+        document.cookie = `department=${encodeURIComponent(data.user.department || '')}; path=/; max-age=86400`;
         document.cookie = `token=${data.token}; path=/; max-age=86400`;
         
         console.log('Đăng nhập thành công:', data);
@@ -199,10 +200,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-white flex items-center justify-center px-2 sm:px-4 py-4 sm:py-8">
       <div className="w-full max-w-md">
         {/* 登录卡片 */}
-        <div className="bg-white rounded-xl shadow-md p-8 border border-gray-200">
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-8 border border-gray-200">
           {/* 头部 */}
           <div className="text-center mb-6">
             <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow">
@@ -210,7 +211,7 @@ export default function LoginPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-1 tracking-tight">Chào mừng trở lại</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1 tracking-tight">Chào mừng trở lại</h1>
             <p className="text-gray-600 text-sm">Vui lòng đăng nhập vào tài khoản của bạn</p>
           </div>
 
@@ -373,9 +374,9 @@ export default function LoginPage() {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={() => setShowForgotPassword(false)}></div>
-            <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <div className="relative w-full max-w-md mx-4 rounded-xl bg-white p-4 sm:p-6 shadow-xl">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Quên mật khẩu</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Quên mật khẩu</h2>
                 <button
                   onClick={() => setShowForgotPassword(false)}
                   className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"

@@ -31,7 +31,7 @@ export default function RootLayout({
         className={`${inter.variable} ${notoSans.variable} font-sans antialiased`}
       >
         <NavbarContainer />
-        <main className="mx-auto max-w-6xl px-4 sm:px-6 py-6">
+        <main className="mx-auto max-w-6xl px-2 sm:px-4 lg:px-6 py-4 sm:py-6">
           {children}
         </main>
       </body>
