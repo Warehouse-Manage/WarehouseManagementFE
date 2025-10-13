@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 
@@ -107,8 +108,16 @@ export default function Navbar() {
       <div className="h-14 flex items-center justify-between px-4">
         {/* Logo/Brand - left side */}
         <div className="flex items-center">
-          <h1 className="text-lg font-bold text-gray-900 hidden sm:block">Quản lý kho</h1>
-          <h1 className="text-lg font-bold text-gray-900 sm:hidden">Kho</h1>
+          <Link href="/" aria-label="Trang chủ">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={40}
+              height={40}
+              className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-full border border-gray-200"
+              priority
+            />
+          </Link>
         </div>
 
         {/* Desktop Navigation - hidden on mobile */}

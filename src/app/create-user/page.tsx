@@ -54,7 +54,7 @@ export default function CreateUserPage() {
     }
     
     // Only allow admin role to access this page
-    if (role !== 'admin') {
+    if (role !== 'Admin') {
       router.push('/');
       return;
     }
@@ -263,7 +263,7 @@ export default function CreateUserPage() {
                 }`}
               >
                 <option value="user">Người dùng</option>
-                <option value="admin">Quản trị viên</option>
+                <option value="Admin">Quản trị viên</option>
                 <option value="approver">Người duyệt</option>
               </select>
               {errors.role && <p className="mt-1 text-sm text-red-600">{errors.role}</p>}

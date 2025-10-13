@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import NavbarContainer from "./components/NavbarContainer";
 import { Inter, Noto_Sans } from "next/font/google";
 import "./globals.css";
+import Script from "next/script";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -18,6 +19,20 @@ const notoSans = Noto_Sans({
 export const metadata: Metadata = {
   title: "Ứng dụng quản lý kho",
   description: "Ứng dụng quản lý kho nội bộ công ty",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Quản lý kho",
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#ea4c00",
 };
 
 export default function RootLayout({
@@ -27,6 +42,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
+      <head>
+        <link rel="apple-touch-icon" href="/icon512_rounded.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Quản lý kho" />
+      </head>
       <body
         className={`${inter.variable} ${notoSans.variable} font-sans antialiased`}
       >
@@ -34,6 +55,86 @@ export default function RootLayout({
         <main className="mx-auto max-w-6xl px-2 sm:px-4 lg:px-6 py-4 sm:py-6">
           {children}
         </main>
+        <Script
+          id="sw-register"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              let deferredPrompt;
+              let installButton;
+              
+              // Register service worker
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                      console.log('SW registered: ', registration);
+                    })
+                    .catch(function(registrationError) {
+                      console.log('SW registration failed: ', registrationError);
+                    });
+                });
+              }
+              
+              // Handle install prompt
+              window.addEventListener('beforeinstallprompt', function(e) {
+                console.log('beforeinstallprompt event fired');
+                e.preventDefault();
+                deferredPrompt = e;
+                
+                // Show install button
+                showInstallButton();
+              });
+              
+              function showInstallButton() {
+                if (!installButton) {
+                  installButton = document.createElement('button');
+                  installButton.textContent = '📱 Cài đặt ứng dụng';
+                  installButton.style.cssText = \`
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 1000;
+                    background: #ea4c00;
+                    color: white;
+                    border: none;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                  \`;
+                  
+                  installButton.addEventListener('click', function() {
+                    if (deferredPrompt) {
+                      deferredPrompt.prompt();
+                      deferredPrompt.userChoice.then(function(choiceResult) {
+                        if (choiceResult.outcome === 'accepted') {
+                          console.log('User accepted the install prompt');
+                        } else {
+                          console.log('User dismissed the install prompt');
+                        }
+                        deferredPrompt = null;
+                        installButton.style.display = 'none';
+                      });
+                    }
+                  });
+                  
+                  document.body.appendChild(installButton);
+                }
+                installButton.style.display = 'block';
+              }
+              
+              // Hide install button after installation
+              window.addEventListener('appinstalled', function() {
+                console.log('PWA was installed');
+                if (installButton) {
+                  installButton.style.display = 'none';
+                }
+              });
+            `,
+          }}
+        />
       </body>
     </html>
   );

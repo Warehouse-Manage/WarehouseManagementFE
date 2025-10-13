@@ -24,7 +24,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Chặn quyền truy cập trang tạo người dùng - chỉ admin mới được truy cập
-  if (pathname.startsWith('/create-user') && role !== 'admin') {
+  if (pathname.startsWith('/create-user') && role !== 'Admin') {
     const url = new URL('/', request.url);
     return NextResponse.redirect(url);
   }
