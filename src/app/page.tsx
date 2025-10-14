@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 type Material = {
   id: number;
@@ -12,9 +12,11 @@ type Material = {
 };
 
 export default function MaterialsPage() {
+  const router = useRouter();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -36,21 +38,51 @@ export default function MaterialsPage() {
     []
   );
 
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('token');
+      const user = localStorage.getItem('user');
+      
+      if (!token || !user) {
+        setIsAuthenticated(false);
+        router.push('/login');
+        return;
+      }
+      
+      setIsAuthenticated(true);
+    };
+
+    checkAuth();
+  }, [router]);
+
   // Fetch materials from API
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     const fetchMaterials = async () => {
       try {
         setLoading(true);
         setError(null);
         
+        const token = localStorage.getItem('token');
+        
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materials`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
         });
 
         if (!response.ok) {
+          if (response.status === 401) {
+            // Token expired or invalid
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            router.push('/login');
+            return;
+          }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
@@ -65,7 +97,7 @@ export default function MaterialsPage() {
     };
 
     fetchMaterials();
-  }, []);
+  }, [isAuthenticated, router]);
 
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {
@@ -140,6 +172,26 @@ export default function MaterialsPage() {
     setRequestQuantity(1);
     setRequestNote('');
   };
+
+  // Show loading while checking authentication
+  if (isAuthenticated === null) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="flex items-center space-x-2">
+          <svg className="animate-spin h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span className="text-gray-600">Đang kiểm tra xác thực...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render content if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
