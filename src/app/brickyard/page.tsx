@@ -2,23 +2,25 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { getCookie } from '@/lib/ultis';
 
 // Client-side guard: redirect role 'user' away from this page
-const getCookie = (name: string): string | null => {
-  if (typeof document === 'undefined') return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) {
-    return parts.pop()?.split(';').shift() || null;
-  }
-  return null;
-};
 
 interface BrickYardStatus {
   id: number;
   packageQuantity: number;
   dateTime: string;
 }
+
+interface BrickYardAggregated {
+  totalPackageQuantity: number;
+  periodStart: string;
+  periodEnd: string;
+  periodType: string;
+  recordCount: number;
+}
+
+type ChartDatum = { label: string; value: number };
 
 interface FilterOptions {
   type: 'today' | 'day' | 'month' | 'year' | 'range';
@@ -42,6 +44,7 @@ export default function BrickYardPage() {
   });
   const [canFetch, setCanFetch] = useState<boolean>(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [chartData, setChartData] = useState<ChartDatum[]>([]);
 
   useEffect(() => {
     const role = getCookie('role');
@@ -71,15 +74,18 @@ export default function BrickYardPage() {
       
       let url = `${process.env.NEXT_PUBLIC_API_HOST}/api/brickyardstatus`;
       const params = new URLSearchParams();
+      let apiType: 'hour' | 'date' | 'month' | undefined;
 
       switch (filter.type) {
         case 'today':
           const today = new Date().toISOString().split('T')[0];
           params.append('date', today);
+          apiType = 'hour';
           break;
         case 'day':
           if (filter.date) {
             params.append('date', filter.date);
+            apiType = 'hour';
           }
           break;
         case 'month':
@@ -88,6 +94,7 @@ export default function BrickYardPage() {
             const endDate = new Date(parseInt(filter.year), parseInt(filter.month), 0).toISOString().split('T')[0];
             params.append('startDate', startDate);
             params.append('endDate', endDate);
+            apiType = 'date';
           }
           break;
         case 'year':
@@ -96,14 +103,20 @@ export default function BrickYardPage() {
             const endDate = `${filter.year}-12-31`;
             params.append('startDate', startDate);
             params.append('endDate', endDate);
+            apiType = 'month';
           }
           break;
         case 'range':
           if (filter.startDate && filter.endDate) {
             params.append('startDate', filter.startDate);
             params.append('endDate', filter.endDate);
+            apiType = 'date';
           }
           break;
+      }
+
+      if (apiType) {
+        params.append('type', apiType);
       }
 
       if (params.toString()) {
@@ -116,7 +129,51 @@ export default function BrickYardPage() {
       }
 
       const data = await response.json();
-      setStatuses(data);
+
+      if (Array.isArray(data) && data.length > 0 && 'totalPackageQuantity' in data[0]) {
+        const aggregated = data as BrickYardAggregated[];
+        // Map for table/stats reuse
+        const mappedStatuses: BrickYardStatus[] = aggregated.map((item, idx) => ({
+          id: idx + 1,
+          packageQuantity: item.totalPackageQuantity,
+          dateTime: item.periodStart
+        }));
+        setStatuses(mappedStatuses);
+
+        // Build chart data
+        const typeForLabel = aggregated[0].periodType.toLowerCase();
+        const chart = aggregated.map(item => {
+          const d = new Date(item.periodStart);
+          let label = '';
+          switch (typeForLabel) {
+            case 'hour':
+              label = `${d.getHours().toString().padStart(2, '0')}:00`;
+              break;
+            case 'date':
+              label = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}`;
+              break;
+            case 'month':
+              label = `${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+              break;
+            case 'year':
+              label = `${d.getFullYear()}`;
+              break;
+            default:
+              label = d.toLocaleDateString('vi-VN');
+          }
+          return { label, value: item.totalPackageQuantity } as ChartDatum;
+        });
+        setChartData(chart);
+      } else {
+        // Raw data fallback
+        const items = (data as BrickYardStatus[]);
+        setStatuses(items);
+        const chart = items.map(item => ({
+          label: new Date(item.dateTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+          value: item.packageQuantity
+        }));
+        setChartData(chart);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Có lỗi xảy ra');
     } finally {
@@ -170,6 +227,41 @@ export default function BrickYardPage() {
 
   const getAverageQuantity = () => {
     return statuses.length > 0 ? Math.round(getTotalQuantity() / statuses.length) : 0;
+  };
+
+  const Chart = ({ data }: { data: ChartDatum[] }) => {
+    const maxValue = Math.max(1, ...data.map(d => d.value));
+    const barWidth = 28;
+    const gap = 16;
+    const height = 220;
+    const width = data.length * (barWidth + gap) + gap;
+
+    return (
+      <div className="w-full overflow-x-auto">
+        <svg width={width} height={height + 40} className="text-gray-700">
+          {data.map((d, i) => {
+            const x = gap + i * (barWidth + gap);
+            const barHeight = Math.round((d.value / maxValue) * height);
+            const y = height - barHeight;
+            return (
+              <g key={i}>
+                <rect x={x} y={y} width={barWidth} height={barHeight} rx={4} className="fill-orange-500" />
+                <text x={x + barWidth / 2} y={height + 16} textAnchor="middle" fontSize={10} className="fill-current">
+                  {d.label}
+                </text>
+                <text x={x + barWidth / 2} y={y - 6} textAnchor="middle" fontSize={10} className="fill-current">
+                  {d.value}
+                </text>
+              </g>
+            );
+          })}
+          {/* y-axis line */}
+          <line x1={gap / 2} y1={0} x2={gap / 2} y2={height} className="stroke-gray-300" />
+          {/* x-axis line */}
+          <line x1={0} y1={height} x2={width} y2={height} className="stroke-gray-300" />
+        </svg>
+      </div>
+    );
   };
 
   // Show loading screen while checking authentication
@@ -377,6 +469,12 @@ export default function BrickYardPage() {
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold">Dữ liệu tình trạng lò gạch</h2>
         </div>
+        {/* Column Chart */}
+        {!loading && !error && chartData.length > 0 && (
+          <div className="px-6 py-4">
+            <Chart data={chartData} />
+          </div>
+        )}
         
         {loading ? (
           <div className="p-8 text-center">

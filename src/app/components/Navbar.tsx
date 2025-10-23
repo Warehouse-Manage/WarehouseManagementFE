@@ -4,6 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
+import NotificationRequest from './Notification';
+import { getCookie } from '@/lib/ultis';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -14,16 +16,6 @@ export default function Navbar() {
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   
-  // Function để lấy cookie value
-  const getCookie = (name: string): string | null => {
-    if (typeof document === 'undefined') return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-      return parts.pop()?.split(';').shift() || null;
-    }
-    return null;
-  };
   
   // Lấy userName và role từ cookie khi component mount
   useEffect(() => {
@@ -181,6 +173,11 @@ export default function Navbar() {
               )}
             </svg>
           </button>
+
+          {/* Notification component */}
+          <div className="flex items-center">
+            <NotificationRequest />
+          </div>
 
           {/* User avatar */}
           <div className="relative" ref={userDropdownRef}>

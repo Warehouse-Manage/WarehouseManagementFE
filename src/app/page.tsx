@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getCookie } from '@/lib/ultis';
 
 type Material = {
   id: number;
@@ -11,12 +12,13 @@ type Material = {
   type: string;
 };
 
+
 export default function MaterialsPage() {
   const router = useRouter();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -40,25 +42,20 @@ export default function MaterialsPage() {
 
   // Check authentication status
   useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem('token');
-      const user = localStorage.getItem('user');
-      
-      if (!token || !user) {
-        setIsAuthenticated(false);
-        router.push('/login');
-        return;
-      }
-      
-      setIsAuthenticated(true);
-    };
-
-    checkAuth();
+    const userId = getCookie('userId');
+    const userName = getCookie('userName');
+    
+    if (!userId || !userName) {
+      router.push('/login');
+      return;
+    }
+    
+    setIsCheckingAuth(false);
   }, [router]);
 
-  // Fetch materials from API
+  // Fetch materials from API (only after auth check)
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (isCheckingAuth) return; // Don't fetch until auth check is complete
 
     const fetchMaterials = async () => {
       try {
@@ -97,7 +94,7 @@ export default function MaterialsPage() {
     };
 
     fetchMaterials();
-  }, [isAuthenticated, router]);
+  }, [isCheckingAuth]);
 
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {
@@ -174,7 +171,7 @@ export default function MaterialsPage() {
   };
 
   // Show loading while checking authentication
-  if (isAuthenticated === null) {
+  if (isCheckingAuth) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="flex items-center space-x-2">
@@ -186,11 +183,6 @@ export default function MaterialsPage() {
         </div>
       </div>
     );
-  }
-
-  // Don't render content if not authenticated (will redirect)
-  if (!isAuthenticated) {
-    return null;
   }
 
   return (
