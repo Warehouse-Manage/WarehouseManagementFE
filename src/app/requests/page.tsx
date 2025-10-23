@@ -2,17 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { sendNotification } from "../../../actions/notification";
+import { getCookie } from "@/lib/ultis";
 
-// Helper function to get cookie value
-const getCookie = (name: string): string | null => {
-  if (typeof document === 'undefined') return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) {
-    return parts.pop()?.split(';').shift() || null;
-  }
-  return null;
-};
 
 type RequestItem = {
   id: number;
@@ -32,6 +24,19 @@ type Material = {
   type: string;
   amount: number;
   imageUrl?: string;
+};
+
+type UserWithNotification = {
+  id: number;
+  userName: string;
+  name: string;
+  role: string;
+  department: string;
+  notificationEnabled: boolean;
+  notificationEndpoint?: string;
+  notificationP256dh?: string;
+  notificationAuth?: string;
+  notificationSubscriptionDate?: string;
 };
 
 
@@ -59,6 +64,7 @@ export default function RequestsPage() {
   
   // User authentication
   const [userId, setUserId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Initialize user ID and check authentication
@@ -66,8 +72,10 @@ export default function RequestsPage() {
     const userUserId = getCookie('userId');
     const userUserName = getCookie('userName');
     const userDepartment = getCookie('department');
+    const userUserRole = getCookie('role');
     
     setUserId(userUserId);
+    setUserRole(userUserRole);
     
     // Set department from cookies if available
     if (userDepartment) {
@@ -253,6 +261,79 @@ export default function RequestsPage() {
     ));
   };
 
+  // Function to get admin and approver users for notifications
+  const getAdminAndApproverUsers = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/notification/users-with-subscriptions`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const users: UserWithNotification[] = await response.json();
+
+      const test = users.findLast((user: UserWithNotification) => true);
+
+      console.log(test);
+      console.log(test?.role);
+      console.log(users.filter((user: UserWithNotification) => 
+        user.role == "approver"
+        // (user.Role === 'admin' || user.Role === 'approver') && 
+        // user.NotificationEnabled && 
+        // user.NotificationEndpoint
+      ));
+      // Filter users with admin or approver roles who have notification subscriptions
+      return users.filter((user: UserWithNotification) => 
+        (user.role === 'admin' || user.role === 'approver') && 
+        user.notificationEnabled && 
+        user.notificationEndpoint
+      );
+    } catch (error) {
+      console.error('Error fetching admin/approver users:', error);
+      return [];
+    }
+  };
+
+  // Function to send notifications to admin/approver users
+  const sendNotificationsToAdmins = async (requestData: { items: { materialId: number; requestedQuantity: number; note: string }[] }) => {
+    try {
+      const adminUsers = await getAdminAndApproverUsers();
+      console.log(adminUsers);
+      if (adminUsers.length === 0) {
+        console.log('No admin/approver users with notifications enabled');
+        return;
+      }
+
+      const notificationPromises = adminUsers.map(async (user: UserWithNotification) => {
+        try {
+          await sendNotification(
+            `Có yêu cầu mua vật tư mới từ ${department || 'phòng ban không xác định'}. Số lượng vật tư: ${requestData.items.length}`,
+            user.id.toString(),
+            "/icon-192x192.png",
+            "Yêu cầu mua vật tư mới",
+            {
+              endpoint: user.notificationEndpoint || '',
+              p256dh: user.notificationP256dh || '',
+              auth: user.notificationAuth || ''
+            }
+          );
+        } catch (error) {
+          console.error(`Failed to send notification to user ${user.id}:`, error);
+        }
+      });
+
+      await Promise.all(notificationPromises);
+      console.log(`Sent notifications to ${adminUsers.length} admin/approver users`);
+    } catch (error) {
+      console.error('Error sending notifications to admins:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -300,6 +381,17 @@ export default function RequestsPage() {
 
       const result = await response.json();
       console.log("Đề nghị mua vật tư đã tạo:", result);
+      
+      // Send notifications to admin/approver users if current user role is "user"
+      if (userRole === 'user') {
+        try {
+          await sendNotificationsToAdmins(payload);
+        } catch (notificationError) {
+          console.error('Error sending notifications:', notificationError);
+          // Don't fail the request if notifications fail
+        }
+      }
+      
       alert("Gửi đề nghị thành công!");
       
       // Reset form (keep department from cookies)
