@@ -62,7 +62,15 @@ export default function MaterialsPage() {
         setLoading(true);
         setError(null);
         
-        const token = localStorage.getItem('token');
+        // Check if localStorage is available (iOS Safari private mode)
+        let token = null;
+        try {
+          token = localStorage.getItem('token');
+        } catch (error) {
+          console.warn('localStorage not available:', error);
+          setError('Trình duyệt không hỗ trợ lưu trữ cục bộ. Vui lòng kiểm tra cài đặt riêng tư.');
+          return;
+        }
         
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materials`, {
           method: 'GET',
@@ -75,8 +83,12 @@ export default function MaterialsPage() {
         if (!response.ok) {
           if (response.status === 401) {
             // Token expired or invalid
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
+            try {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+            } catch (error) {
+              console.warn('Could not clear localStorage:', error);
+            }
             router.push('/login');
             return;
           }
@@ -94,7 +106,7 @@ export default function MaterialsPage() {
     };
 
     fetchMaterials();
-  }, [isCheckingAuth]);
+  }, [isCheckingAuth, router]);
 
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {

@@ -63,8 +63,13 @@ export default function RootLayout({
               let deferredPrompt;
               let installButton;
               
-              // Register service worker
-              if ('serviceWorker' in navigator) {
+              // iOS detection
+              const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+              const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+              const isIOSChrome = /CriOS/.test(navigator.userAgent);
+              
+              // Register service worker with iOS compatibility
+              if ('serviceWorker' in navigator && !isIOS) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js')
                     .then(function(registration) {
@@ -74,17 +79,37 @@ export default function RootLayout({
                       console.log('SW registration failed: ', registrationError);
                     });
                 });
+              } else if (isIOS) {
+                console.log('Service Worker registration skipped on iOS for compatibility');
               }
               
-              // Handle install prompt
-              window.addEventListener('beforeinstallprompt', function(e) {
-                console.log('beforeinstallprompt event fired');
-                e.preventDefault();
-                deferredPrompt = e;
-                
-                // Show install button
-                showInstallButton();
+              // Global error handler for iOS compatibility
+              window.addEventListener('error', function(event) {
+                console.error('Global error caught:', event.error);
+                // Don't show error alerts on iOS to avoid blocking the UI
+                if (!isIOS) {
+                  console.error('Application error:', event.error);
+                }
               });
+              
+              // Handle unhandled promise rejections
+              window.addEventListener('unhandledrejection', function(event) {
+                console.error('Unhandled promise rejection:', event.reason);
+                // Prevent the default behavior (which would log to console)
+                event.preventDefault();
+              });
+              
+              // Handle install prompt (skip on iOS)
+              if (!isIOS) {
+                window.addEventListener('beforeinstallprompt', function(e) {
+                  console.log('beforeinstallprompt event fired');
+                  e.preventDefault();
+                  deferredPrompt = e;
+                  
+                  // Show install button
+                  showInstallButton();
+                });
+              }
               
               function showInstallButton() {
                 if (!installButton) {
