@@ -28,23 +28,35 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Push event handler for iOS 16.4+ Safari
+// Enhanced push event handler with better iOS/Android support
 self.addEventListener('push', function(event) {
   console.log('Push event received:', event);
   
+  let notificationData = {
+    title: 'Warehouse Management',
+    body: 'You have a new notification',
+    icon: '/icon512_rounded.png',
+    badge: '/icon512_rounded.png',
+    tag: 'warehouse-notification',
+    requireInteraction: false,
+    data: {},
+    actions: []
+  };
+
   if (event.data) {
     try {
       const data = event.data.json();
       console.log('Push data:', data);
       
-      const options = {
-        body: data.body || 'New notification',
+      notificationData = {
+        title: data.title || 'Warehouse Management',
+        body: data.body || 'You have a new notification',
         icon: data.icon || '/icon512_rounded.png',
         badge: data.badge || '/icon512_rounded.png',
-        tag: 'warehouse-notification',
-        requireInteraction: true, // Important for iOS
+        tag: data.tag || 'warehouse-notification',
+        requireInteraction: data.requireInteraction || false,
         data: data.data || {},
-        actions: [
+        actions: data.actions || [
           {
             action: 'view',
             title: 'View',
@@ -57,35 +69,25 @@ self.addEventListener('push', function(event) {
           }
         ]
       };
-      
-      event.waitUntil(
-        self.registration.showNotification(data.title || 'Warehouse Management', options)
-      );
     } catch (error) {
       console.error('Error processing push data:', error);
-      // Fallback notification
-      event.waitUntil(
-        self.registration.showNotification('Warehouse Management', {
-          body: 'You have a new notification',
-          icon: '/icon512_rounded.png',
-          badge: '/icon512_rounded.png',
-          tag: 'warehouse-notification',
-          requireInteraction: true
-        })
-      );
     }
-  } else {
-    // Fallback for push events without data
-    event.waitUntil(
-      self.registration.showNotification('Warehouse Management', {
-        body: 'You have a new notification',
-        icon: '/icon512_rounded.png',
-        badge: '/icon512_rounded.png',
-        tag: 'warehouse-notification',
-        requireInteraction: true
-      })
-    );
   }
+
+  event.waitUntil(
+    self.registration.showNotification(notificationData.title, {
+      body: notificationData.body,
+      icon: notificationData.icon,
+      badge: notificationData.badge,
+      tag: notificationData.tag,
+      requireInteraction: notificationData.requireInteraction,
+      data: notificationData.data,
+      actions: notificationData.actions,
+      // iOS-specific options
+      silent: false,
+      renotify: true
+    })
+  );
 });
 
 // Notification click handler
