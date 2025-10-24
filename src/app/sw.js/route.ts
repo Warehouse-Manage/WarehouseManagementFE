@@ -4,17 +4,17 @@ const swContent = `
 const CACHE_NAME = 'warehouse-management-v1';
 const urlsToCache = [
   '/',
-  '/manifest.json',
-  '/sw.js'
+  '/manifest.json'
 ];
 
-// Install event - cache resources
+// Install event - cache resources with iOS compatibility
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Service Worker caching files...');
+        // Only cache essential resources to avoid iOS issues
         return cache.addAll(urlsToCache);
       })
       .then(() => {
@@ -23,6 +23,7 @@ self.addEventListener('install', (event) => {
       })
       .catch((error) => {
         console.error('Service Worker installation failed:', error);
+        // Don't fail the installation if caching fails
       })
   );
 });
@@ -47,10 +48,15 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - serve from cache
+// Fetch event - serve from cache with iOS compatibility
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') {
+    return;
+  }
+  
+  // Skip service worker requests to avoid infinite loops
+  if (event.request.url.includes('/sw.js')) {
     return;
   }
   
@@ -65,18 +71,29 @@ self.addEventListener('fetch', (event) => {
         
         console.log('Fetching from network:', event.request.url);
         return fetch(event.request).then((response) => {
-          // Don't cache non-successful responses
+          // Don't cache non-successful responses or non-basic responses
           if (!response || response.status !== 200 || response.type !== 'basic') {
             return response;
           }
           
-          // Clone the response
-          const responseToCache = response.clone();
+          // Only cache essential resources to avoid iOS issues
+          const url = new URL(event.request.url);
+          const shouldCache = url.pathname === '/' || 
+                            url.pathname === '/manifest.json' ||
+                            url.pathname.startsWith('/_next/static/');
           
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+          if (shouldCache) {
+            // Clone the response
+            const responseToCache = response.clone();
+            
+            caches.open(CACHE_NAME)
+              .then((cache) => {
+                cache.put(event.request, responseToCache);
+              })
+              .catch((error) => {
+                console.error('Failed to cache response:', error);
+              });
+          }
           
           return response;
         });

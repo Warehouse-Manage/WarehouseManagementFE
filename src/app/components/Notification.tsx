@@ -18,6 +18,7 @@ export default function NotificationRequest() {
 		"granted" | "denied" | "default"
 	>("granted");
 	const [isSubscribed, setIsSubscribed] = useState(false);
+	const [isIOS, setIsIOS] = useState(false);
 
 	// Check permission status when component mounts
 
@@ -78,6 +79,12 @@ export default function NotificationRequest() {
 	};
 
 	const showNotification = () => {
+		// Check if running on iOS
+		if (isIOS) {
+			toast.info("Push notifications are not fully supported on iOS. Please use Safari for better compatibility.");
+			return;
+		}
+		
 		if ("Notification" in window) {
 			Notification.requestPermission().then((permission) => {
 				setNotificationPermission(permission);
@@ -99,6 +106,12 @@ export default function NotificationRequest() {
 		const userId = getCookie('userId');
 		if (!userId) {
 			toast.error('Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.');
+			return;
+		}
+
+		// Skip service worker registration on iOS
+		if (isIOS) {
+			toast.info("Push notifications are not fully supported on iOS. Please use Safari for better compatibility.");
 			return;
 		}
 
@@ -216,27 +229,34 @@ export default function NotificationRequest() {
 	};
 
 	useEffect(() => {
-		setNotificationPermission(Notification.permission);
+		// Detect iOS
+		const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
+		setIsIOS(isIOSDevice);
 		
-		// Check if user is already subscribed
-		const checkSubscriptionStatus = async () => {
-			const userId = getCookie('userId');
-			if (userId && Notification.permission === 'granted') {
-				try {
-					const registration = await navigator.serviceWorker.getRegistration();
-					if (registration) {
-						const subscription = await registration.pushManager.getSubscription();
-						if (subscription) {
-							setIsSubscribed(true);
+		// Only check notification permission if not iOS
+		if (!isIOSDevice && "Notification" in window) {
+			setNotificationPermission(Notification.permission);
+			
+			// Check if user is already subscribed
+			const checkSubscriptionStatus = async () => {
+				const userId = getCookie('userId');
+				if (userId && Notification.permission === 'granted') {
+					try {
+						const registration = await navigator.serviceWorker.getRegistration();
+						if (registration) {
+							const subscription = await registration.pushManager.getSubscription();
+							if (subscription) {
+								setIsSubscribed(true);
+							}
 						}
+					} catch (error) {
+						console.error('Error checking subscription status:', error);
 					}
-				} catch (error) {
-					console.error('Error checking subscription status:', error);
 				}
-			}
-		};
-		
-		checkSubscriptionStatus();
+			};
+			
+			checkSubscriptionStatus();
+		}
 	}, []);
 
 	// if (isFetching) {
@@ -244,7 +264,11 @@ export default function NotificationRequest() {
 	// }
 	return (
 		<div className=" hover:scale-110 cursor-pointer transition-all">
-			{notificationPermission === "granted" && isSubscribed ? (
+			{isIOS ? (
+				<div title="Push notifications not fully supported on iOS">
+					<BellOff className="opacity-50" />
+				</div>
+			) : notificationPermission === "granted" && isSubscribed ? (
 				<BellRing onClick={removeNotification} />
 			) : (
 				<BellOff onClick={showNotification} />
