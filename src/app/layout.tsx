@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import NavbarContainer from "./components/NavbarContainer";
+import IOSInstructions from "./components/IOSInstructions";
 import { Inter, Noto_Sans } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
@@ -55,6 +56,7 @@ export default function RootLayout({
         <main className="mx-auto max-w-6xl px-2 sm:px-4 lg:px-6 py-4 sm:py-6">
           {children}
         </main>
+        <IOSInstructions />
         <Script
           id="sw-register"
           strategy="afterInteractive"
@@ -63,24 +65,44 @@ export default function RootLayout({
               let deferredPrompt;
               let installButton;
               
-              // iOS detection
+              // iOS detection with version support
               const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
               const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
               const isIOSChrome = /CriOS/.test(navigator.userAgent);
+              const isIOSSafari = isIOS && isSafari;
               
-              // Register service worker with iOS compatibility
-              if ('serviceWorker' in navigator && !isIOS) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                      console.log('SW registered: ', registration);
-                    })
-                    .catch(function(registrationError) {
-                      console.log('SW registration failed: ', registrationError);
-                    });
-                });
-              } else if (isIOS) {
-                console.log('Service Worker registration skipped on iOS for compatibility');
+              // Check iOS version for 16.4+ support
+              const getIOSVersion = () => {
+                const match = navigator.userAgent.match(/OS (\\d+)_(\\d+)/);
+                if (match) {
+                  return parseInt(match[1], 10);
+                }
+                return 0;
+              };
+              
+              const iosVersion = getIOSVersion();
+              const isIOS16_4Plus = isIOS && iosVersion >= 16;
+              
+              // Register service worker with iOS 16.4+ Safari support
+              if ('serviceWorker' in navigator) {
+                if (isIOS && !isIOSSafari) {
+                  console.log('Service Worker registration skipped on iOS Chrome - use Safari for better compatibility');
+                } else if (isIOS && isIOSSafari && !isIOS16_4Plus) {
+                  console.log('Service Worker registration skipped on iOS < 16.4 - update to iOS 16.4+ for push notifications');
+                } else {
+                  window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js')
+                      .then(function(registration) {
+                        console.log('SW registered: ', registration);
+                        if (isIOSSafari && isIOS16_4Plus) {
+                          console.log('iOS 16.4+ Safari detected - push notifications may work');
+                        }
+                      })
+                      .catch(function(registrationError) {
+                        console.log('SW registration failed: ', registrationError);
+                      });
+                  });
+                }
               }
               
               // Global error handler for iOS compatibility

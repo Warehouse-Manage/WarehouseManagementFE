@@ -19,6 +19,8 @@ export default function NotificationRequest() {
 	>("granted");
 	const [isSubscribed, setIsSubscribed] = useState(false);
 	const [isIOS, setIsIOS] = useState(false);
+	const [isIOSSafari, setIsIOSSafari] = useState(false);
+	const [isIOS16_4Plus, setIsIOS16_4Plus] = useState(false);
 
 	// Check permission status when component mounts
 
@@ -79,10 +81,19 @@ export default function NotificationRequest() {
 	};
 
 	const showNotification = () => {
-		// Check if running on iOS
-		if (isIOS) {
-			toast.info("Push notifications are not fully supported on iOS. Please use Safari for better compatibility.");
+		// Enhanced iOS detection and messaging
+		if (isIOS && !isIOSSafari) {
+			toast.info("Push notifications require Safari browser on iOS. Please use Safari instead of Chrome.");
 			return;
+		}
+		
+		if (isIOS && isIOSSafari && !isIOS16_4Plus) {
+			toast.info("Push notifications require iOS 16.4+ and Safari. Please update your iOS version.");
+			return;
+		}
+		
+		if (isIOS && isIOSSafari && isIOS16_4Plus) {
+			toast.info("📱 For iPhone users: Add this app to Home Screen and enable notifications in Safari Settings > Websites > Notifications");
 		}
 		
 		if ("Notification" in window) {
@@ -92,7 +103,7 @@ export default function NotificationRequest() {
 					subscribeUser();
 				} else {
 					toast.info(
-						"please go to setting and enable noitificatoin."
+						"Please go to settings and enable notifications. For iOS Safari: Settings > Safari > Websites > Notifications"
 					);
 				}
 			});
@@ -109,9 +120,14 @@ export default function NotificationRequest() {
 			return;
 		}
 
-		// Skip service worker registration on iOS
-		if (isIOS) {
-			toast.info("Push notifications are not fully supported on iOS. Please use Safari for better compatibility.");
+		// Enhanced iOS handling for 16.4+ Safari
+		if (isIOS && !isIOSSafari) {
+			toast.info("Push notifications require Safari browser on iOS. Please use Safari instead of Chrome.");
+			return;
+		}
+		
+		if (isIOS && isIOSSafari && !isIOS16_4Plus) {
+			toast.info("Push notifications require iOS 16.4+ and Safari. Please update your iOS version.");
 			return;
 		}
 
@@ -229,12 +245,29 @@ export default function NotificationRequest() {
 	};
 
 	useEffect(() => {
-		// Detect iOS
+		// Enhanced iOS detection with version and browser support
 		const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
-		setIsIOS(isIOSDevice);
+		const isSafariBrowser = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+		const isIOSSafariDevice = isIOSDevice && isSafariBrowser;
 		
-		// Only check notification permission if not iOS
-		if (!isIOSDevice && "Notification" in window) {
+		// Check iOS version
+		const getIOSVersion = () => {
+			const match = navigator.userAgent.match(/OS (\\d+)_(\\d+)/);
+			if (match) {
+				return parseInt(match[1], 10);
+			}
+			return 0;
+		};
+		
+		const iosVersion = getIOSVersion();
+		const isIOS16_4PlusDevice = isIOSDevice && iosVersion >= 16;
+		
+		setIsIOS(isIOSDevice);
+		setIsIOSSafari(isIOSSafariDevice);
+		setIsIOS16_4Plus(isIOS16_4PlusDevice);
+		
+		// Check notification permission for supported browsers
+		if ("Notification" in window && (!isIOSDevice || (isIOSSafariDevice && isIOS16_4PlusDevice))) {
 			setNotificationPermission(Notification.permission);
 			
 			// Check if user is already subscribed
@@ -264,8 +297,12 @@ export default function NotificationRequest() {
 	// }
 	return (
 		<div className=" hover:scale-110 cursor-pointer transition-all">
-			{isIOS ? (
-				<div title="Push notifications not fully supported on iOS">
+			{isIOS && !isIOSSafari ? (
+				<div title="Push notifications require Safari browser on iOS">
+					<BellOff className="opacity-50" />
+				</div>
+			) : isIOS && isIOSSafari && !isIOS16_4Plus ? (
+				<div title="Push notifications require iOS 16.4+ and Safari">
 					<BellOff className="opacity-50" />
 				</div>
 			) : notificationPermission === "granted" && isSubscribed ? (
