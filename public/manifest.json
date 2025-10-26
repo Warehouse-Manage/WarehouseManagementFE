@@ -2,7 +2,7 @@
   "name": "Quản lý nhà máy gạch",
   "short_name": "Nhà máy gạch",
   "description": "Ứng dụng quản lý kho nội bộ công ty",
-  "start_url": "/",
+  "start_url": "/approvals",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ea4c00",
