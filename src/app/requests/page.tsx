@@ -289,7 +289,7 @@ export default function RequestsPage() {
       ));
       // Filter users with admin or approver roles who have notification subscriptions
       return users.filter((user: UserWithNotification) => 
-        (user.role === 'admin' || user.role === 'approver') && 
+        (user.role === 'Admin' || user.role === 'approver') && 
         user.notificationEnabled && 
         user.notificationEndpoint
       );

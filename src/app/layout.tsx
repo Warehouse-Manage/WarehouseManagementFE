@@ -93,7 +93,7 @@ export default function RootLayout({
                   console.log('Service Worker registration skipped on iOS < 16.4 - update to iOS 16.4+ for push notifications');
                 } else {
                   window.addEventListener('load', function() {
-                    navigator.serviceWorker.register('/sw.js')
+                    navigator.serviceWorker.register('/service-worker.js')
                       .then(function(registration) {
                         console.log('SW registered: ', registration);
                         if (isIOSSafari && isIOS16_4Plus) {

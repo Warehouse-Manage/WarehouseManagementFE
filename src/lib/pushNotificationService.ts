@@ -86,12 +86,37 @@ class PushNotificationService {
     }
 
     try {
-      this.registration = await navigator.serviceWorker.register('/sw.js');
+      // Check if service worker is already registered
+      const existingRegistration = await navigator.serviceWorker.getRegistration('/');
+      if (existingRegistration) {
+        console.log('Service Worker already registered');
+        this.registration = existingRegistration;
+        return this.registration;
+      }
+
+      this.registration = await navigator.serviceWorker.register('/service-worker.js', {
+        scope: '/'
+      });
       console.log('Service Worker registered successfully');
+      
+      // Wait for service worker to be ready
+      await navigator.serviceWorker.ready;
+      console.log('Service Worker is ready');
+      
       return this.registration;
     } catch (error) {
       console.error('Service Worker registration failed:', error);
-      toast.error('Failed to register service worker');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // More specific error handling
+      if (errorMessage.includes('500')) {
+        toast.error('Service worker file not found. Please check server configuration.');
+      } else if (errorMessage.includes('404')) {
+        toast.error('Service worker file not found. Please ensure sw.js exists in public folder.');
+      } else {
+        toast.error(`Failed to register service worker: ${errorMessage}`);
+      }
+      
       return null;
     }
   }
