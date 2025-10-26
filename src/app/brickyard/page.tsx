@@ -75,7 +75,12 @@ export default function BrickYardPage() {
       let url = `${process.env.NEXT_PUBLIC_API_HOST}/api/brickyardstatus`;
       const params = new URLSearchParams();
       let apiType: 'hour' | 'date' | 'month' | undefined;
-
+// add blank
+// add blank
+// add blank
+// add blank
+// add blank
+// add blank
       switch (filter.type) {
         case 'today':
           const today = new Date().toISOString().split('T')[0];
