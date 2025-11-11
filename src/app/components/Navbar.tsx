@@ -30,6 +30,7 @@ export default function Navbar() {
   const isApprovals = pathname?.startsWith('/approvals');
   const isStatistics = pathname?.startsWith('/statistics');
   const isBrickYard = pathname?.startsWith('/brickyard');
+  const isDevices = pathname?.startsWith('/devices');
 
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {
@@ -151,6 +152,13 @@ export default function Navbar() {
                   className={`${baseLink} ${linkSize} ${isBrickYard ? active : inactive}`}
                 >
                   Lò gạch
+                </Link>
+                <Link
+                  href="/devices"
+                  aria-current={isDevices ? 'page' : undefined}
+                  className={`${baseLink} ${linkSize} ${isDevices ? active : inactive}`}
+                >
+                  Thiết bị IoT
                 </Link>
               </>
             )}
@@ -303,6 +311,17 @@ export default function Navbar() {
                   }`}
                 >
                   Lò gạch
+                </Link>
+                <Link
+                  href="/devices"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                    isDevices 
+                      ? 'bg-orange-100 text-orange-700' 
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  Thiết bị IoT
                 </Link>
               </>
             )}
