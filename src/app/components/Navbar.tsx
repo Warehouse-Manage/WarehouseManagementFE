@@ -26,11 +26,9 @@ export default function Navbar() {
   }, []);
 
   const isMaterials = pathname === '/' || pathname === '/';
-  const isRequests = pathname?.startsWith('/requests');
-  const isApprovals = pathname?.startsWith('/approvals');
-  const isStatistics = pathname?.startsWith('/statistics');
-  const isBrickYard = pathname?.startsWith('/brickyard');
-  const isDevices = pathname?.startsWith('/devices');
+  const isVatTu = pathname?.startsWith('/vat-tu');
+  const isAttendance = pathname?.startsWith('/attendance');
+  const isProduction = pathname?.startsWith('/san-xuat');
 
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {
@@ -124,41 +122,29 @@ export default function Navbar() {
               Trang chủ
             </Link>
             <Link
-              href="/requests"
-              aria-current={isRequests ? 'page' : undefined}
-              className={`${baseLink} ${linkSize} ${isRequests ? active : inactive}`}
+              href="/vat-tu"
+              aria-current={isVatTu ? 'page' : undefined}
+              className={`${baseLink} ${linkSize} ${isVatTu ? active : inactive}`}
             >
-              Yêu cầu
+              Vật tư
             </Link>
-            <Link
-              href="/approvals"
-              aria-current={isApprovals ? 'page' : undefined}
-              className={`${baseLink} ${linkSize} ${isApprovals ? active : inactive}`}
-            >
-              {role === 'user' ? 'Duyệt mua' : 'Duyệt'}
-            </Link>
+            {role !== 'user' && (
+              <Link
+                href="/attendance"
+                aria-current={isAttendance ? 'page' : undefined}
+                className={`${baseLink} ${linkSize} ${isAttendance ? active : inactive}`}
+              >
+                Chấm công
+              </Link>
+            )}
             {role !== 'user' && role !== 'approver' && (
               <>
                 <Link
-                  href="/statistics"
-                  aria-current={isStatistics ? 'page' : undefined}
-                  className={`${baseLink} ${linkSize} ${isStatistics ? active : inactive}`}
+                  href="/san-xuat"
+                  aria-current={isProduction ? 'page' : undefined}
+                  className={`${baseLink} ${linkSize} ${isProduction ? active : inactive}`}
                 >
-                  Thống kê
-                </Link>
-                <Link
-                  href="/brickyard"
-                  aria-current={isBrickYard ? 'page' : undefined}
-                  className={`${baseLink} ${linkSize} ${isBrickYard ? active : inactive}`}
-                >
-                  Lò gạch
-                </Link>
-                <Link
-                  href="/devices"
-                  aria-current={isDevices ? 'page' : undefined}
-                  className={`${baseLink} ${linkSize} ${isDevices ? active : inactive}`}
-                >
-                  Thiết bị IoT
+                  Sản xuất
                 </Link>
               </>
             )}
@@ -267,61 +253,41 @@ export default function Navbar() {
               Trang chủ
             </Link>
             <Link
-              href="/requests"
+              href="/vat-tu"
               onClick={() => setIsMobileMenuOpen(false)}
               className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                isRequests 
+                isVatTu 
                   ? 'bg-orange-100 text-orange-700' 
                   : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
-              Yêu cầu
+              Vật tư
             </Link>
-            <Link
-              href="/approvals"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                isApprovals 
-                  ? 'bg-orange-100 text-orange-700' 
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
-            >
-              {role === 'user' ? 'Duyệt mua' : 'Duyệt'}
-            </Link>
+            {role !== 'user' && (
+              <Link
+                href="/attendance"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                  isAttendance 
+                    ? 'bg-orange-100 text-orange-700' 
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+              >
+                Chấm công
+              </Link>
+            )}
             {role !== 'user' && role !== 'approver' && (
               <>
                 <Link
-                  href="/statistics"
+                  href="/san-xuat"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                    isStatistics 
+                    isProduction 
                       ? 'bg-orange-100 text-orange-700' 
                       : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
-                  Thống kê
-                </Link>
-                <Link
-                  href="/brickyard"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                    isBrickYard 
-                      ? 'bg-orange-100 text-orange-700' 
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                >
-                  Lò gạch
-                </Link>
-                <Link
-                  href="/devices"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                    isDevices 
-                      ? 'bg-orange-100 text-orange-700' 
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                >
-                  Thiết bị IoT
+                  Sản xuất
                 </Link>
               </>
             )}

@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function LegacyBrickYardRedirect() {
+export default function SanXuatPage() {
   const router = useRouter();
 
   useEffect(() => {

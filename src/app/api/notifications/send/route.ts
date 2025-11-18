@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import webpush from 'web-push';
 
-// Configure VAPID keys
-const vapidKeys = {
-  publicKey: process.env.NEXT_PUBLIC_VAPID_KEY!,
-  privateKey: process.env.VAPID_PRIVATE_KEY!,
-};
+const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
 
-webpush.setVapidDetails(
-  'mailto:your-email@example.com',
-  vapidKeys.publicKey,
-  vapidKeys.privateKey
-);
+if (vapidPublicKey && vapidPrivateKey) {
+  webpush.setVapidDetails('mailto:your-email@example.com', vapidPublicKey, vapidPrivateKey);
+} else {
+  console.warn('VAPID keys are not configured. Push notifications will be disabled.');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +18,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required fields: userId, title, body' },
         { status: 400 }
+      );
+    }
+
+    if (!vapidPublicKey || !vapidPrivateKey) {
+      return NextResponse.json(
+        { error: 'VAPID keys are not configured on the server.' },
+        { status: 500 }
       );
     }
 
@@ -75,6 +79,7 @@ export async function POST(request: NextRequest) {
 
 // Placeholder function - implement based on your database
 async function getUserSubscription(userId: string) {
+  void userId;
   // This should query your database for the user's subscription
   // For now, returning null to indicate not found
   return null;

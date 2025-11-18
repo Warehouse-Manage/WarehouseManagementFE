@@ -3,11 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function LegacyBrickYardRedirect() {
+export default function VatTuPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/san-xuat/lo-gach');
+    router.replace('/vat-tu/yeu-cau');
   }, [router]);
 
   return (
