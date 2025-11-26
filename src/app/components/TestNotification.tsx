@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Bell, Send, Loader2 } from 'lucide-react';
+import { Bell, Loader2 } from 'lucide-react';
 import { pushNotificationService } from '@/lib/pushNotificationService';
 import { toast } from 'sonner';
 

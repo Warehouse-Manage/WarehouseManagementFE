@@ -30,30 +30,38 @@ class PushNotificationService {
   private apiBaseUrl: string;
   private isSupported: boolean = false;
   private registration: ServiceWorkerRegistration | null = null;
+  private initialized: boolean = false;
 
   constructor() {
     this.vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_KEY || '';
     this.apiBaseUrl = process.env.NEXT_PUBLIC_API_HOST || '';
-    this.checkSupport();
+    // Don't check support in constructor - defer until client-side
   }
 
-  private checkSupport(): void {
-    this.isSupported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  private ensureInitialized(): void {
+    if (this.initialized) return;
+    if (typeof window !== 'undefined') {
+      this.isSupported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+      this.initialized = true;
+    }
   }
 
   // Check if push notifications are supported
   public isPushSupported(): boolean {
+    this.ensureInitialized();
     return this.isSupported;
   }
 
   // Get current permission status
   public getPermissionStatus(): NotificationPermission {
+    this.ensureInitialized();
     if (!this.isSupported) return 'denied';
     return Notification.permission;
   }
 
   // Request permission with custom prompt
   public async requestPermission(): Promise<boolean> {
+    this.ensureInitialized();
     if (!this.isSupported) {
       toast.error('Push notifications are not supported in this browser');
       return false;
@@ -80,6 +88,7 @@ class PushNotificationService {
 
   // Register service worker
   public async registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+    this.ensureInitialized();
     if (!this.isSupported) {
       console.warn('Service Worker not supported');
       return null;
@@ -215,6 +224,7 @@ class PushNotificationService {
 
   // Detect platform
   private detectPlatform(): 'ios' | 'android' | 'desktop' {
+    if (typeof navigator === 'undefined') return 'desktop';
     const userAgent = navigator.userAgent.toLowerCase();
     
     if (/iphone|ipad|ipod/.test(userAgent)) {

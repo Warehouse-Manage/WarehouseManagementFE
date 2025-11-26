@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { sendNotification } from "../../../actions/notification";
+import { sendNotification } from "../../../../actions/notification";
 import { getCookie } from "@/lib/ultis";
 
 
@@ -41,7 +41,7 @@ type UserWithNotification = {
 };
 
 
-export default function RequestsPage() {
+export default function YeuCauPage() {
   const router = useRouter();
   const [department, setDepartment] = useState("");
   const [items, setItems] = useState<RequestItem[]>([
@@ -915,5 +915,4 @@ export default function RequestsPage() {
     </div>
   );
 }
-
 

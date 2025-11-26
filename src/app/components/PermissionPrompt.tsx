@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Bell, X, Smartphone, CheckCircle, AlertCircle } from 'lucide-react';
+import { Bell, X, Smartphone, CheckCircle } from 'lucide-react';
 import { pushNotificationService } from '@/lib/pushNotificationService';
 import { getCookie } from '@/lib/ultis';
 import { toast } from 'sonner';
@@ -30,38 +30,38 @@ export default function PermissionPrompt({
     }
 
     // Check if we should show the prompt
-    checkShouldShowPrompt();
-  }, []);
+    const checkShouldShowPromptOnMount = async () => {
+      // Don't show if already interacted
+      if (userInteracted) return;
 
-  const checkShouldShowPrompt = async () => {
-    // Don't show if already interacted
-    if (userInteracted) return;
+      // Check if push notifications are supported
+      if (!pushNotificationService.isPushSupported()) {
+        return;
+      }
 
-    // Check if push notifications are supported
-    if (!pushNotificationService.isPushSupported()) {
-      return;
-    }
+      // Check current permission status
+      const permission = pushNotificationService.getPermissionStatus();
+      if (permission === 'granted' || permission === 'denied') {
+        return;
+      }
 
-    // Check current permission status
-    const permission = pushNotificationService.getPermissionStatus();
-    if (permission === 'granted' || permission === 'denied') {
-      return;
-    }
+      // Check if user has been on site for a while (delay prompt)
+      const timeOnSite = Date.now() - (parseInt(sessionStorage.getItem('siteEntryTime') || '0'));
+      const minTimeOnSite = 30000; // 30 seconds
 
-    // Check if user has been on site for a while (delay prompt)
-    const timeOnSite = Date.now() - (parseInt(sessionStorage.getItem('siteEntryTime') || '0'));
-    const minTimeOnSite = 30000; // 30 seconds
+      if (timeOnSite < minTimeOnSite) {
+        // Set a timeout to show the prompt later
+        setTimeout(() => {
+          setShowPrompt(true);
+        }, minTimeOnSite - timeOnSite);
+        return;
+      }
 
-    if (timeOnSite < minTimeOnSite) {
-      // Set a timeout to show the prompt later
-      setTimeout(() => {
-        setShowPrompt(true);
-      }, minTimeOnSite - timeOnSite);
-      return;
-    }
+      setShowPrompt(true);
+    };
 
-    setShowPrompt(true);
-  };
+    checkShouldShowPromptOnMount();
+  }, [userInteracted]);
 
   const handleAllowNotifications = async () => {
     setIsLoading(true);

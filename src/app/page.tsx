@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { getCookie } from '@/lib/ultis';
 
 type Material = {
@@ -243,9 +244,9 @@ export default function MaterialsPage() {
               materials.map((m, index) => (
                 <div key={m.id} className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
                   <div className="flex items-start gap-3">
-                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center relative">
                       {m.imageUrl ? (
-                        <img src={m.imageUrl} alt={m.name} className="h-full w-full object-cover" loading="lazy" />
+                        <Image src={m.imageUrl} alt={m.name} fill className="object-cover" sizes="48px" />
                       ) : (
                         <svg className="h-6 w-6 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7a2 2 0 012-2h3l2-2h4l2 2h3a2 2 0 012 2v11a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
@@ -325,13 +326,14 @@ export default function MaterialsPage() {
                 <tr key={m.id} className="hover:bg-orange-50/40">
                   <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm text-gray-700">{index + 1}</td>
                   <td className="whitespace-nowrap px-2 sm:px-4 py-3">
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center relative">
                       {m.imageUrl ? (
-                        <img
+                        <Image
                           src={m.imageUrl}
                           alt={m.name}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
+                          fill
+                          className="object-cover"
+                          sizes="48px"
                         />
                       ) : (
                         <svg className="h-6 w-6 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -428,11 +430,15 @@ export default function MaterialsPage() {
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                   <div className="flex items-center gap-3">
                     {selectedMaterial.imageUrl ? (
-                      <img
-                        src={selectedMaterial.imageUrl}
-                        alt={selectedMaterial.name}
-                        className="h-12 w-12 rounded-lg object-cover"
-                      />
+                      <div className="relative h-12 w-12">
+                        <Image
+                          src={selectedMaterial.imageUrl}
+                          alt={selectedMaterial.name}
+                          fill
+                          className="rounded-lg object-cover"
+                          sizes="48px"
+                        />
+                      </div>
                     ) : (
                       <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
                         <svg className="h-6 w-6 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
