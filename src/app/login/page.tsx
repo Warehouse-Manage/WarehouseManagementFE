@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+const PERSISTENT_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 10; // 10 years
+
 export default function LoginPage() {
   const [formData, setFormData] = useState({
     username: '',
@@ -84,13 +86,13 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Save role, userName, name, id, department, and token to cookies (24 hours)
-        document.cookie = `role=${data.user.role}; path=/; max-age=86400`;
-        document.cookie = `userName=${encodeURIComponent(data.user.userName || '')}; path=/; max-age=86400`;
-        document.cookie = `name=${encodeURIComponent(data.user.name || '')}; path=/; max-age=86400`;
-        document.cookie = `userId=${data.user.id}; path=/; max-age=86400`;
-        document.cookie = `department=${encodeURIComponent(data.user.department || '')}; path=/; max-age=86400`;
-        document.cookie = `token=${data.token}; path=/; max-age=86400`;
+        // Save role, userName, name, id, department, and token to cookies (persistent)
+        document.cookie = `role=${data.user.role}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
+        document.cookie = `userName=${encodeURIComponent(data.user.userName || '')}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
+        document.cookie = `name=${encodeURIComponent(data.user.name || '')}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
+        document.cookie = `userId=${data.user.id}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
+        document.cookie = `department=${encodeURIComponent(data.user.department || '')}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
+        document.cookie = `token=${data.token}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
         
         console.log('Đăng nhập thành công:', data);
         alert('Đăng nhập thành công!');

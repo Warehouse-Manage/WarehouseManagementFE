@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import NavbarContainer from "./components/NavbarContainer";
-import IOSInstructions from "./components/IOSInstructions";
 import { Inter, Noto_Sans } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
@@ -56,7 +55,6 @@ export default function RootLayout({
         <main className="mx-auto max-w-6xl px-2 sm:px-4 lg:px-6 py-4 sm:py-6">
           {children}
         </main>
-        <IOSInstructions />
         <Script
           id="sw-register"
           strategy="afterInteractive"
