@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import NavbarContainer from "./components/NavbarContainer";
 import IOSInstructions from "./components/IOSInstructions";
-import PermissionPrompt from "./components/PermissionPrompt";
 import { Inter, Noto_Sans } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
@@ -58,7 +57,6 @@ export default function RootLayout({
           {children}
         </main>
         <IOSInstructions />
-        <PermissionPrompt />
         <Script
           id="sw-register"
           strategy="afterInteractive"

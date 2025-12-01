@@ -12,12 +12,29 @@ import { getCookie } from '@/lib/ultis';
    lowLimit: number;
    highLimit: number;
    value: string | null;
+   start: string | null;
+   end: string | null;
+   isAuto: boolean | null;
    deviceUnit?: DeviceUnit;
  }
  
  interface DeviceUnit {
    id: number;
    type: string | null;
+ }
+
+ interface DeviceApiResponse {
+   id: number;
+   name: string | null;
+   description: string | null;
+   deviceUnitId: number;
+   lowLimit: number;
+   highLimit: number;
+   value: string | null;
+   start: string | null;
+   end: string | null;
+   isAuto: string | null | boolean;
+   deviceUnit?: DeviceUnit;
  }
  
  export default function ThietBiPage() {
@@ -35,7 +52,10 @@ import { getCookie } from '@/lib/ultis';
      deviceUnitId: 0,
      lowLimit: 0,
      highLimit: 0,
-     value: ''
+     value: '',
+     start: '',
+     end: '',
+     isAuto: false
    });
    const [canFetch, setCanFetch] = useState<boolean>(false);
    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -95,8 +115,22 @@ import { getCookie } from '@/lib/ultis';
          throw new Error('Không thể tải dữ liệu thiết bị');
        }
  
-       const data = await response.json();
-       setDevices(data);
+       const data: DeviceApiResponse[] = await response.json();
+       // Convert isAuto from string to boolean for FE compatibility
+       const devicesWithBool: Device[] = data.map((d) => ({
+         id: d.id,
+         name: d.name,
+         description: d.description,
+         deviceUnitId: d.deviceUnitId,
+         lowLimit: d.lowLimit,
+         highLimit: d.highLimit,
+         value: d.value,
+         start: d.start,
+         end: d.end,
+         isAuto: d.isAuto === 'true' || d.isAuto === true || d.isAuto === 'True',
+         deviceUnit: d.deviceUnit
+       }));
+       setDevices(devicesWithBool);
      } catch (err) {
        setError(err instanceof Error ? err.message : 'Có lỗi xảy ra');
      } finally {
@@ -128,7 +162,10 @@ import { getCookie } from '@/lib/ultis';
            deviceUnitId: newDevice.deviceUnitId,
            lowLimit: newDevice.lowLimit,
            highLimit: newDevice.highLimit,
-           value: newDevice.value
+           value: newDevice.value,
+           start: newDevice.start || null,
+           end: newDevice.end || null,
+           isAuto: newDevice.isAuto
          }),
        });
  
@@ -144,7 +181,10 @@ import { getCookie } from '@/lib/ultis';
          deviceUnitId: 0,
          lowLimit: 0,
          highLimit: 0,
-         value: ''
+         value: '',
+         start: '',
+         end: '',
+         isAuto: false
        });
        fetchDevices();
      } catch (err) {
@@ -168,7 +208,10 @@ import { getCookie } from '@/lib/ultis';
            deviceUnitId: editingDevice.deviceUnitId,
            lowLimit: editingDevice.lowLimit,
            highLimit: editingDevice.highLimit,
-           value: editingDevice.value
+           value: editingDevice.value,
+           start: editingDevice.start || null,
+           end: editingDevice.end || null,
+           isAuto: editingDevice.isAuto
          }),
        });
  
@@ -635,6 +678,41 @@ import { getCookie } from '@/lib/ultis';
                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                  />
                </div>
+
+               <div className="border-t pt-4">
+                 <label className="flex items-center gap-2 mb-4">
+                   <input
+                     type="checkbox"
+                     checked={newDevice.isAuto}
+                     onChange={(e) => setNewDevice({ ...newDevice, isAuto: e.target.checked })}
+                     className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                   />
+                   <span className="text-sm font-medium text-gray-700">Tự động bật/tắt theo lịch</span>
+                 </label>
+                 
+                 {newDevice.isAuto && (
+                   <div className="grid grid-cols-2 gap-4 mt-2">
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">Giờ bắt đầu (HH:mm)</label>
+                       <input
+                         type="time"
+                         value={newDevice.start}
+                         onChange={(e) => setNewDevice({ ...newDevice, start: e.target.value })}
+                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                       />
+                     </div>
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">Giờ kết thúc (HH:mm)</label>
+                       <input
+                         type="time"
+                         value={newDevice.end}
+                         onChange={(e) => setNewDevice({ ...newDevice, end: e.target.value })}
+                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                       />
+                     </div>
+                   </div>
+                 )}
+               </div>
              </div>
  
              <div className="flex justify-end gap-3 mt-6">
@@ -647,7 +725,10 @@ import { getCookie } from '@/lib/ultis';
                      deviceUnitId: 0,
                      lowLimit: 0,
                      highLimit: 0,
-                     value: ''
+                     value: '',
+                     start: '',
+                     end: '',
+                     isAuto: false
                    });
                  }}
                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -740,6 +821,41 @@ import { getCookie } from '@/lib/ultis';
                    onChange={(e) => setEditingDevice({ ...editingDevice, value: e.target.value })}
                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                  />
+               </div>
+
+               <div className="border-t pt-4">
+                 <label className="flex items-center gap-2 mb-4">
+                   <input
+                     type="checkbox"
+                     checked={editingDevice.isAuto ?? false}
+                     onChange={(e) => setEditingDevice({ ...editingDevice, isAuto: e.target.checked })}
+                     className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                   />
+                   <span className="text-sm font-medium text-gray-700">Tự động bật/tắt theo lịch</span>
+                 </label>
+                 
+                 {(editingDevice.isAuto ?? false) && (
+                   <div className="grid grid-cols-2 gap-4 mt-2">
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">Giờ bắt đầu (HH:mm)</label>
+                       <input
+                         type="time"
+                         value={editingDevice.start || ''}
+                         onChange={(e) => setEditingDevice({ ...editingDevice, start: e.target.value })}
+                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                       />
+                     </div>
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">Giờ kết thúc (HH:mm)</label>
+                       <input
+                         type="time"
+                         value={editingDevice.end || ''}
+                         onChange={(e) => setEditingDevice({ ...editingDevice, end: e.target.value })}
+                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                       />
+                     </div>
+                   </div>
+                 )}
                </div>
              </div>
  
