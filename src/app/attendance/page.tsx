@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
 
@@ -13,10 +13,17 @@ type Worker = {
   userId?: number | null;
 };
 
+type WorkDate = {
+  id?: number;
+  workDate: string;
+  workQuantity: number;
+  workOvertime: number;
+};
+
 type Attendance = {
   id: number;
   workerId: number;
-  daysOff: string[];
+  daysOff: WorkDate[]; // Backend still uses DaysOff property name but contains WorkDate objects
   monthlySalary: number;
   calculationMonth: string;
   worker?: Worker;
@@ -30,6 +37,14 @@ type ToastState = {
 const getCurrentMonthValue = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const getCurrentDateValue = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const normalizeDateString = (dateValue: string) => {
@@ -163,14 +178,19 @@ export default function AttendancePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'create' | 'mark' | 'worker'>('create');
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserWorker, setCurrentUserWorker] = useState<Worker | null>(null);
+  const [loadingCurrentUserWorker, setLoadingCurrentUserWorker] = useState(false);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loadingWorkers, setLoadingWorkers] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
   const [createForm, setCreateForm] = useState({
-    selectedDate: '',
+    selectedDate: getCurrentDateValue(),
     month: getCurrentMonthValue(),
   });
+  const prevMonthRef = useRef<string>(getCurrentMonthValue());
   const [createToast, setCreateToast] = useState<ToastState | null>(null);
   const [workerAttendances, setWorkerAttendances] = useState<Map<number, Attendance>>(new Map());
   const [isLoadingAttendances, setIsLoadingAttendances] = useState(false);
@@ -181,7 +201,7 @@ export default function AttendancePage() {
     month: getCurrentMonthValue(),
   });
   const [markDayInput, setMarkDayInput] = useState('');
-  const [markDaysOff, setMarkDaysOff] = useState<string[]>([]);
+  const [markWorkDates, setMarkWorkDates] = useState<WorkDate[]>([]);
   const [markToast, setMarkToast] = useState<ToastState | null>(null);
   const [markAttendance, setMarkAttendance] = useState<Attendance | null>(null);
   const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
@@ -214,17 +234,104 @@ export default function AttendancePage() {
       return;
     }
 
-    // Limit access to non-basic roles (allow approver and above)
-    if (role === 'user') {
-      window.location.replace('/');
-      return;
-    }
-
+    setCurrentUserId(userId);
+    setUserRole(role || null);
     setIsCheckingAuth(false);
   }, [router]);
 
+  // Fetch current user's worker for user role
   useEffect(() => {
-    if (isCheckingAuth) return;
+    if (isCheckingAuth || !currentUserId || userRole !== 'user') return;
+
+    const fetchCurrentUserWorker = async () => {
+      setLoadingCurrentUserWorker(true);
+      setGlobalError(null);
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_HOST}/api/workers?userId=${currentUserId}`,
+          {
+            method: 'GET',
+            headers: buildAuthHeaders(),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data: Worker[] = await response.json();
+        if (data && data.length > 0) {
+          const worker = data[0];
+          setCurrentUserWorker(worker);
+          setWorkers(data); // Set workers for consistency
+          // Auto-set markForm workerId for user role
+          const currentMonth = getCurrentMonthValue();
+          setMarkForm((prev) => ({ ...prev, workerId: String(worker.id), month: currentMonth }));
+          // Auto-load attendance for current month
+          const [year, month] = currentMonth.split('-');
+          try {
+            const attendanceResponse = await fetch(
+              `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${worker.id}/month/${year}/${Number(month)}`,
+              {
+                method: 'GET',
+                headers: buildAuthHeaders(),
+              }
+            );
+            if (attendanceResponse.ok) {
+              const attendanceData: Attendance = await attendanceResponse.json();
+              setMarkAttendance(attendanceData);
+              setMarkWorkDates((attendanceData.daysOff || []).map(wd => ({
+                id: wd.id,
+                workDate: wd.workDate,
+                workQuantity: wd.workQuantity,
+                workOvertime: wd.workOvertime,
+              })));
+            }
+          } catch (error) {
+            // Silently fail - attendance will be loaded when user clicks "Tải bảng chấm công"
+            console.log('Could not auto-load attendance:', error);
+          }
+        } else {
+          setGlobalError('Không tìm thấy thông tin công nhân cho tài khoản của bạn.');
+        }
+      } catch (error) {
+        console.error('Không thể tải thông tin công nhân:', error);
+        setGlobalError('Không thể tải thông tin công nhân. Vui lòng thử lại sau.');
+      } finally {
+        setLoadingCurrentUserWorker(false);
+      }
+    };
+
+    fetchCurrentUserWorker();
+  }, [isCheckingAuth, currentUserId, userRole]);
+
+  // Ensure workerId is always set to current user's worker for user role
+  useEffect(() => {
+    if (userRole === 'user' && currentUserWorker) {
+      if (markForm.workerId !== String(currentUserWorker.id)) {
+        setMarkForm((prev) => ({ ...prev, workerId: String(currentUserWorker.id) }));
+      }
+    }
+  }, [userRole, currentUserWorker, markForm.workerId]);
+
+  // Auto-reload attendance when month changes for user role
+  useEffect(() => {
+    if (userRole === 'user' && currentUserWorker && markForm.workerId && markForm.month) {
+      // Only reload if workerId matches current user's worker and not currently loading
+      if (Number(markForm.workerId) === currentUserWorker.id && !isLoadingAttendance) {
+        // Use a small delay to avoid multiple rapid calls
+        const timeoutId = setTimeout(() => {
+          fetchAttendanceForMarking();
+        }, 300);
+        return () => clearTimeout(timeoutId);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markForm.month]);
+
+  // Fetch all workers for admin/approver roles
+  useEffect(() => {
+    if (isCheckingAuth || userRole === 'user') return;
 
     const fetchWorkers = async () => {
       setLoadingWorkers(true);
@@ -250,7 +357,7 @@ export default function AttendancePage() {
     };
 
     fetchWorkers();
-  }, [isCheckingAuth]);
+  }, [isCheckingAuth, userRole]);
 
   useEffect(() => {
     if (!createForm.month || workers.length === 0) {
@@ -315,6 +422,23 @@ export default function AttendancePage() {
     };
   }, [createForm.month, workers]);
 
+  useEffect(() => {
+    // Only update selectedDate when the month actually changes
+    if (prevMonthRef.current !== createForm.month) {
+      const today = getCurrentDateValue();
+      const currentMonth = getCurrentMonthValue();
+      
+      // If the selected month is the current month, auto-select today
+      if (createForm.month === currentMonth) {
+        setCreateForm((prev) => ({ ...prev, selectedDate: today }));
+      } else {
+        // If viewing a different month, clear selection
+        setCreateForm((prev) => ({ ...prev, selectedDate: '' }));
+      }
+      prevMonthRef.current = createForm.month;
+    }
+  }, [createForm.month]);
+
   const selectedMarkWorker = useMemo(
     () => workers.find((worker) => worker.id === Number(markForm.workerId)),
     [workers, markForm.workerId]
@@ -324,9 +448,13 @@ export default function AttendancePage() {
     if (!selectedMarkWorker) return null;
     const daysInMonth = getDaysInMonth(markForm.month);
     const dailySalary = selectedMarkWorker.salary / daysInMonth;
-    const deducted = dailySalary * markDaysOff.length;
-    return selectedMarkWorker.salary - deducted;
-  }, [selectedMarkWorker, markForm.month, markDaysOff.length]);
+    const totalWorkQuantity = markWorkDates.reduce((sum, wd) => sum + wd.workQuantity, 0);
+    const baseSalary = dailySalary * totalWorkQuantity;
+    // Assuming overtime rate is 1.5x daily salary per hour (8 hours per day)
+    const overtimeRate = dailySalary / 8;
+    const overtimeSalary = markWorkDates.reduce((sum, wd) => sum + (wd.workOvertime * overtimeRate * 1.5), 0);
+    return baseSalary + overtimeSalary;
+  }, [selectedMarkWorker, markForm.month, markWorkDates]);
 
   const calendarDays = useMemo(() => buildCalendarDays(createForm.month), [createForm.month]);
 
@@ -345,16 +473,16 @@ export default function AttendancePage() {
     }));
   };
 
-  const isWorkerAttended = (workerId: number, dateValue: string): boolean => {
-    if (!dateValue) return false;
+  const getWorkerWorkDate = (workerId: number, dateValue: string): WorkDate | null => {
+    if (!dateValue) return null;
     const attendance = workerAttendances.get(workerId);
-    if (!attendance || !attendance.daysOff) return false; // Default to unchecked (absent)
-    const normalizedDaysOff = (attendance.daysOff || []).map(normalizeDateString);
-    // Checked (attended) means the date is NOT in daysOff
-    return !normalizedDaysOff.includes(dateValue);
+    if (!attendance || !attendance.daysOff) return null;
+    const normalizedDate = normalizeDateString(dateValue);
+    return attendance.daysOff.find(wd => normalizeDateString(wd.workDate) === normalizedDate) || null;
   };
 
-  const toggleWorkerAttendance = async (workerId: number, dateValue: string) => {
+
+  const toggleWorkerAttendance = async (workerId: number, dateValue: string, workQuantity: number = 1, workOvertime: number = 0) => {
     if (!dateValue || !createForm.month) {
       setCreateToast({ type: 'error', message: 'Vui lòng chọn ngày.' });
       return;
@@ -364,19 +492,11 @@ export default function AttendancePage() {
     setCreateToast(null);
 
     try {
-      const attendance = workerAttendances.get(workerId);
-      const normalizedDaysOff = attendance
-        ? (attendance.daysOff || []).map(normalizeDateString)
-        : [];
-      // Checked means attended (date NOT in daysOff), unchecked means absent (date IN daysOff)
-      const isCurrentlyAttended = !normalizedDaysOff.includes(dateValue);
-      // Toggle: if currently attended, mark as absent; if currently absent, mark as attended
-      const newIsAttended = !isCurrentlyAttended;
-
       const payload = {
         workerId,
-        attendanceDate: toDateIsoString(dateValue),
-        isAttended: newIsAttended,
+        workDate: toDateIsoString(dateValue),
+        workQuantity: workQuantity,
+        workOvertime: workOvertime,
       };
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/mark`, {
@@ -399,7 +519,7 @@ export default function AttendancePage() {
 
       setCreateToast({
         type: 'success',
-        message: `Đã ${newIsAttended ? 'đánh dấu có mặt' : 'đánh dấu vắng mặt'} cho ${workers.find((w) => w.id === workerId)?.name || 'công nhân'}.`,
+        message: `Đã cập nhật chấm công cho ${workers.find((w) => w.id === workerId)?.name || 'công nhân'}.`,
       });
     } catch (error: unknown) {
       console.error('Không thể cập nhật chấm công:', error);
@@ -412,29 +532,52 @@ export default function AttendancePage() {
     }
   };
 
-  const addDayOffToMark = () => {
+  const addWorkDateToMark = () => {
     if (!markForm.workerId || !markForm.month) {
       setMarkToast({ type: 'error', message: 'Vui lòng chọn công nhân và tháng.' });
       return;
     }
     if (!markDayInput) {
-      setMarkToast({ type: 'error', message: 'Vui lòng chọn ngày nghỉ.' });
+      setMarkToast({ type: 'error', message: 'Vui lòng chọn ngày làm việc.' });
       return;
     }
     if (!dateMatchesMonth(markDayInput, markForm.month)) {
       setMarkToast({
         type: 'error',
-        message: 'Ngày nghỉ phải thuộc tháng đang xem.',
+        message: 'Ngày làm việc phải thuộc tháng đang xem.',
       });
       return;
     }
-    setMarkDaysOff((prev) => Array.from(new Set([...prev, markDayInput])).sort());
+    // Check if work date already exists for this day
+    const existingIndex = markWorkDates.findIndex(wd => normalizeDateString(wd.workDate) === markDayInput);
+    if (existingIndex >= 0) {
+      setMarkToast({ type: 'error', message: 'Ngày này đã được thêm. Vui lòng sửa thông tin trong danh sách.' });
+      return;
+    }
+    setMarkWorkDates((prev) => {
+      const newWorkDate: WorkDate = {
+        workDate: toDateIsoString(markDayInput),
+        workQuantity: 1,
+        workOvertime: 0,
+      };
+      return [...prev, newWorkDate].sort((a, b) => 
+        new Date(a.workDate).getTime() - new Date(b.workDate).getTime()
+      );
+    });
     setMarkDayInput('');
     setMarkToast(null);
   };
 
-  const removeMarkDay = (day: string) => {
-    setMarkDaysOff((prev) => prev.filter((d) => d !== day));
+  const removeMarkWorkDate = (workDate: WorkDate) => {
+    setMarkWorkDates((prev) => prev.filter((wd) => normalizeDateString(wd.workDate) !== normalizeDateString(workDate.workDate)));
+  };
+
+  const updateMarkWorkDate = (index: number, field: 'workQuantity' | 'workOvertime', value: number) => {
+    setMarkWorkDates((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
   };
 
   const fetchAttendanceForMarking = async () => {
@@ -462,16 +605,20 @@ export default function AttendancePage() {
 
       const data: Attendance = await response.json();
       setMarkAttendance(data);
-      setMarkDaysOff((data.daysOff || []).map(normalizeDateString));
+      setMarkWorkDates((data.daysOff || []).map(wd => ({
+        id: wd.id,
+        workDate: wd.workDate,
+        workQuantity: wd.workQuantity,
+        workOvertime: wd.workOvertime,
+      })));
       
-      // Check if it's a default record (Id is 0 or monthlySalary is 0 with all days off)
-      const daysInMonth = getDaysInMonth(markForm.month);
-      const isDefault = data.id === 0 || (data.monthlySalary === 0 && (data.daysOff?.length || 0) === daysInMonth);
+      // Check if it's a default record (Id is 0 or monthlySalary is 0 with no work dates)
+      const isDefault = data.id === 0 || (data.monthlySalary === 0 && (data.daysOff?.length || 0) === 0);
       
       setMarkToast({
         type: isDefault ? 'info' : 'success',
         message: isDefault 
-          ? 'Chưa có dữ liệu chấm công cho công nhân này trong tháng đã chọn. Tất cả các ngày được tính là ngày nghỉ.'
+          ? 'Chưa có dữ liệu chấm công cho công nhân này trong tháng đã chọn.'
           : 'Đã tải chấm công hiện tại.',
       });
     } catch (error: unknown) {
@@ -497,7 +644,11 @@ export default function AttendancePage() {
       const payload = {
         workerId: Number(markForm.workerId),
         calculationMonth: toMonthIsoString(markForm.month),
-        daysOff: markDaysOff.map(toDateIsoString),
+        workDates: markWorkDates.map(wd => ({
+          workDate: wd.workDate,
+          workQuantity: wd.workQuantity,
+          workOvertime: wd.workOvertime,
+        })),
       };
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/attendances`, {
@@ -513,7 +664,12 @@ export default function AttendancePage() {
 
       const updated: Attendance = await response.json();
       setMarkAttendance(updated);
-      setMarkDaysOff((updated.daysOff || []).map(normalizeDateString));
+      setMarkWorkDates((updated.daysOff || []).map(wd => ({
+        id: wd.id,
+        workDate: wd.workDate,
+        workQuantity: wd.workQuantity,
+        workOvertime: wd.workOvertime,
+      })));
       setMarkToast({ type: 'success', message: 'Đã cập nhật chấm công.' });
     } catch (error: unknown) {
       console.error('Không thể cập nhật chấm công:', error);
@@ -686,26 +842,37 @@ export default function AttendancePage() {
   const salaryViewCalendarDays = useMemo(() => buildCalendarDays(salaryViewMonth), [salaryViewMonth]);
   const salaryViewCalendarRows = useMemo(() => chunkArray(salaryViewCalendarDays, 7), [salaryViewCalendarDays]);
 
-  const isDayOffInSalaryView = (dateValue: string): boolean => {
-    if (!workerAttendanceView || !workerAttendanceView.daysOff) return false;
-    const normalizedDaysOff = (workerAttendanceView.daysOff || []).map(normalizeDateString);
-    return normalizedDaysOff.includes(dateValue);
+  const getWorkDateInSalaryView = (dateValue: string): WorkDate | null => {
+    if (!workerAttendanceView || !workerAttendanceView.daysOff) return null;
+    const normalizedDate = normalizeDateString(dateValue);
+    return workerAttendanceView.daysOff.find(wd => normalizeDateString(wd.workDate) === normalizedDate) || null;
+  };
+
+  const isDayWorkedInSalaryView = (dateValue: string): boolean => {
+    const workDate = getWorkDateInSalaryView(dateValue);
+    return workDate !== null && workDate.workQuantity > 0;
   };
 
   const calculateDaysWorked = (): number => {
-    if (!viewingSalaryWorker || !salaryViewMonth) return 0;
-    const daysInMonth = getDaysInMonth(salaryViewMonth);
-    const daysOffCount = workerAttendanceView?.daysOff?.length || 0;
-    return daysInMonth - daysOffCount;
+    if (!workerAttendanceView) return 0;
+    return workerAttendanceView.daysOff?.filter(wd => wd.workQuantity > 0).length || 0;
+  };
+
+  const calculateTotalWorkQuantity = (): number => {
+    if (!workerAttendanceView) return 0;
+    return workerAttendanceView.daysOff?.reduce((sum, wd) => sum + wd.workQuantity, 0) || 0;
+  };
+
+  const calculateTotalOvertime = (): number => {
+    if (!workerAttendanceView) return 0;
+    return workerAttendanceView.daysOff?.reduce((sum, wd) => sum + wd.workOvertime, 0) || 0;
   };
 
   const isDefaultAttendanceRecord = (): boolean => {
     if (!workerAttendanceView) return false;
-    // Check if it's a default record (Id is 0 or monthlySalary is 0 with all days off)
-    const daysInMonth = getDaysInMonth(salaryViewMonth);
-    const daysOffCount = workerAttendanceView.daysOff?.length || 0;
+    // Check if it's a default record (Id is 0 or monthlySalary is 0 with no work dates)
     return workerAttendanceView.id === 0 || 
-           (workerAttendanceView.monthlySalary === 0 && daysOffCount === daysInMonth);
+           (workerAttendanceView.monthlySalary === 0 && (workerAttendanceView.daysOff?.length || 0) === 0);
   };
 
   if (isCheckingAuth) {
@@ -726,6 +893,216 @@ export default function AttendancePage() {
     );
   }
 
+  // Simplified view for user role
+  if (userRole === 'user') {
+    if (loadingCurrentUserWorker) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="flex items-center space-x-2">
+            <svg className="animate-spin h-8 w-8 text-orange-600" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            <span className="text-lg text-gray-600">Đang tải thông tin...</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (!currentUserWorker) {
+      return (
+        <div className="space-y-6 p-4 sm:p-6">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {globalError || 'Không tìm thấy thông tin công nhân cho tài khoản của bạn.'}
+          </div>
+        </div>
+      );
+    }
+
+    // User role view - show simplified attendance marking interface
+    return (
+      <div className="space-y-6 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Chấm công của tôi</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">
+              Chấm công cho: <span className="font-semibold">{currentUserWorker.name}</span>
+            </p>
+          </div>
+        </div>
+
+        {globalError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {globalError}
+          </div>
+        )}
+
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 sm:p-6">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-bold text-gray-700 block mb-2">Tháng chấm công</label>
+                <input
+                  type="month"
+                  value={markForm.month}
+                  onChange={(e) => {
+                    setMarkForm((prev) => {
+                      // Ensure workerId is always set to current user's worker
+                      const workerId = currentUserWorker ? String(currentUserWorker.id) : prev.workerId;
+                      return { ...prev, month: e.target.value, workerId };
+                    });
+                    setMarkAttendance(null);
+                    setMarkWorkDates([]);
+                    setMarkToast(null);
+                  }}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={fetchAttendanceForMarking}
+                  className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+                  disabled={!markForm.workerId || !markForm.month || isLoadingAttendance}
+                >
+                  {isLoadingAttendance ? 'Đang tải...' : 'Tải bảng chấm công'}
+                </button>
+              </div>
+            </div>
+
+            {markAttendance && (
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm font-semibold text-gray-700">
+                <div>
+                  Công nhân: <span className="text-gray-900">{markAttendance.worker?.name || currentUserWorker?.name}</span>
+                </div>
+                <div>
+                  Lương tháng hiện tại: <span className="text-green-600">{formatCurrency(markAttendance.monthlySalary)}</span>
+                </div>
+                <div>
+                  Số ngày làm việc: <span className="text-gray-900">{markAttendance.daysOff?.length || 0}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-lg border border-dashed border-gray-300 p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="date"
+                  value={markDayInput}
+                  onChange={(e) => setMarkDayInput(e.target.value)}
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                  max={`${markForm.month}-31`}
+                  min={`${markForm.month}-01`}
+                  disabled={!markForm.month}
+                />
+                <button
+                  onClick={addWorkDateToMark}
+                  className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-orange-700 disabled:opacity-50"
+                  disabled={!markForm.workerId || !markForm.month}
+                >
+                  Thêm ngày làm việc
+                </button>
+              </div>
+              {markWorkDates.length > 0 ? (
+                <div className="space-y-2">
+                  {markWorkDates.map((workDate, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-3"
+                    >
+                      <div className="flex-1">
+                        <div className="text-xs font-semibold text-gray-700">
+                          {formatDateLabel(normalizeDateString(workDate.workDate))}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-gray-600">
+                          Công:
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            max="2"
+                            value={workDate.workQuantity}
+                            onChange={(e) => updateMarkWorkDate(index, 'workQuantity', parseFloat(e.target.value) || 0)}
+                            className="ml-1 w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none"
+                          />
+                        </label>
+                        <label className="text-xs text-gray-600">
+                          OT:
+                          <input
+                            type="number"
+                            step="1"
+                            min="0"
+                            value={workDate.workOvertime}
+                            onChange={(e) => updateMarkWorkDate(index, 'workOvertime', parseFloat(e.target.value) || 0)}
+                            className="ml-1 w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none"
+                          />
+                          h
+                        </label>
+                        <button
+                          className="ml-2 rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-200"
+                          onClick={() => removeMarkWorkDate(workDate)}
+                          aria-label={`Xóa ${workDate.workDate}`}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Chưa có ngày làm việc nào trong danh sách.</p>
+              )}
+            </div>
+
+            {currentUserWorker && (
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 flex flex-wrap gap-4 text-sm font-semibold text-gray-700">
+                <div>
+                  Lương cơ bản: <span className="text-gray-900">{formatCurrency(currentUserWorker.salary)}</span>
+                </div>
+                <div>
+                  Số ngày làm việc: <span className="text-gray-900">{markWorkDates.length}</span>
+                </div>
+                <div>
+                  Lương dự kiến: <span className="text-green-600">{formatCurrency(markPreviewSalary)}</span>
+                </div>
+              </div>
+            )}
+
+            {markToast && (
+              <div
+                className={`rounded-lg px-4 py-3 text-sm font-semibold ${
+                  markToast.type === 'success'
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : markToast.type === 'info'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}
+              >
+                {markToast.message}
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <button
+                onClick={saveMarkedAttendance}
+                className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold uppercase tracking-wide text-white shadow hover:bg-orange-700 disabled:opacity-50"
+                disabled={isSavingMark || !markForm.workerId || !markForm.month}
+              >
+                {isSavingMark ? 'Đang lưu...' : 'Cập nhật chấm công'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin/Approver role view - full interface
   return (
     <div className="space-y-6 p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -763,7 +1140,7 @@ export default function AttendancePage() {
             }`}
             onClick={() => setActiveTab('mark')}
           >
-            Đánh dấu ngày nghỉ
+            Quản lý chấm công
           </button>
           <button
             className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${
@@ -869,12 +1246,12 @@ export default function AttendancePage() {
                       <p className="text-sm text-gray-500">Không tìm thấy công nhân phù hợp.</p>
                     ) : (
                       filteredWorkers.map((worker) => {
-                        const attended = createForm.selectedDate
-                          ? isWorkerAttended(worker.id, createForm.selectedDate)
-                          : false;
+                        const workDate = createForm.selectedDate
+                          ? getWorkerWorkDate(worker.id, createForm.selectedDate)
+                          : null;
                         const isSaving = isSavingAttendance === worker.id;
                         const attendance = workerAttendances.get(worker.id);
-                        const daysOffCount = attendance?.daysOff?.length || 0;
+                        const workDatesCount = attendance?.daysOff?.length || 0;
 
                         return (
                           <div
@@ -893,25 +1270,56 @@ export default function AttendancePage() {
                                   <p>SĐT: {worker.phoneNumber}</p>
                                   {attendance && (
                                     <p className="text-orange-600 font-semibold">
-                                      {daysOffCount} ngày nghỉ trong tháng
+                                      {workDatesCount} ngày làm việc trong tháng
+                                    </p>
+                                  )}
+                                  {workDate && workDate.workQuantity > 0 && (
+                                    <p className="text-green-600 font-semibold">
+                                      Công: {workDate.workQuantity} • OT: {workDate.workOvertime}h
                                     </p>
                                   )}
                                 </div>
                               </div>
-                              <div className="flex items-center">
+                              <div className="flex items-center gap-2">
                                 {createForm.selectedDate ? (
-                                  <label className="flex items-center cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={attended}
-                                      onChange={() => toggleWorkerAttendance(worker.id, createForm.selectedDate)}
-                                      disabled={isSaving}
-                                      className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500 disabled:opacity-50"
-                                    />
-                                    <span className="ml-2 text-xs font-semibold text-gray-700">
-                                      {isSaving ? 'Đang lưu...' : attended ? 'Có mặt' : 'Vắng mặt'}
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="number"
+                                        step="0.5"
+                                        min="0"
+                                        max="2"
+                                        value={workDate?.workQuantity || 0}
+                                        onChange={(e) => {
+                                          const qty = parseFloat(e.target.value) || 0;
+                                          const ot = workDate?.workOvertime || 0;
+                                          toggleWorkerAttendance(worker.id, createForm.selectedDate, qty, ot);
+                                        }}
+                                        disabled={isSaving}
+                                        placeholder="Công"
+                                        className="w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none disabled:opacity-50"
+                                      />
+                                      <span className="text-xs text-gray-500">công</span>
+                                      <input
+                                        type="number"
+                                        step="1"
+                                        min="0"
+                                        value={workDate?.workOvertime || 0}
+                                        onChange={(e) => {
+                                          const ot = parseFloat(e.target.value) || 0;
+                                          const qty = workDate?.workQuantity || 1;
+                                          toggleWorkerAttendance(worker.id, createForm.selectedDate, qty, ot);
+                                        }}
+                                        disabled={isSaving}
+                                        placeholder="OT"
+                                        className="w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none disabled:opacity-50"
+                                      />
+                                      <span className="text-xs text-gray-500">h</span>
+                                    </div>
+                                    <span className="text-xs text-gray-400">
+                                      {isSaving ? 'Đang lưu...' : (workDate && workDate.workQuantity > 0) ? 'Đã chấm công' : 'Chưa chấm'}
                                     </span>
-                                  </label>
+                                  </div>
                                 ) : (
                                   <span className="text-xs text-gray-400">Chọn ngày</span>
                                 )}
@@ -949,7 +1357,7 @@ export default function AttendancePage() {
                     onChange={(e) => {
                       setMarkForm((prev) => ({ ...prev, workerId: e.target.value }));
                       setMarkAttendance(null);
-                      setMarkDaysOff([]);
+                      setMarkWorkDates([]);
                       setMarkToast(null);
                     }}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
@@ -970,7 +1378,7 @@ export default function AttendancePage() {
                     onChange={(e) => {
                       setMarkForm((prev) => ({ ...prev, month: e.target.value }));
                       setMarkAttendance(null);
-                      setMarkDaysOff([]);
+                      setMarkWorkDates([]);
                       setMarkToast(null);
                     }}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
@@ -996,7 +1404,7 @@ export default function AttendancePage() {
                     Lương tháng hiện tại: <span className="text-green-600">{formatCurrency(markAttendance.monthlySalary)}</span>
                   </div>
                   <div>
-                    Ngày nghỉ đã lưu: <span className="text-gray-900">{markAttendance.daysOff?.length || 0}</span>
+                    Số ngày làm việc: <span className="text-gray-900">{markAttendance.daysOff?.length || 0}</span>
                   </div>
                 </div>
               )}
@@ -1013,33 +1421,63 @@ export default function AttendancePage() {
                     disabled={!markForm.month}
                   />
                   <button
-                    onClick={addDayOffToMark}
+                    onClick={addWorkDateToMark}
                     className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-orange-700 disabled:opacity-50"
                     disabled={!markForm.workerId || !markForm.month}
                   >
-                    Thêm ngày nghỉ
+                    Thêm ngày làm việc
                   </button>
                 </div>
-                {markDaysOff.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {markDaysOff.map((day) => (
-                      <span
-                        key={day}
-                        className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700"
+                {markWorkDates.length > 0 ? (
+                  <div className="space-y-2">
+                    {markWorkDates.map((workDate, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-3"
                       >
-                        {formatDateLabel(day)}
-                        <button
-                          className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-blue-600 hover:bg-blue-200"
-                          onClick={() => removeMarkDay(day)}
-                          aria-label={`Xóa ${day}`}
-                        >
-                          ×
-                        </button>
-                      </span>
+                        <div className="flex-1">
+                          <div className="text-xs font-semibold text-gray-700">
+                            {formatDateLabel(normalizeDateString(workDate.workDate))}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs text-gray-600">
+                            Công:
+                            <input
+                              type="number"
+                              step="0.5"
+                              min="0"
+                              max="2"
+                              value={workDate.workQuantity}
+                              onChange={(e) => updateMarkWorkDate(index, 'workQuantity', parseFloat(e.target.value) || 0)}
+                              className="ml-1 w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none"
+                            />
+                          </label>
+                          <label className="text-xs text-gray-600">
+                            OT:
+                            <input
+                              type="number"
+                              step="1"
+                              min="0"
+                              value={workDate.workOvertime}
+                              onChange={(e) => updateMarkWorkDate(index, 'workOvertime', parseFloat(e.target.value) || 0)}
+                              className="ml-1 w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none"
+                            />
+                            h
+                          </label>
+                          <button
+                            className="ml-2 rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-200"
+                            onClick={() => removeMarkWorkDate(workDate)}
+                            aria-label={`Xóa ${workDate.workDate}`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500">Chưa có ngày nghỉ nào trong danh sách.</p>
+                  <p className="text-sm text-gray-500">Chưa có ngày làm việc nào trong danh sách.</p>
                 )}
               </div>
 
@@ -1049,7 +1487,7 @@ export default function AttendancePage() {
                     Lương cơ bản: <span className="text-gray-900">{formatCurrency(selectedMarkWorker.salary)}</span>
                   </div>
                   <div>
-                    Số ngày nghỉ: <span className="text-gray-900">{markDaysOff.length}</span>
+                    Số ngày làm việc: <span className="text-gray-900">{markWorkDates.length}</span>
                   </div>
                   <div>
                     Lương dự kiến: <span className="text-green-600">{formatCurrency(markPreviewSalary)}</span>
@@ -1313,10 +1751,16 @@ export default function AttendancePage() {
                                   <div
                                     key={`${day.dateValue}-${rowIndex}-${colIndex}`}
                                     className={`rounded-md px-0 py-2 font-semibold ${
-                                      isDayOffInSalaryView(day.dateValue)
-                                        ? 'bg-red-100 text-red-700'
-                                        : 'bg-green-50 text-green-700'
+                                      isDayWorkedInSalaryView(day.dateValue)
+                                        ? 'bg-green-50 text-green-700'
+                                        : 'bg-gray-100 text-gray-400'
                                     }`}
+                                    title={(() => {
+                                      const wd = getWorkDateInSalaryView(day.dateValue);
+                                      return wd && wd.workQuantity > 0 
+                                        ? `Công: ${wd.workQuantity}, OT: ${wd.workOvertime}h`
+                                        : 'Chưa làm việc';
+                                    })()}
                                   >
                                     {day.label}
                                   </div>
@@ -1332,11 +1776,11 @@ export default function AttendancePage() {
                           <div className="mt-4 flex items-center gap-4 text-xs">
                             <div className="flex items-center gap-2">
                               <div className="w-4 h-4 rounded bg-green-50 border border-green-300"></div>
-                              <span className="text-gray-600">Có mặt</span>
+                              <span className="text-gray-600">Có làm việc</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 rounded bg-red-100 border border-red-300"></div>
-                              <span className="text-gray-600">Vắng mặt</span>
+                              <div className="w-4 h-4 rounded bg-gray-100 border border-gray-300"></div>
+                              <span className="text-gray-600">Chưa làm việc</span>
                             </div>
                           </div>
                         </div>
@@ -1359,15 +1803,21 @@ export default function AttendancePage() {
                               </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Số ngày nghỉ:</span>
-                              <span className="font-semibold text-red-600">
-                                {workerAttendanceView?.daysOff?.length || 0} ngày
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
                               <span className="text-gray-600">Số ngày làm việc:</span>
                               <span className="font-semibold text-green-600">
                                 {calculateDaysWorked()} ngày
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Tổng số công:</span>
+                              <span className="font-semibold text-gray-900">
+                                {calculateTotalWorkQuantity()}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Tổng giờ làm thêm:</span>
+                              <span className="font-semibold text-orange-600">
+                                {calculateTotalOvertime()} giờ
                               </span>
                             </div>
                             <div className="border-t border-gray-300 pt-2 mt-2">
@@ -1385,15 +1835,29 @@ export default function AttendancePage() {
 
                         {workerAttendanceView && workerAttendanceView.daysOff && workerAttendanceView.daysOff.length > 0 && (
                           <div className="rounded-lg border border-gray-200 bg-white p-4">
-                            <h3 className="text-sm font-black text-gray-900 mb-2">Danh sách ngày nghỉ</h3>
-                            <div className="flex flex-wrap gap-2">
-                              {workerAttendanceView.daysOff.map((day, index) => (
-                                <span
+                            <h3 className="text-sm font-black text-gray-900 mb-2">Danh sách ngày làm việc</h3>
+                            <div className="space-y-2 max-h-60 overflow-y-auto">
+                              {workerAttendanceView.daysOff
+                                .filter(wd => wd.workQuantity > 0)
+                                .map((workDate, index) => (
+                                <div
                                   key={index}
-                                  className="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700"
+                                  className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
                                 >
-                                  {formatDateLabel(normalizeDateString(day))}
-                                </span>
+                                  <span className="text-xs font-semibold text-gray-700">
+                                    {formatDateLabel(normalizeDateString(workDate.workDate))}
+                                  </span>
+                                  <div className="flex items-center gap-3 text-xs">
+                                    <span className="text-green-600 font-semibold">
+                                      Công: {workDate.workQuantity}
+                                    </span>
+                                    {workDate.workOvertime > 0 && (
+                                      <span className="text-orange-600 font-semibold">
+                                        OT: {workDate.workOvertime}h
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               ))}
                             </div>
                           </div>
@@ -1406,7 +1870,7 @@ export default function AttendancePage() {
                         )}
                         {workerAttendanceView && isDefaultAttendanceRecord() && (
                           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-                            Chưa có dữ liệu chấm công cho tháng này. Tất cả các ngày được tính là ngày nghỉ. Lương thực nhận: 0 VNĐ.
+                            Chưa có dữ liệu chấm công cho tháng này. Lương thực nhận: 0 VNĐ.
                           </div>
                         )}
                       </div>

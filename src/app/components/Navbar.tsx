@@ -128,15 +128,13 @@ export default function Navbar() {
             >
               Vật tư
             </Link>
-            {role !== 'user' && (
-              <Link
-                href="/attendance"
-                aria-current={isAttendance ? 'page' : undefined}
-                className={`${baseLink} ${linkSize} ${isAttendance ? active : inactive}`}
-              >
-                Chấm công
-              </Link>
-            )}
+            <Link
+              href="/attendance"
+              aria-current={isAttendance ? 'page' : undefined}
+              className={`${baseLink} ${linkSize} ${isAttendance ? active : inactive}`}
+            >
+              Chấm công
+            </Link>
             {role !== 'user' && role !== 'approver' && (
               <>
                 <Link
@@ -263,19 +261,17 @@ export default function Navbar() {
             >
               Vật tư
             </Link>
-            {role !== 'user' && (
-              <Link
-                href="/attendance"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                  isAttendance 
-                    ? 'bg-orange-100 text-orange-700' 
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                }`}
-              >
-                Chấm công
-              </Link>
-            )}
+            <Link
+              href="/attendance"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                isAttendance 
+                  ? 'bg-orange-100 text-orange-700' 
+                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+              }`}
+            >
+              Chấm công
+            </Link>
             {role !== 'user' && role !== 'approver' && (
               <>
                 <Link
