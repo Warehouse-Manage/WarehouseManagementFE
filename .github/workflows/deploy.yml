@@ -1,8 +1,6 @@
 name: Deploy to Vercel
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -29,10 +27,10 @@ jobs:
     - name: Build project
       run: npm run build
       
-    - name: Deploy to Vercel
+    - name: Deploy to Vercel (Preview)
       uses: amondnet/vercel-action@v25
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}
         vercel-org-id: ${{ secrets.ORG_ID }}
         vercel-project-id: ${{ secrets.PROJECT_ID }}
-        vercel-args: '--prod'
+        vercel-args: '--yes'
