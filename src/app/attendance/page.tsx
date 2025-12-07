@@ -176,7 +176,8 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 
 export default function AttendancePage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'create' | 'mark' | 'worker'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'mark' | 'worker' | 'overview'>('overview');
+  const [overviewMonth, setOverviewMonth] = useState(getCurrentMonthValue());
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -223,6 +224,10 @@ export default function AttendancePage() {
   const [salaryViewMonth, setSalaryViewMonth] = useState(getCurrentMonthValue());
   const [workerAttendanceView, setWorkerAttendanceView] = useState<Attendance | null>(null);
   const [isLoadingWorkerAttendance, setIsLoadingWorkerAttendance] = useState(false);
+  const [overviewAttendance, setOverviewAttendance] = useState<Attendance | null>(null);
+  const [isLoadingOverview, setIsLoadingOverview] = useState(false);
+  const [overviewAttendances, setOverviewAttendances] = useState<Map<number, Attendance>>(new Map());
+  const [isLoadingOverviewAll, setIsLoadingOverviewAll] = useState(false);
 
   useEffect(() => {
     const userId = getCookie('userId');
@@ -834,6 +839,72 @@ export default function AttendancePage() {
     }
   }, [viewingSalaryWorker, salaryViewMonth, fetchWorkerAttendanceForSalary]);
 
+  // Fetch overview attendance for user role
+  useEffect(() => {
+    if (userRole === 'user' && currentUserWorker && overviewMonth) {
+      setIsLoadingOverview(true);
+      const [year, month] = overviewMonth.split('-');
+      fetch(
+        `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${currentUserWorker.id}/month/${year}/${Number(month)}`,
+        {
+          method: 'GET',
+          headers: buildAuthHeaders(),
+        }
+      )
+        .then((res) => res.ok ? res.json() : null)
+        .then((data: Attendance | null) => {
+          setOverviewAttendance(data);
+        })
+        .catch((error) => {
+          console.error('Could not load overview attendance:', error);
+          setOverviewAttendance(null);
+        })
+        .finally(() => setIsLoadingOverview(false));
+    }
+  }, [userRole, currentUserWorker, overviewMonth]);
+
+  // Fetch all attendances for overview (admin/approver)
+  useEffect(() => {
+    if ((userRole === 'Admin' || userRole === 'approver') && workers.length > 0 && overviewMonth) {
+      setIsLoadingOverviewAll(true);
+      const [year, month] = overviewMonth.split('-');
+      const attendanceMap = new Map<number, Attendance>();
+
+      Promise.all(
+        workers.map(async (worker) => {
+          try {
+            const response = await fetch(
+              `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${worker.id}/month/${year}/${Number(month)}`,
+              {
+                method: 'GET',
+                headers: buildAuthHeaders(),
+              }
+            );
+            if (response.ok) {
+              const data: Attendance = await response.json();
+              return { workerId: worker.id, attendance: data };
+            }
+            return null;
+          } catch {
+            return null;
+          }
+        })
+      )
+        .then((results) => {
+          results.forEach((result) => {
+            if (result) {
+              attendanceMap.set(result.workerId, result.attendance);
+            }
+          });
+          setOverviewAttendances(attendanceMap);
+        })
+        .catch((error) => {
+          console.error('Could not load overview attendances:', error);
+        })
+        .finally(() => setIsLoadingOverviewAll(false));
+    }
+  }, [userRole, workers, overviewMonth]);
+
   const handleViewSalary = (worker: Worker) => {
     setViewingSalaryWorker(worker);
     setSalaryViewMonth(getCurrentMonthValue());
@@ -873,6 +944,105 @@ export default function AttendancePage() {
     // Check if it's a default record (Id is 0 or monthlySalary is 0 with no work dates)
     return workerAttendanceView.id === 0 || 
            (workerAttendanceView.monthlySalary === 0 && (workerAttendanceView.daysOff?.length || 0) === 0);
+  };
+
+  const getWorkDateForOverview = (attendance: Attendance | null, dateValue: string): WorkDate | null => {
+    if (!attendance || !attendance.daysOff) return null;
+    const normalizedDate = normalizeDateString(dateValue);
+    return attendance.daysOff.find(wd => normalizeDateString(wd.workDate) === normalizedDate) || null;
+  };
+
+  const UserOverviewCalendarView = ({ attendance, month, worker, buildCalendarDays, chunkArray, weekDayLabels, formatCurrency }: {
+    attendance: Attendance | null;
+    month: string;
+    worker: Worker | null;
+    buildCalendarDays: (monthValue: string) => CalendarDay[];
+    chunkArray: <T,>(array: T[], size: number) => T[][];
+    weekDayLabels: string[];
+    formatCurrency: (value?: number | null) => string;
+  }) => {
+    const calendarDays = useMemo(() => buildCalendarDays(month), [month, buildCalendarDays]);
+    const calendarRows = useMemo(() => chunkArray(calendarDays, 7), [calendarDays, chunkArray]);
+
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border border-gray-200 p-4">
+          <div className="mb-4">
+            <p className="text-sm font-black text-gray-900">
+              {formatMonthTitle(month) || 'Chọn tháng'}
+            </p>
+            {worker && (
+              <p className="text-xs text-gray-600 mt-1">Công nhân: {worker.name}</p>
+            )}
+          </div>
+          <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-500 mb-2">
+            {weekDayLabels.map((day) => (
+              <span key={day}>{day}</span>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-2 text-center text-sm">
+            {calendarRows.map((row, rowIndex) =>
+              row.map((day, colIndex) =>
+                day.inMonth ? (
+                  <div
+                    key={`${day.dateValue}-${rowIndex}-${colIndex}`}
+                    className={`rounded-md px-0 py-2 font-semibold relative ${
+                      (() => {
+                        const wd = getWorkDateForOverview(attendance, day.dateValue);
+                        return wd && wd.workQuantity > 0;
+                      })()
+                        ? 'bg-green-50 text-green-700 border border-green-300'
+                        : 'bg-gray-100 text-gray-400'
+                    }`}
+                    title={(() => {
+                      const wd = getWorkDateForOverview(attendance, day.dateValue);
+                      return wd && wd.workQuantity > 0 
+                        ? `Công: ${wd.workQuantity}, OT: ${wd.workOvertime}h`
+                        : 'Chưa làm việc';
+                    })()}
+                  >
+                    {day.label}
+                    {(() => {
+                      const wd = getWorkDateForOverview(attendance, day.dateValue);
+                      return wd && wd.workQuantity > 0;
+                    })() && (
+                      <div className="absolute top-0 right-0 w-2 h-2 bg-green-600 rounded-full"></div>
+                    )}
+                  </div>
+                ) : (
+                  <span key={`empty-${rowIndex}-${colIndex}`} className="text-gray-300">
+                    &nbsp;
+                  </span>
+                )
+              )
+            )}
+          </div>
+        </div>
+        {attendance && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h3 className="text-sm font-black text-gray-900 mb-2">Thống kê tháng</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Lương tháng:</span>
+                <span className="ml-2 font-semibold text-green-600">{formatCurrency(attendance.monthlySalary)}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Số ngày làm việc:</span>
+                <span className="ml-2 font-semibold">{attendance.daysOff?.filter(wd => wd.workQuantity > 0).length || 0}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Tổng công:</span>
+                <span className="ml-2 font-semibold">{attendance.daysOff?.reduce((sum, wd) => sum + wd.workQuantity, 0) || 0}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Tổng OT:</span>
+                <span className="ml-2 font-semibold text-orange-600">{attendance.daysOff?.reduce((sum, wd) => sum + wd.workOvertime, 0) || 0}h</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (isCheckingAuth) {
@@ -933,6 +1103,40 @@ export default function AttendancePage() {
               Chấm công cho: <span className="font-semibold">{currentUserWorker.name}</span>
             </p>
           </div>
+        </div>
+
+        {globalError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {globalError}
+          </div>
+        )}
+
+        {/* Overview Section for User */}
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 sm:p-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-black text-gray-900 mb-2">Tổng quan chấm công tháng</h2>
+            <input
+              type="month"
+              value={overviewMonth}
+              onChange={(e) => setOverviewMonth(e.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+            />
+          </div>
+          {isLoadingOverview ? (
+            <div className="flex items-center justify-center py-8">
+              <span className="text-sm text-gray-500">Đang tải dữ liệu...</span>
+            </div>
+          ) : (
+            <UserOverviewCalendarView
+              attendance={overviewAttendance}
+              month={overviewMonth}
+              worker={currentUserWorker}
+              buildCalendarDays={buildCalendarDays}
+              chunkArray={chunkArray}
+              weekDayLabels={weekDayLabels}
+              formatCurrency={formatCurrency}
+            />
+          )}
         </div>
 
         {globalError && (
@@ -1151,6 +1355,16 @@ export default function AttendancePage() {
             onClick={() => setActiveTab('worker')}
           >
             Quản lý công nhân
+          </button>
+          <button
+            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${
+              activeTab === 'overview'
+                ? 'bg-orange-600 text-white'
+                : 'bg-transparent text-gray-500 hover:bg-gray-50'
+            }`}
+            onClick={() => setActiveTab('overview')}
+          >
+            Tổng quan
           </button>
         </div>
 
@@ -1519,7 +1733,7 @@ export default function AttendancePage() {
                 </button>
               </div>
             </div>
-          ) : (
+          ) : activeTab === 'worker' ? (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <h2 className="text-xl font-black text-gray-900">
@@ -1908,7 +2122,126 @@ export default function AttendancePage() {
                 </div>
               )}
             </div>
-          )}
+          ) : activeTab === 'overview' ? (
+            <div className="space-y-6 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-gray-900">Tổng quan chấm công tháng</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Xem chi tiết chấm công của tất cả công nhân trong tháng
+                  </p>
+                </div>
+                <input
+                  type="month"
+                  value={overviewMonth}
+                  onChange={(e) => setOverviewMonth(e.target.value)}
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                />
+              </div>
+
+              {isLoadingOverviewAll ? (
+                <div className="flex items-center justify-center py-8">
+                  <span className="text-sm text-gray-500">Đang tải dữ liệu...</span>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-gray-200 bg-white overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-bold text-gray-900 sticky left-0 bg-gray-50 z-10 border-r border-gray-200">
+                          Công nhân
+                        </th>
+                        {Array.from({ length: getDaysInMonth(overviewMonth) }, (_, i) => {
+                          const day = i + 1;
+                          const dateValue = `${overviewMonth}-${String(day).padStart(2, '0')}`;
+                          return (
+                            <th
+                              key={day}
+                              className="px-2 py-3 text-center font-semibold text-gray-700 border-r border-gray-200 min-w-[80px]"
+                              title={formatDateLabel(dateValue)}
+                            >
+                              {day}
+                            </th>
+                          );
+                        })}
+                        <th className="px-4 py-3 text-center font-bold text-gray-900 border-l border-gray-200">
+                          Tổng
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {workers.map((worker, workerIndex) => {
+                        const attendance = overviewAttendances.get(worker.id);
+                        const totalDays = attendance?.daysOff?.filter(wd => wd.workQuantity > 0).length || 0;
+                        const totalWorkQuantity = attendance?.daysOff?.reduce((sum, wd) => sum + wd.workQuantity, 0) || 0;
+                        const totalOvertime = attendance?.daysOff?.reduce((sum, wd) => sum + wd.workOvertime, 0) || 0;
+
+                        return (
+                          <tr
+                            key={worker.id}
+                            className={`border-b border-gray-100 hover:bg-gray-50 ${
+                              workerIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                            }`}
+                          >
+                            <td className="px-4 py-3 font-semibold text-gray-900 sticky left-0 bg-inherit z-10 border-r border-gray-200">
+                              <div>
+                                <div className="font-bold">{worker.name}</div>
+                                <div className="text-xs text-gray-500">{formatCurrency(worker.salary)}</div>
+                              </div>
+                            </td>
+                            {Array.from({ length: getDaysInMonth(overviewMonth) }, (_, i) => {
+                              const day = i + 1;
+                              const dateValue = `${overviewMonth}-${String(day).padStart(2, '0')}`;
+                              const workDate = getWorkDateForOverview(attendance || null, dateValue);
+                              const hasWork = workDate && workDate.workQuantity > 0;
+
+                              return (
+                                <td
+                                  key={day}
+                                  className={`px-2 py-2 text-center border-r border-gray-100 ${
+                                    hasWork ? 'bg-green-50' : ''
+                                  }`}
+                                  title={
+                                    hasWork
+                                      ? `${formatDateLabel(dateValue)}: Công ${workDate.workQuantity}, OT ${workDate.workOvertime}h`
+                                      : formatDateLabel(dateValue)
+                                  }
+                                >
+                                  {hasWork ? (
+                                    <div className="flex flex-col items-center gap-1">
+                                      <span className="text-xs font-semibold text-green-700">
+                                        {workDate.workQuantity}
+                                      </span>
+                                      {workDate.workOvertime > 0 && (
+                                        <span className="text-xs text-orange-600 font-semibold">
+                                          +{workDate.workOvertime}h
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-300">-</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className="px-4 py-3 text-center border-l border-gray-200 bg-gray-100 font-semibold">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-xs text-gray-600">{totalDays} ngày</span>
+                                <span className="text-xs text-green-700">{totalWorkQuantity} công</span>
+                                {totalOvertime > 0 && (
+                                  <span className="text-xs text-orange-600">+{totalOvertime}h</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
