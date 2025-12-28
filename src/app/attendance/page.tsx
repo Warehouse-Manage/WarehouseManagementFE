@@ -25,6 +25,7 @@ type Attendance = {
   workerId: number;
   daysOff: WorkDate[]; // Backend still uses DaysOff property name but contains WorkDate objects
   monthlySalary: number;
+  salaryPaid: number;
   calculationMonth: string;
   worker?: Worker;
 };
@@ -72,13 +73,6 @@ const formatCurrency = (value?: number | null) => {
   return `${value.toLocaleString('vi-VN')} VNĐ`;
 };
 
-const dateMatchesMonth = (dateValue: string, monthValue: string) => {
-  if (!dateValue || !monthValue) return false;
-  const [year, month] = monthValue.split('-').map(Number);
-  const date = new Date(dateValue);
-  return date.getFullYear() === year && date.getMonth() + 1 === month;
-};
-
 const toMonthIsoString = (monthValue: string) => {
   if (!monthValue) return new Date().toISOString();
   return new Date(`${monthValue}-01T00:00:00Z`).toISOString();
@@ -94,6 +88,62 @@ const getDaysInMonth = (monthValue: string) => {
   const [year, month] = monthValue.split('-').map(Number);
   if (!year || !month) return 30;
   return new Date(year, month, 0).getDate();
+};
+
+// Helper function to get salary period (from 15th of previous month to 14th of current month)
+const getSalaryPeriod = (monthValue: string) => {
+  if (!monthValue) return { startDate: '', endDate: '' };
+  const [year, month] = monthValue.split('-').map(Number);
+  if (!year || !month) return { startDate: '', endDate: '' };
+  
+  const now = new Date();
+  let startDate: string;
+  let endDate: string;
+  
+  if (now.getDate() > 15) {
+    // Start date: 16th of current month
+    startDate = `${year}-${String(month).padStart(2, '0')}-16`;
+    // End date: 15th of next month
+    const nextMonth = new Date(year, month, 15); // month is 1-indexed in Date constructor
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    endDate = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-15`;
+  } else {
+    // Start date: 16th of previous month
+    const prevMonth = new Date(year, month - 2, 16); // month - 2 because month is 1-indexed in Date constructor
+    startDate = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-16`;
+    // End date: 15th of current month
+    endDate = `${year}-${String(month).padStart(2, '0')}-15`;
+  }
+  
+  return { startDate, endDate };
+};
+
+// Helper function to check if a date is within salary period
+const isDateInSalaryPeriod = (dateValue: string, monthValue: string) => {
+  if (!dateValue || !monthValue) return false;
+  const { startDate, endDate } = getSalaryPeriod(monthValue);
+  return dateValue >= startDate && dateValue <= endDate;
+};
+
+// Helper function to get the 16th of the nearest previous month
+const getNearest16thDate = () => {
+  const today = new Date();
+  const currentDay = today.getDate();
+  
+  if (currentDay >= 16) {
+    // If today is 16th or later, return 16th of current month
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-16`;
+  } else {
+    // If today is before 16th, return 16th of previous month
+    const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 16);
+    return `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-16`;
+  }
+};
+
+// Helper function to get today's date in YYYY-MM-DD format
+const getTodayDate = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 };
 
 const weekDayLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
@@ -198,7 +248,6 @@ export default function AttendancePage() {
   const [isSavingAttendance, setIsSavingAttendance] = useState<number | null>(null);
 
   const [markForm, setMarkForm] = useState({
-    workerId: '',
     month: getCurrentMonthValue(),
   });
   const [markDayInput, setMarkDayInput] = useState('');
@@ -207,6 +256,11 @@ export default function AttendancePage() {
   const [markAttendance, setMarkAttendance] = useState<Attendance | null>(null);
   const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
   const [isSavingMark, setIsSavingMark] = useState(false);
+  const [salaryPaymentAmount, setSalaryPaymentAmount] = useState('');
+  const [isPayingSalary, setIsPayingSalary] = useState(false);
+  const [allAttendances, setAllAttendances] = useState<Attendance[]>([]);
+  const [isLoadingAllAttendances, setIsLoadingAllAttendances] = useState(false);
+  const [selectedWorkerForDetail, setSelectedWorkerForDetail] = useState<number | null>(null);
   const [workerSearch, setWorkerSearch] = useState('');
   const [workerForm, setWorkerForm] = useState({
     name: '',
@@ -310,29 +364,20 @@ export default function AttendancePage() {
     fetchCurrentUserWorker();
   }, [isCheckingAuth, currentUserId, userRole]);
 
-  // Ensure workerId is always set to current user's worker for user role
+  // For user role, auto-set selected worker when currentUserWorker is available
   useEffect(() => {
-    if (userRole === 'user' && currentUserWorker) {
-      if (markForm.workerId !== String(currentUserWorker.id)) {
-        setMarkForm((prev) => ({ ...prev, workerId: String(currentUserWorker.id) }));
-      }
+    if (userRole === 'user' && currentUserWorker && !selectedWorkerForDetail) {
+      setSelectedWorkerForDetail(currentUserWorker.id);
     }
-  }, [userRole, currentUserWorker, markForm.workerId]);
+  }, [userRole, currentUserWorker, selectedWorkerForDetail]);
 
-  // Auto-reload attendance when month changes for user role
+  // Auto-reload all attendances when month changes (for admin/approver roles)
   useEffect(() => {
-    if (userRole === 'user' && currentUserWorker && markForm.workerId && markForm.month) {
-      // Only reload if workerId matches current user's worker and not currently loading
-      if (Number(markForm.workerId) === currentUserWorker.id && !isLoadingAttendance) {
-        // Use a small delay to avoid multiple rapid calls
-        const timeoutId = setTimeout(() => {
-          fetchAttendanceForMarking();
-        }, 300);
-        return () => clearTimeout(timeoutId);
-      }
+    if (userRole !== 'user' && markForm.month && activeTab === 'mark') {
+      fetchAllAttendancesForMonth();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markForm.month]);
+  }, [markForm.month, activeTab, userRole]);
 
   // Fetch all workers for admin/approver roles
   useEffect(() => {
@@ -445,19 +490,24 @@ export default function AttendancePage() {
   }, [createForm.month]);
 
   const selectedMarkWorker = useMemo(
-    () => workers.find((worker) => worker.id === Number(markForm.workerId)),
-    [workers, markForm.workerId]
+    () => selectedWorkerForDetail ? workers.find((worker) => worker.id === selectedWorkerForDetail) : null,
+    [workers, selectedWorkerForDetail]
   );
 
   const markPreviewSalary = useMemo(() => {
-    if (!selectedMarkWorker) return null;
-    const daysInMonth = getDaysInMonth(markForm.month);
-    const dailySalary = selectedMarkWorker.salary / daysInMonth;
-    const totalWorkQuantity = markWorkDates.reduce((sum, wd) => sum + wd.workQuantity, 0);
+    if (!selectedMarkWorker || !markForm.month) return null;
+    // Salary period is from 15th of previous month to 14th of current month (30 days)
+    const daysInSalaryPeriod = 30;
+    const dailySalary = selectedMarkWorker.salary / daysInSalaryPeriod;
+    // Filter work dates to only include those in the salary period
+    const workDatesInPeriod = markWorkDates.filter(wd => {
+      return isDateInSalaryPeriod(normalizeDateString(wd.workDate), markForm.month);
+    });
+    const totalWorkQuantity = workDatesInPeriod.reduce((sum, wd) => sum + wd.workQuantity, 0);
     const baseSalary = dailySalary * totalWorkQuantity;
-    // Assuming overtime rate is 1.5x daily salary per hour (8 hours per day)
+    // Assuming overtime rate is 2x daily salary per hour (8 hours per day) - matching backend
     const overtimeRate = dailySalary / 8;
-    const overtimeSalary = markWorkDates.reduce((sum, wd) => sum + (wd.workOvertime * overtimeRate * 1.5), 0);
+    const overtimeSalary = workDatesInPeriod.reduce((sum, wd) => sum + (wd.workOvertime * overtimeRate * 2), 0);
     return baseSalary + overtimeSalary;
   }, [selectedMarkWorker, markForm.month, markWorkDates]);
 
@@ -538,18 +588,23 @@ export default function AttendancePage() {
   };
 
   const addWorkDateToMark = () => {
-    if (!markForm.workerId || !markForm.month) {
-      setMarkToast({ type: 'error', message: 'Vui lòng chọn công nhân và tháng.' });
+    if (!selectedWorkerForDetail) {
+      setMarkToast({ type: 'error', message: 'Vui lòng chọn công nhân.' });
       return;
     }
     if (!markDayInput) {
       setMarkToast({ type: 'error', message: 'Vui lòng chọn ngày làm việc.' });
       return;
     }
-    if (!dateMatchesMonth(markDayInput, markForm.month)) {
+    
+    // Validate that the date is from nearest 16th to today
+    const nearest16th = getNearest16thDate();
+    const today = getTodayDate();
+    
+    if (markDayInput < nearest16th || markDayInput > today) {
       setMarkToast({
         type: 'error',
-        message: 'Ngày làm việc phải thuộc tháng đang xem.',
+        message: `Ngày làm việc phải từ ${nearest16th} đến ${today}.`,
       });
       return;
     }
@@ -585,18 +640,18 @@ export default function AttendancePage() {
     });
   };
 
-  const fetchAttendanceForMarking = async () => {
-    if (!markForm.workerId || !markForm.month) {
-      setMarkToast({ type: 'error', message: 'Vui lòng chọn công nhân và tháng.' });
+  const fetchAllAttendancesForMonth = async () => {
+    if (!markForm.month) {
+      setMarkToast({ type: 'error', message: 'Vui lòng chọn tháng.' });
       return;
     }
 
-    setIsLoadingAttendance(true);
+    setIsLoadingAllAttendances(true);
     setMarkToast(null);
     const [year, month] = markForm.month.split('-');
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${markForm.workerId}/month/${year}/${Number(month)}`,
+        `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances?year=${year}&month=${Number(month)}`,
         {
           method: 'GET',
           headers: buildAuthHeaders(),
@@ -608,37 +663,97 @@ export default function AttendancePage() {
         throw new Error(errorBody.message || `HTTP ${response.status}`);
       }
 
-      const data: Attendance = await response.json();
-      setMarkAttendance(data);
-      setMarkWorkDates((data.daysOff || []).map(wd => ({
-        id: wd.id,
-        workDate: wd.workDate,
-        workQuantity: wd.workQuantity,
-        workOvertime: wd.workOvertime,
-      })));
-      
-      // Check if it's a default record (Id is 0 or monthlySalary is 0 with no work dates)
-      const isDefault = data.id === 0 || (data.monthlySalary === 0 && (data.daysOff?.length || 0) === 0);
-      
-      setMarkToast({
-        type: isDefault ? 'info' : 'success',
-        message: isDefault 
-          ? 'Chưa có dữ liệu chấm công cho công nhân này trong tháng đã chọn.'
-          : 'Đã tải chấm công hiện tại.',
-      });
+      const data: Attendance[] = await response.json();
+      setAllAttendances(data);
     } catch (error: unknown) {
-      console.error('Không thể tải chấm công:', error);
+      console.error('Không thể tải danh sách chấm công:', error);
       setMarkToast({
         type: 'error',
-        message: getErrorMessage(error, 'Không thể tải chấm công.'),
+        message: getErrorMessage(error, 'Không thể tải danh sách chấm công.'),
+      });
+    } finally {
+      setIsLoadingAllAttendances(false);
+    }
+  };
+
+  const loadWorkerDetail = async (workerId: number) => {
+    if (!markForm.month) {
+      setMarkToast({ type: 'error', message: 'Vui lòng chọn tháng.' });
+      return;
+    }
+
+    setSelectedWorkerForDetail(workerId);
+    setIsLoadingAttendance(true);
+    setMarkToast(null);
+    const [year, month] = markForm.month.split('-');
+    
+    try {
+      // Get attendance for the selected month (for salary info)
+      const attendanceResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${workerId}/month/${year}/${Number(month)}`,
+        {
+          method: 'GET',
+          headers: buildAuthHeaders(),
+        }
+      );
+
+      if (!attendanceResponse.ok) {
+        const errorBody = await attendanceResponse.json().catch(() => ({}));
+        throw new Error(errorBody.message || `HTTP ${attendanceResponse.status}`);
+      }
+
+      const attendanceData: Attendance = await attendanceResponse.json();
+      setMarkAttendance(attendanceData);
+
+      // Get work dates from nearest 16th to today
+      const startDate = getNearest16thDate();
+      const endDate = getTodayDate();
+      
+      const workDatesResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${workerId}/workdates?startDate=${startDate}&endDate=${endDate}`,
+        {
+          method: 'GET',
+          headers: buildAuthHeaders(),
+        }
+      );
+
+      if (!workDatesResponse.ok) {
+        // If work dates API fails, fall back to attendance work dates
+        setMarkWorkDates((attendanceData.daysOff || []).map(wd => ({
+          id: wd.id,
+          workDate: wd.workDate,
+          workQuantity: wd.workQuantity,
+          workOvertime: wd.workOvertime,
+        })));
+      } else {
+        const workDatesData: WorkDate[] = await workDatesResponse.json();
+        setMarkWorkDates(workDatesData.map(wd => ({
+          id: wd.id,
+          workDate: wd.workDate,
+          workQuantity: wd.workQuantity,
+          workOvertime: wd.workOvertime,
+        })));
+      }
+    } catch (error: unknown) {
+      console.error('Không thể tải chi tiết chấm công:', error);
+      setMarkToast({
+        type: 'error',
+        message: getErrorMessage(error, 'Không thể tải chi tiết chấm công.'),
       });
     } finally {
       setIsLoadingAttendance(false);
     }
   };
 
+  const fetchAttendanceForMarking = async () => {
+    if (!selectedWorkerForDetail || !markForm.month) {
+      return;
+    }
+    await loadWorkerDetail(selectedWorkerForDetail);
+  };
+
   const saveMarkedAttendance = async () => {
-    if (!markForm.workerId || !markForm.month) {
+    if (!selectedWorkerForDetail || !markForm.month) {
       setMarkToast({ type: 'error', message: 'Vui lòng chọn công nhân và tháng.' });
       return;
     }
@@ -647,7 +762,7 @@ export default function AttendancePage() {
     setMarkToast(null);
     try {
       const payload = {
-        workerId: Number(markForm.workerId),
+        workerId: selectedWorkerForDetail,
         calculationMonth: toMonthIsoString(markForm.month),
         workDates: markWorkDates.map(wd => ({
           workDate: wd.workDate,
@@ -669,13 +784,50 @@ export default function AttendancePage() {
 
       const updated: Attendance = await response.json();
       setMarkAttendance(updated);
-      setMarkWorkDates((updated.daysOff || []).map(wd => ({
-        id: wd.id,
-        workDate: wd.workDate,
-        workQuantity: wd.workQuantity,
-        workOvertime: wd.workOvertime,
-      })));
+      
+      // Reload work dates from nearest 16th to today
+      const startDate = getNearest16thDate();
+      const endDate = getTodayDate();
+      
+      try {
+        const workDatesResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${selectedWorkerForDetail}/workdates?startDate=${startDate}&endDate=${endDate}`,
+          {
+            method: 'GET',
+            headers: buildAuthHeaders(),
+          }
+        );
+
+        if (workDatesResponse.ok) {
+          const workDatesData: WorkDate[] = await workDatesResponse.json();
+          setMarkWorkDates(workDatesData.map(wd => ({
+            id: wd.id,
+            workDate: wd.workDate,
+            workQuantity: wd.workQuantity,
+            workOvertime: wd.workOvertime,
+          })));
+        } else {
+          // Fallback to updated attendance work dates
+          setMarkWorkDates((updated.daysOff || []).map(wd => ({
+            id: wd.id,
+            workDate: wd.workDate,
+            workQuantity: wd.workQuantity,
+            workOvertime: wd.workOvertime,
+          })));
+        }
+      } catch {
+        // Fallback to updated attendance work dates
+        setMarkWorkDates((updated.daysOff || []).map(wd => ({
+          id: wd.id,
+          workDate: wd.workDate,
+          workQuantity: wd.workQuantity,
+          workOvertime: wd.workOvertime,
+        })));
+      }
+      
       setMarkToast({ type: 'success', message: 'Đã cập nhật chấm công.' });
+      // Refresh all attendances list
+      await fetchAllAttendancesForMonth();
     } catch (error: unknown) {
       console.error('Không thể cập nhật chấm công:', error);
       setMarkToast({
@@ -684,6 +836,61 @@ export default function AttendancePage() {
       });
     } finally {
       setIsSavingMark(false);
+    }
+  };
+
+  const handlePaySalary = async () => {
+    if (!markAttendance || !markAttendance.id) {
+      setMarkToast({ type: 'error', message: 'Vui lòng tải bảng chấm công trước.' });
+      return;
+    }
+
+    const amount = parseFloat(salaryPaymentAmount);
+    if (!amount || amount <= 0) {
+      setMarkToast({ type: 'error', message: 'Vui lòng nhập số tiền hợp lệ.' });
+      return;
+    }
+
+    const userId = getCookie('userId');
+    if (!userId) {
+      setMarkToast({ type: 'error', message: 'Không tìm thấy thông tin người dùng.' });
+      return;
+    }
+
+    setIsPayingSalary(true);
+    setMarkToast(null);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/${markAttendance.id}/pay-salary`, {
+        method: 'POST',
+        headers: buildAuthHeaders(),
+        body: JSON.stringify({
+          amount: amount,
+          createdUserId: Number(userId),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody.message || `HTTP ${response.status}`);
+      }
+
+      const updated: Attendance = await response.json();
+      setMarkAttendance(updated);
+      setSalaryPaymentAmount('');
+      setMarkToast({ type: 'success', message: 'Đã thanh toán lương và tạo bản ghi trong sổ quỹ.' });
+      
+      // Refresh attendance data
+      await fetchAttendanceForMarking();
+      // Refresh all attendances list
+      await fetchAllAttendancesForMonth();
+    } catch (error: unknown) {
+      console.error('Không thể thanh toán lương:', error);
+      setMarkToast({
+        type: 'error',
+        message: getErrorMessage(error, 'Không thể thanh toán lương.'),
+      });
+    } finally {
+      setIsPayingSalary(false);
     }
   };
 
@@ -1154,23 +1361,27 @@ export default function AttendancePage() {
                   type="month"
                   value={markForm.month}
                   onChange={(e) => {
-                    setMarkForm((prev) => {
-                      // Ensure workerId is always set to current user's worker
-                      const workerId = currentUserWorker ? String(currentUserWorker.id) : prev.workerId;
-                      return { ...prev, month: e.target.value, workerId };
-                    });
+                    setMarkForm((prev) => ({ ...prev, month: e.target.value }));
                     setMarkAttendance(null);
                     setMarkWorkDates([]);
                     setMarkToast(null);
                   }}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
                 />
+                {markForm.month && (() => {
+                  const { startDate, endDate } = getSalaryPeriod(markForm.month);
+                  return (
+                    <p className="text-xs text-gray-600 mt-1">
+                      Chu kỳ lương: từ {startDate} đến {endDate}
+                    </p>
+                  );
+                })()}
               </div>
               <div className="flex items-end">
                 <button
                   onClick={fetchAttendanceForMarking}
                   className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
-                  disabled={!markForm.workerId || !markForm.month || isLoadingAttendance}
+                  disabled={!selectedWorkerForDetail || !markForm.month || isLoadingAttendance}
                 >
                   {isLoadingAttendance ? 'Đang tải...' : 'Tải bảng chấm công'}
                 </button>
@@ -1192,20 +1403,29 @@ export default function AttendancePage() {
             )}
 
             <div className="rounded-lg border border-dashed border-gray-300 p-4 space-y-3">
+              {currentUserWorker && (() => {
+                const nearest16th = getNearest16thDate();
+                const today = getTodayDate();
+                return (
+                  <div className="text-xs text-gray-600 mb-2">
+                    Chọn ngày từ {nearest16th} đến {today}
+                  </div>
+                );
+              })()}
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="date"
                   value={markDayInput}
                   onChange={(e) => setMarkDayInput(e.target.value)}
                   className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                  max={`${markForm.month}-31`}
-                  min={`${markForm.month}-01`}
-                  disabled={!markForm.month}
+                  max={getTodayDate()}
+                  min={getNearest16thDate()}
+                  disabled={!currentUserWorker}
                 />
                 <button
                   onClick={addWorkDateToMark}
                   className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-orange-700 disabled:opacity-50"
-                  disabled={!markForm.workerId || !markForm.month}
+                  disabled={!selectedWorkerForDetail || !markForm.month}
                 >
                   Thêm ngày làm việc
                 </button>
@@ -1295,7 +1515,7 @@ export default function AttendancePage() {
               <button
                 onClick={saveMarkedAttendance}
                 className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold uppercase tracking-wide text-white shadow hover:bg-orange-700 disabled:opacity-50"
-                disabled={isSavingMark || !markForm.workerId || !markForm.month}
+                disabled={isSavingMark || !selectedWorkerForDetail || !markForm.month}
               >
                 {isSavingMark ? 'Đang lưu...' : 'Cập nhật chấm công'}
               </button>
@@ -1564,27 +1784,7 @@ export default function AttendancePage() {
           ) : activeTab === 'mark' ? (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-1">
-                  <label className="text-sm font-bold text-gray-700 block mb-2">Công nhân</label>
-                  <select
-                    value={markForm.workerId}
-                    onChange={(e) => {
-                      setMarkForm((prev) => ({ ...prev, workerId: e.target.value }));
-                      setMarkAttendance(null);
-                      setMarkWorkDates([]);
-                      setMarkToast(null);
-                    }}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                  >
-                    <option value="">{loadingWorkers ? 'Đang tải...' : 'Chọn công nhân'}</option>
-                    {workers.map((worker) => (
-                      <option key={worker.id} value={worker.id}>
-                        {worker.name} • {formatCurrency(worker.salary)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="md:col-span-1">
+                <div className="md:col-span-2">
                   <label className="text-sm font-bold text-gray-700 block mb-2">Tháng chấm công</label>
                   <input
                     type="month"
@@ -1594,50 +1794,153 @@ export default function AttendancePage() {
                       setMarkAttendance(null);
                       setMarkWorkDates([]);
                       setMarkToast(null);
+                      setSelectedWorkerForDetail(null);
+                      setAllAttendances([]);
                     }}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
                   />
+                  {markForm.month && (() => {
+                    const { startDate, endDate } = getSalaryPeriod(markForm.month);
+                    return (
+                      <p className="text-xs text-gray-600 mt-1">
+                        Chu kỳ lương: từ {startDate} đến {endDate}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="md:col-span-1 flex items-end">
                   <button
-                    onClick={fetchAttendanceForMarking}
+                    onClick={fetchAllAttendancesForMonth}
                     className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
-                    disabled={!markForm.workerId || !markForm.month || isLoadingAttendance}
+                    disabled={!markForm.month || isLoadingAllAttendances}
                   >
-                    {isLoadingAttendance ? 'Đang tải...' : 'Tải bảng chấm công'}
+                    {isLoadingAllAttendances ? 'Đang tải...' : 'Tải danh sách lương'}
                   </button>
                 </div>
               </div>
 
-              {markAttendance && (
-                <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm font-semibold text-gray-700">
+              {allAttendances.length > 0 && (
+                <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-orange-50 border-b border-gray-200">
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-900">Công nhân</th>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-900">Lương tháng</th>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-900">Đã trả</th>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-900">Còn lại</th>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-900">Số ngày làm</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allAttendances.map((attendance) => {
+                        const remaining = attendance.monthlySalary - attendance.salaryPaid;
+                        const isSelected = selectedWorkerForDetail === attendance.workerId;
+                        return (
+                          <tr
+                            key={attendance.workerId}
+                            onClick={() => loadWorkerDetail(attendance.workerId)}
+                            className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
+                              isSelected ? 'bg-orange-50' : ''
+                            }`}
+                          >
+                            <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                              {attendance.worker?.name || `Công nhân #${attendance.workerId}`}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-green-600 font-semibold">
+                              {formatCurrency(attendance.monthlySalary)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-blue-600 font-semibold">
+                              {formatCurrency(attendance.salaryPaid)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-orange-600 font-semibold">
+                              {formatCurrency(remaining)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              {markForm.month ? (() => {
+                                const workDatesInPeriod = (attendance.daysOff || []).filter(wd => {
+                                  return isDateInSalaryPeriod(normalizeDateString(wd.workDate), markForm.month);
+                                });
+                                return `${workDatesInPeriod.length} ngày`;
+                              })() : `${attendance.daysOff?.length || 0} ngày`}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {allAttendances.length === 0 && !isLoadingAllAttendances && markForm.month && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
+                  <p className="text-sm text-gray-600">Chưa có dữ liệu chấm công cho tháng này. Vui lòng nhấn &quot;Tải danh sách lương&quot; để xem.</p>
+                </div>
+              )}
+
+              {markAttendance && selectedMarkWorker && (
+                <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 grid grid-cols-1 md:grid-cols-4 gap-4 text-sm font-semibold text-gray-700">
                   <div>
                     Công nhân: <span className="text-gray-900">{markAttendance.worker?.name || selectedMarkWorker?.name}</span>
                   </div>
                   <div>
-                    Lương tháng hiện tại: <span className="text-green-600">{formatCurrency(markAttendance.monthlySalary)}</span>
+                    Lương tháng hiện tại: <span className="text-green-600">
+                      {markForm.month ? (() => {
+                        // Calculate salary based on work dates in salary period from markWorkDates
+                        const workDatesInPeriod = markWorkDates.filter(wd => {
+                          return isDateInSalaryPeriod(normalizeDateString(wd.workDate), markForm.month);
+                        });
+                        const daysInSalaryPeriod = 30;
+                        const dailySalary = selectedMarkWorker.salary / daysInSalaryPeriod;
+                        const totalWorkQuantity = workDatesInPeriod.reduce((sum, wd) => sum + wd.workQuantity, 0);
+                        const baseSalary = dailySalary * totalWorkQuantity;
+                        const overtimeRate = dailySalary / 8;
+                        const overtimeSalary = workDatesInPeriod.reduce((sum, wd) => sum + (wd.workOvertime * overtimeRate * 2), 0);
+                        const calculatedSalary = baseSalary + overtimeSalary;
+                        return formatCurrency(calculatedSalary);
+                      })() : formatCurrency(markAttendance.monthlySalary)}
+                    </span>
                   </div>
                   <div>
-                    Số ngày làm việc: <span className="text-gray-900">{markAttendance.daysOff?.length || 0}</span>
+                    Đã trả: <span className="text-blue-600">{formatCurrency(markAttendance.salaryPaid)}</span>
+                  </div>
+                  <div>
+                    Số ngày làm việc: <span className="text-gray-900">
+                      {markForm.month ? (() => {
+                        // Count work dates in salary period from markWorkDates
+                        const workDatesInPeriod = markWorkDates.filter(wd => {
+                          return isDateInSalaryPeriod(normalizeDateString(wd.workDate), markForm.month);
+                        });
+                        return workDatesInPeriod.length;
+                      })() : markWorkDates.length}
+                    </span>
                   </div>
                 </div>
               )}
 
               <div className="rounded-lg border border-dashed border-gray-300 p-4 space-y-3">
+                {selectedWorkerForDetail && (() => {
+                  const nearest16th = getNearest16thDate();
+                  const today = getTodayDate();
+                  return (
+                    <div className="text-xs text-gray-600 mb-2">
+                      Chọn ngày từ {nearest16th} đến {today}
+                    </div>
+                  );
+                })()}
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="date"
                     value={markDayInput}
                     onChange={(e) => setMarkDayInput(e.target.value)}
                     className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                    max={`${markForm.month}-31`}
-                    min={`${markForm.month}-01`}
-                    disabled={!markForm.month}
+                    max={getTodayDate()}
+                    min={getNearest16thDate()}
+                    disabled={!selectedWorkerForDetail}
                   />
                   <button
                     onClick={addWorkDateToMark}
                     className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-orange-700 disabled:opacity-50"
-                    disabled={!markForm.workerId || !markForm.month}
+                    disabled={!selectedWorkerForDetail || !markForm.month}
                   >
                     Thêm ngày làm việc
                   </button>
@@ -1701,11 +2004,57 @@ export default function AttendancePage() {
                     Lương cơ bản: <span className="text-gray-900">{formatCurrency(selectedMarkWorker.salary)}</span>
                   </div>
                   <div>
-                    Số ngày làm việc: <span className="text-gray-900">{markWorkDates.length}</span>
+                    Số ngày làm việc: <span className="text-gray-900">
+                      {markForm.month ? (() => {
+                        const workDatesInPeriod = markWorkDates.filter(wd => {
+                          return isDateInSalaryPeriod(normalizeDateString(wd.workDate), markForm.month);
+                        });
+                        return workDatesInPeriod.length;
+                      })() : markWorkDates.length}
+                    </span>
                   </div>
                   <div>
                     Lương dự kiến: <span className="text-green-600">{formatCurrency(markPreviewSalary)}</span>
                   </div>
+                </div>
+              )}
+
+              {markAttendance && markAttendance.id > 0 && (
+                <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+                  <h3 className="text-sm font-bold text-gray-900">Thanh toán lương</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-semibold text-gray-700 block mb-2">Số tiền thanh toán</label>
+                      <input
+                        type="number"
+                        step="1000"
+                        min="0"
+                        value={salaryPaymentAmount}
+                        onChange={(e) => setSalaryPaymentAmount(e.target.value)}
+                        placeholder="Nhập số tiền lương cần thanh toán"
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                      />
+                    </div>
+                    <div className="md:col-span-1 flex items-end">
+                      <button
+                        onClick={handlePaySalary}
+                        className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                        disabled={isPayingSalary || !salaryPaymentAmount || parseFloat(salaryPaymentAmount) <= 0}
+                      >
+                        {isPayingSalary ? 'Đang xử lý...' : 'Thanh toán lương'}
+                      </button>
+                    </div>
+                  </div>
+                  {markAttendance.salaryPaid > 0 && (
+                    <div className="text-xs text-gray-600">
+                      Đã thanh toán: <span className="font-semibold text-blue-600">{formatCurrency(markAttendance.salaryPaid)}</span>
+                      {markAttendance.monthlySalary > 0 && (
+                        <span className="ml-2">
+                          (Còn lại: <span className="font-semibold text-orange-600">{formatCurrency(markAttendance.monthlySalary - markAttendance.salaryPaid)}</span>)
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1723,15 +2072,23 @@ export default function AttendancePage() {
                 </div>
               )}
 
-              <div className="flex justify-end">
-                <button
-                  onClick={saveMarkedAttendance}
-                  className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold uppercase tracking-wide text-white shadow hover:bg-orange-700 disabled:opacity-50"
-                  disabled={isSavingMark || !markForm.workerId || !markForm.month}
-                >
-                  {isSavingMark ? 'Đang lưu...' : 'Cập nhật chấm công'}
-                </button>
-              </div>
+              {selectedWorkerForDetail && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={saveMarkedAttendance}
+                    className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold uppercase tracking-wide text-white shadow hover:bg-orange-700 disabled:opacity-50"
+                    disabled={isSavingMark || !selectedWorkerForDetail || !markForm.month}
+                  >
+                    {isSavingMark ? 'Đang lưu...' : 'Cập nhật chấm công'}
+                  </button>
+                </div>
+              )}
+
+              {!selectedWorkerForDetail && allAttendances.length > 0 && (
+                <div className="rounded-lg border border-gray-200 bg-blue-50 p-4 text-center">
+                  <p className="text-sm text-blue-700 font-semibold">Nhấn vào một hàng trong bảng để xem và chỉnh sửa chi tiết chấm công</p>
+                </div>
+              )}
             </div>
           ) : activeTab === 'worker' ? (
             <div className="space-y-6">
@@ -2148,7 +2505,7 @@ export default function AttendancePage() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="px-4 py-3 text-left font-bold text-gray-900 sticky left-0 bg-gray-50 z-10 border-r border-gray-200">
+                        <th className="px-4 py-3 text-left font-bold text-gray-900 sticky left-0 bg-gray-50 z-10 border-r border-gray-200 min-w-[200px]">
                           Công nhân
                         </th>
                         {Array.from({ length: getDaysInMonth(overviewMonth) }, (_, i) => {
@@ -2183,9 +2540,9 @@ export default function AttendancePage() {
                               workerIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                             }`}
                           >
-                            <td className="px-4 py-3 font-semibold text-gray-900 sticky left-0 bg-inherit z-10 border-r border-gray-200">
+                            <td className="px-4 py-3 font-semibold text-gray-900 sticky left-0 bg-inherit z-10 border-r border-gray-200 min-w-[200px]">
                               <div>
-                                <div className="font-bold">{worker.name}</div>
+                                <div className="font-bold whitespace-nowrap">{worker.name}</div>
                                 <div className="text-xs text-gray-500">{formatCurrency(worker.salary)}</div>
                               </div>
                             </td>
