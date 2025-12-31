@@ -37,6 +37,18 @@ type Product = {
 };
 
 export default function OrdersPage() {
+  const [role, setRole] = useState<string | null>(() => getCookie('role'));
+
+  useEffect(() => {
+    const r = getCookie('role');
+    setRole(r);
+  }, []);
+
+  // Show blank page if role is not 'Admin' or 'accountance'
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
+  }
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -251,15 +263,15 @@ export default function OrdersPage() {
       const res = await fetch(`${apiHost}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerId: Number(customerId),
-            deliverId: Number(deliverId),
-            sale: Number(sale || 0),
-            amountCustomerPayment: Number(amountCustomerPayment || 0),
+        body: JSON.stringify({
+          customerId: Number(customerId),
+          deliverId: Number(deliverId),
+          sale: Number(sale || 0),
+          amountCustomerPayment: Number(amountCustomerPayment || 0),
             shipCost: Number(shipCost || 0),
-            productOrders: products,
+          productOrders: products,
             createdUserId: Number(userId),
-          }),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {

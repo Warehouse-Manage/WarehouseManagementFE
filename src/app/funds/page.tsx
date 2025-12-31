@@ -17,6 +17,18 @@ type Fund = {
 };
 
 export default function FundsPage() {
+  const [role, setRole] = useState<string | null>(() => getCookie('role'));
+
+  useEffect(() => {
+    const r = getCookie('role');
+    setRole(r);
+  }, []);
+
+  // Show blank page if role is not 'Admin' or 'accountance'
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
+  }
+
   const [funds, setFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

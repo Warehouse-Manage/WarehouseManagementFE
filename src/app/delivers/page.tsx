@@ -13,6 +13,18 @@ type Deliver = {
 };
 
 export default function DeliversPage() {
+  const [role, setRole] = useState<string | null>(() => getCookie('role'));
+
+  useEffect(() => {
+    const r = getCookie('role');
+    setRole(r);
+  }, []);
+
+  // Show blank page if role is not 'Admin' or 'accountance'
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
+  }
+
   const [delivers, setDelivers] = useState<Deliver[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,7 +185,7 @@ export default function DeliversPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Người giao hàng</h1>
+      <h1 className="text-2xl font-semibold">Người giao hàng</h1>
         <button
           onClick={() => {
             setName('');
@@ -201,35 +213,35 @@ export default function DeliversPage() {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              {error && <div className="text-red-600 text-sm">{error}</div>}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <input
-                  className="border rounded px-3 py-2"
-                  placeholder="Tên"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-                <input
-                  className="border rounded px-3 py-2"
-                  placeholder="Số điện thoại"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                />
-                <input
-                  className="border rounded px-3 py-2"
-                  placeholder="Biển số"
-                  value={plateNumber}
-                  onChange={(e) => setPlateNumber(e.target.value)}
-                />
-              </div>
+        {error && <div className="text-red-600 text-sm">{error}</div>}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input
+            className="border rounded px-3 py-2"
+            placeholder="Tên"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            className="border rounded px-3 py-2"
+            placeholder="Số điện thoại"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+          />
+          <input
+            className="border rounded px-3 py-2"
+            placeholder="Biển số"
+            value={plateNumber}
+            onChange={(e) => setPlateNumber(e.target.value)}
+          />
+        </div>
               <div className="flex gap-3">
-                <button
-                  onClick={handleCreate}
-                  disabled={submitting}
-                  className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-60"
-                >
-                  {submitting ? 'Đang lưu...' : 'Lưu'}
-                </button>
+        <button
+          onClick={handleCreate}
+          disabled={submitting}
+          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-60"
+        >
+          {submitting ? 'Đang lưu...' : 'Lưu'}
+        </button>
                 <button
                   onClick={() => setShowForm(false)}
                   className="px-4 py-2 border rounded hover:bg-gray-50"
@@ -239,7 +251,7 @@ export default function DeliversPage() {
               </div>
             </div>
           </div>
-        </div>
+      </div>
       )}
 
       <div className="border rounded-lg p-4 bg-white shadow-sm">
@@ -272,7 +284,7 @@ export default function DeliversPage() {
                 {delivers.map((d) => {
                   const remaining = (d.amountMoneyTotal || 0) - (d.amountMoneyPaid || 0);
                   return (
-                    <tr key={d.id} className="border-b">
+                  <tr key={d.id} className="border-b">
                       <td className="px-4 py-3">{d.name}</td>
                       <td className="px-4 py-3">{d.phoneNumber}</td>
                       <td className="px-4 py-3">{d.plateNumber}</td>
@@ -294,7 +306,7 @@ export default function DeliversPage() {
                           Thanh toán
                         </button>
                       </td>
-                    </tr>
+                  </tr>
                   );
                 })}
               </tbody>

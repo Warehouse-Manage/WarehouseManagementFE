@@ -141,6 +141,8 @@ export default function Navbar() {
             >
               Chấm công
             </Link>
+             {(role === 'Admin' || role === 'accountance') && (
+               <>
             <Link
               href="/products"
               aria-current={isProducts ? 'page' : undefined}
@@ -148,13 +150,13 @@ export default function Navbar() {
             >
               Sản phẩm
             </Link>
-            <Link
-              href="/nguyen-lieu"
-              aria-current={isNguyenLieu ? 'page' : undefined}
-              className={`${baseLink} ${linkSize} ${isNguyenLieu ? active : inactive}`}
-            >
-              Nguyên liệu
-            </Link>
+                 <Link
+                   href="/nguyen-lieu"
+                   aria-current={isNguyenLieu ? 'page' : undefined}
+                   className={`${baseLink} ${linkSize} ${isNguyenLieu ? active : inactive}`}
+                 >
+                   Nguyên liệu
+                 </Link>
             <Link
               href="/customers"
               aria-current={isCustomers ? 'page' : undefined}
@@ -176,14 +178,16 @@ export default function Navbar() {
             >
               Đơn hàng
             </Link>
-            <Link
-              href="/funds"
-              aria-current={isFunds ? 'page' : undefined}
-              className={`${baseLink} ${linkSize} ${isFunds ? active : inactive}`}
-            >
-              Sổ quỹ
-            </Link>
-            {role !== 'user' && role !== 'approver' && (
+                 <Link
+                   href="/funds"
+                   aria-current={isFunds ? 'page' : undefined}
+                   className={`${baseLink} ${linkSize} ${isFunds ? active : inactive}`}
+                 >
+                   Sổ quỹ
+                 </Link>
+               </>
+             )}
+             {(role === 'Admin' || role === 'accountance') && (
               <>
                 <Link
                   href="/san-xuat"
@@ -320,6 +324,8 @@ export default function Navbar() {
             >
               Chấm công
             </Link>
+             {(role === 'Admin' || role === 'accountance') && (
+               <>
             <Link
               href="/products"
               onClick={() => setIsMobileMenuOpen(false)}
@@ -331,17 +337,17 @@ export default function Navbar() {
             >
               Sản phẩm
             </Link>
-            <Link
-              href="/nguyen-lieu"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                isNguyenLieu 
-                  ? 'bg-orange-100 text-orange-700' 
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
-            >
-              Nguyên liệu
-            </Link>
+                 <Link
+                   href="/nguyen-lieu"
+                   onClick={() => setIsMobileMenuOpen(false)}
+                   className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                     isNguyenLieu 
+                       ? 'bg-orange-100 text-orange-700' 
+                       : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                   }`}
+                 >
+                   Nguyên liệu
+                 </Link>
             <Link
               href="/customers"
               onClick={() => setIsMobileMenuOpen(false)}
@@ -375,18 +381,20 @@ export default function Navbar() {
             >
               Đơn hàng
             </Link>
-            <Link
-              href="/funds"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                isFunds 
-                  ? 'bg-orange-100 text-orange-700' 
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
-            >
-              Sổ quỹ
-            </Link>
-            {role !== 'user' && role !== 'approver' && (
+                 <Link
+                   href="/funds"
+                   onClick={() => setIsMobileMenuOpen(false)}
+                   className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                     isFunds 
+                       ? 'bg-orange-100 text-orange-700' 
+                       : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                   }`}
+                 >
+                   Sổ quỹ
+                 </Link>
+               </>
+             )}
+             {(role === 'Admin' || role === 'accountance') && (
               <>
                 <Link
                   href="/san-xuat"

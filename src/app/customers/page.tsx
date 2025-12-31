@@ -11,6 +11,18 @@ type Customer = {
 };
 
 export default function CustomersPage() {
+  const [role, setRole] = useState<string | null>(() => getCookie('role'));
+
+  useEffect(() => {
+    const r = getCookie('role');
+    setRole(r);
+  }, []);
+
+  // Show blank page if role is not 'Admin' or 'accountance'
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
+  }
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

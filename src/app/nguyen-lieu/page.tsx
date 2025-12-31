@@ -12,6 +12,18 @@ type NguyenLieu = {
 };
 
 export default function NguyenLieuPage() {
+  const [role, setRole] = useState<string | null>(() => getCookie('role'));
+
+  useEffect(() => {
+    const r = getCookie('role');
+    setRole(r);
+  }, []);
+
+  // Show blank page if role is not 'Admin' or 'accountance'
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
+  }
+
   const [nguyenLieu, setNguyenLieu] = useState<NguyenLieu[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

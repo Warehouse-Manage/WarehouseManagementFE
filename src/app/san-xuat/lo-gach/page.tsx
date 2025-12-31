@@ -57,10 +57,10 @@ export default function LoGachPage() {
       return;
     }
     
-    // Redirect users with 'user' or 'approver' role away from this page
-    if (role === 'user' || role === 'approver') {
-      window.location.replace('/');
-      setLoading(false);
+    // Only allow 'Admin' and 'accountance' roles to access this page
+    if (role !== 'Admin' && role !== 'accountance') {
+      setCanFetch(false);
+      setIsCheckingAuth(false);
       return;
     }
     setCanFetch(true);
@@ -277,6 +277,12 @@ export default function LoGachPage() {
         </div>
       </div>
     );
+  }
+
+  // Show blank page if role is not 'Admin' or 'accountance'
+  const role = getCookie('role');
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
   }
 
   return (

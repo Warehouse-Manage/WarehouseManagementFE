@@ -70,9 +70,10 @@ import { getCookie } from '@/lib/ultis';
        return;
      }
      
-     if (role === 'user' || role === 'approver') {
-       window.location.replace('/');
-       setLoading(false);
+     // Only allow 'Admin' and 'accountance' roles to access this page
+     if (role !== 'Admin' && role !== 'accountance') {
+       setCanFetch(false);
+       setIsCheckingAuth(false);
        return;
      }
      setCanFetch(true);
@@ -295,7 +296,13 @@ import { getCookie } from '@/lib/ultis';
        </div>
      );
    }
- 
+
+   // Show blank page if role is not 'Admin' or 'accountance'
+   const role = getCookie('role');
+   if (role !== 'Admin' && role !== 'accountance') {
+     return null;
+   }
+
    return (
      <div className="space-y-4 sm:space-y-6">
        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
