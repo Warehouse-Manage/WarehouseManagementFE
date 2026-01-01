@@ -77,7 +77,7 @@ export default function FundsPage() {
         case 'Giao hàng':
           url = `${apiHost}/api/delivers`;
           break;
-        case 'Công nhân/Nhân viên':
+        case 'Nhân viên':
           url = `${apiHost}/api/workers`;
           break;
         case 'Khách hàng':
@@ -108,7 +108,7 @@ export default function FundsPage() {
       const mapped = data.map((item) => {
         const id = item.id ?? 0;
         if (target === 'Giao hàng') return { id, name: item.name || item.plateNumber || `Giao hàng #${id}` };
-        if (target === 'Công nhân/Nhân viên') return { id, name: item.name || `Nhân viên #${id}` };
+        if (target === 'Nhân viên') return { id, name: item.name || `Nhân viên #${id}` };
         if (target === 'Khách hàng') return { id, name: item.name || `Khách hàng #${id}` };
         return { id, name: item.name ?? `Đối tượng #${id}` };
       });
@@ -191,7 +191,7 @@ export default function FundsPage() {
     if (type === 'Chi') {
       return [
         { value: '', label: '-- Chọn đối tượng --' },
-        { value: 'Công nhân/Nhân viên', label: 'Công nhân/Nhân viên' },
+        { value: 'Nhân viên', label: 'Nhân viên' },
         { value: 'Giám đốc', label: 'Giám đốc' },
         { value: 'Vật tư', label: 'Vật tư' },
         { value: 'Đối tác', label: 'Đối tác' },

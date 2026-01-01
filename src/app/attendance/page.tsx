@@ -1548,7 +1548,7 @@ export default function AttendancePage() {
     <div className="space-y-6 p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Chấm công nhân viên</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Chấm công cho nhân viên</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">
             Tạo hoặc cập nhật bảng chấm công và đánh dấu ngày nghỉ cho từng nhân viên.
           </p>
