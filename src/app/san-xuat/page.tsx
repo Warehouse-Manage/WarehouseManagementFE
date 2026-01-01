@@ -13,14 +13,14 @@ export default function SanXuatPage() {
     setRole(r);
   }, []);
 
+  useEffect(() => {
+    router.replace('/san-xuat/lo-gach');
+  }, [router]);
+
   // Show blank page if role is not 'Admin' or 'accountance'
   if (role !== 'Admin' && role !== 'accountance') {
     return null;
   }
-
-  useEffect(() => {
-    router.replace('/san-xuat/lo-gach');
-  }, [router]);
 
   return (
     <div className="flex items-center justify-center py-12">

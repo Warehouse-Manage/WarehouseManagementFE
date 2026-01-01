@@ -12,26 +12,19 @@ type Product = {
 
 export default function ProductsPage() {
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
-
-  useEffect(() => {
-    const r = getCookie('role');
-    setRole(r);
-  }, []);
-
-  // Show blank page if role is not 'Admin' or 'accountance'
-  if (role !== 'Admin' && role !== 'accountance') {
-    return null;
-  }
-
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [name, setName] = useState('');
   const [price, setPrice] = useState<number | ''>('');
   const [quantity, setQuantity] = useState<number | ''>('');
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    const r = getCookie('role');
+    setRole(r);
+  }, []);
 
   const apiHost = process.env.NEXT_PUBLIC_API_HOST;
 
@@ -66,6 +59,11 @@ export default function ProductsPage() {
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiHost]);
+
+  // Show blank page if role is not 'Admin' or 'accountance'
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
+  }
 
   const handleCreate = async () => {
     if (!apiHost) return;

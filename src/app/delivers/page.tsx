@@ -14,21 +14,9 @@ type Deliver = {
 
 export default function DeliversPage() {
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
-
-  useEffect(() => {
-    const r = getCookie('role');
-    setRole(r);
-  }, []);
-
-  // Show blank page if role is not 'Admin' or 'accountance'
-  if (role !== 'Admin' && role !== 'accountance') {
-    return null;
-  }
-
   const [delivers, setDelivers] = useState<Deliver[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [plateNumber, setPlateNumber] = useState('');
@@ -40,6 +28,11 @@ export default function DeliversPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [monthlyTotal, setMonthlyTotal] = useState<number | null>(null);
   const [loadingMonthlyTotal, setLoadingMonthlyTotal] = useState(false);
+
+  useEffect(() => {
+    const r = getCookie('role');
+    setRole(r);
+  }, []);
 
   const apiHost = process.env.NEXT_PUBLIC_API_HOST;
 
@@ -79,6 +72,11 @@ export default function DeliversPage() {
       setSelectedMonth(getCurrentMonth());
     }
   }, [selectedMonth]);
+
+  // Show blank page if role is not 'Admin' or 'accountance'
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
+  }
 
   const loadMonthlyTotal = async (deliverId: number, month: string) => {
     if (!apiHost) return;

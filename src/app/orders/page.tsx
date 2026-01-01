@@ -38,29 +38,16 @@ type Product = {
 
 export default function OrdersPage() {
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
-
-  useEffect(() => {
-    const r = getCookie('role');
-    setRole(r);
-  }, []);
-
-  // Show blank page if role is not 'Admin' or 'accountance'
-  if (role !== 'Admin' && role !== 'accountance') {
-    return null;
-  }
-
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const apiHost = process.env.NEXT_PUBLIC_API_HOST;
-
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [delivers, setDelivers] = useState<Deliver[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [loadingDelivers, setLoadingDelivers] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(false);
-
   const [customerId, setCustomerId] = useState<number | ''>('');
   const [deliverId, setDeliverId] = useState<number | ''>('');
   const [sale, setSale] = useState<number | ''>(0);
@@ -72,6 +59,11 @@ export default function OrdersPage() {
   >([{ productId: '', amount: '', price: '', sale: 0 }]);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    const r = getCookie('role');
+    setRole(r);
+  }, []);
 
   const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
   const formatNumber = (value: number | '') => (value === '' ? '' : value.toLocaleString());
@@ -91,8 +83,6 @@ export default function OrdersPage() {
     if (!order.productOrders?.length) return 0;
     return order.productOrders.reduce((sum, p) => sum + p.amount * p.price, 0);
   };
-
-  const formatOrderCode = (id?: number) => (id ? `HD${id.toString().padStart(6, '0')}` : '');
 
   const loadOrders = async () => {
     if (!apiHost) return;
@@ -208,6 +198,11 @@ export default function OrdersPage() {
     setShipcod(remaining);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productOrdersInput, sale, amountCustomerPayment]);
+
+  // Show blank page if role is not 'Admin' or 'accountance'
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
+  }
 
   const resetForm = () => {
     setCustomerId('');

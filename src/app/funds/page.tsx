@@ -18,21 +18,9 @@ type Fund = {
 
 export default function FundsPage() {
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
-
-  useEffect(() => {
-    const r = getCookie('role');
-    setRole(r);
-  }, []);
-
-  // Show blank page if role is not 'Admin' or 'accountance'
-  if (role !== 'Admin' && role !== 'accountance') {
-    return null;
-  }
-
   const [funds, setFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [type, setType] = useState<'Thu' | 'Chi' | ''>('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
@@ -43,12 +31,15 @@ export default function FundsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
-
   const [filterType, setFilterType] = useState<string>('');
-
   const apiHost = process.env.NEXT_PUBLIC_API_HOST;
   const [suggestions, setSuggestions] = useState<{ id: number; name: string }[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  useEffect(() => {
+    const r = getCookie('role');
+    setRole(r);
+  }, []);
 
   const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
   const formatNumber = (value: number | '') => (value === '' ? '' : value.toLocaleString());
@@ -149,6 +140,11 @@ export default function FundsPage() {
     loadFunds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiHost, filterType]);
+
+  // Show blank page if role is not 'Admin' or 'accountance'
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
+  }
 
   const resetForm = () => {
     setType('');
