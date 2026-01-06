@@ -39,10 +39,18 @@ export default function Navbar() {
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      
+      // Check if click is on mobile menu button - if so, don't close
+      const mobileMenuButton = (event.target as HTMLElement)?.closest('button[aria-label="Toggle mobile menu"]');
+      if (mobileMenuButton) {
+        return;
+      }
+      
+      if (userDropdownRef.current && !userDropdownRef.current.contains(target)) {
         setIsUserDropdownOpen(false);
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
         setIsMobileMenuOpen(false);
       }
     };
@@ -205,7 +213,10 @@ export default function Navbar() {
         <div className="flex items-center space-x-2">
           {/* Mobile menu button */}
           <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMobileMenuOpen(!isMobileMenuOpen);
+            }}
             className="md:hidden p-2 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-200"
             aria-label="Toggle mobile menu"
           >

@@ -90,6 +90,31 @@ const getDaysInMonth = (monthValue: string) => {
   return new Date(year, month, 0).getDate();
 };
 
+// Helper function to get days from 15th of selected month to 15th of next month
+const getOverviewDays = (monthValue: string): Array<{ day: number; dateValue: string; month: string }> => {
+  if (!monthValue) return [];
+  const [year, month] = monthValue.split('-').map(Number);
+  if (!year || !month) return [];
+
+  const days: Array<{ day: number; dateValue: string; month: string }> = [];
+  const startDate = new Date(year, month - 1, 15);
+  const endDate = new Date(year, month, 15); // 15th of next month
+  const currentDate = new Date(startDate);
+
+  while (currentDate < endDate) {
+    const dateValue = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+    const monthStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+    days.push({
+      day: currentDate.getDate(),
+      dateValue: dateValue,
+      month: monthStr
+    });
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return days;
+};
+
 // Helper function to get salary period (from 15th of previous month to 14th of current month)
 const getSalaryPeriod = (monthValue: string) => {
   if (!monthValue) return { startDate: '', endDate: '' };
@@ -159,20 +184,31 @@ const buildCalendarDays = (monthValue: string): CalendarDay[] => {
   const [year, month] = monthValue.split('-').map(Number);
   if (!year || !month) return [];
 
-  const firstDay = new Date(year, month - 1, 1);
-  const daysInMonth = new Date(year, month, 0).getDate();
+  // Calculate the period: 15th of selected month to 15th of next month
+  const startDate = new Date(year, month - 1, 15);
+  const endDate = new Date(year, month, 15); // 15th of next month
+  
   const days: CalendarDay[] = [];
-
-  const leadingEmpty = firstDay.getDay();
+  const currentDate = new Date(startDate);
+  
+  // Get the day of week for the 15th (0 = Sunday, 1 = Monday, etc.)
+  const leadingEmpty = startDate.getDay();
   for (let i = 0; i < leadingEmpty; i++) {
     days.push({ label: '', dateValue: '', inMonth: false });
   }
 
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateValue = `${monthValue}-${String(day).padStart(2, '0')}`;
-    days.push({ label: String(day), dateValue, inMonth: true });
+  // Generate days from 15th of selected month to 15th of next month
+  while (currentDate < endDate) {
+    const dateValue = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+    days.push({ 
+      label: String(currentDate.getDate()), 
+      dateValue, 
+      inMonth: true 
+    });
+    currentDate.setDate(currentDate.getDate() + 1);
   }
 
+  // Fill remaining cells to complete the week
   while (days.length % 7 !== 0) {
     days.push({ label: '', dateValue: '', inMonth: false });
   }
@@ -474,7 +510,8 @@ export default function AttendancePage() {
 
   useEffect(() => {
     // Only update selectedDate when the month actually changes
-    if (prevMonthRef.current !== createForm.month) {
+    // Skip if we just auto-selected (hasAutoSelectedRef is true)
+    if (prevMonthRef.current !== createForm.month && !hasAutoSelectedRef.current) {
       const today = getCurrentDateValue();
       const currentMonth = getCurrentMonthValue();
       
@@ -488,6 +525,123 @@ export default function AttendancePage() {
       prevMonthRef.current = createForm.month;
     }
   }, [createForm.month]);
+
+  // Auto-select date when user first reaches the "Tạo bảng chấm công" tab
+  const hasAutoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (activeTab === 'create' && !hasAutoSelectedRef.current) {
+      // Use setTimeout to ensure this runs after other effects
+      setTimeout(() => {
+        // Set flag first to prevent other useEffect from interfering
+        hasAutoSelectedRef.current = true;
+        
+        const today = new Date();
+        const currentDay = today.getDate();
+        const currentMonth = getCurrentMonthValue();
+        
+        if (currentDay >= 1 && currentDay <= 14) {
+          // If today is 1-14, select the same day in last month's calendar view
+          // The calendar shows Dec 15 - Jan 15, so if today is 5/1/2025,
+          // we should select month Dec 2024 and day 5/1/2025 (which is visible in that calendar)
+          const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 15);
+          const monthToUse = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+          // Select the same day in current month (which is visible in last month's calendar)
+          const selectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+          
+          // Update prevMonthRef first to prevent the other useEffect from clearing
+          prevMonthRef.current = monthToUse;
+          
+          // Set both month and selectedDate together to ensure the date is selected
+          setCreateForm({
+            month: monthToUse,
+            selectedDate: selectedDate
+          });
+        } else {
+          // If today is 15 or later, select today in current month
+          const selectedDate = getCurrentDateValue();
+          
+          // Update prevMonthRef first to prevent the other useEffect from clearing
+          prevMonthRef.current = currentMonth;
+          
+          setCreateForm({
+            month: currentMonth,
+            selectedDate: selectedDate
+          });
+        }
+      }, 0);
+    }
+    
+    // Reset when switching away from create tab
+    if (activeTab !== 'create') {
+      hasAutoSelectedRef.current = false;
+    }
+  }, [activeTab]);
+
+  // Auto-select previous month when user first reaches the "Tổng quan" tab if current day is 1-14
+  const hasAutoSelectedOverviewRef = useRef(false);
+  useEffect(() => {
+    if (activeTab === 'overview' && !hasAutoSelectedOverviewRef.current) {
+      // Use setTimeout to ensure this runs after other effects
+      setTimeout(() => {
+        // Set flag first
+        hasAutoSelectedOverviewRef.current = true;
+        
+        const today = new Date();
+        const currentDay = today.getDate();
+        const currentMonth = getCurrentMonthValue();
+        
+        if (currentDay >= 1 && currentDay <= 14) {
+          // If today is 1-14, select the previous month
+          // Example: 5/1/2025 -> select December 2024
+          const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 15);
+          const monthToUse = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+          
+          setOverviewMonth(monthToUse);
+        } else {
+          // If today is 15 or later, keep current month
+          setOverviewMonth(currentMonth);
+        }
+      }, 0);
+    }
+    
+    // Reset when switching away from overview tab
+    if (activeTab !== 'overview') {
+      hasAutoSelectedOverviewRef.current = false;
+    }
+  }, [activeTab]);
+
+  // Auto-select previous month when user first reaches the "Quản lý chấm công" tab if current day is 1-14
+  const hasAutoSelectedMarkRef = useRef(false);
+  useEffect(() => {
+    if (activeTab === 'mark' && !hasAutoSelectedMarkRef.current) {
+      // Use setTimeout to ensure this runs after other effects
+      setTimeout(() => {
+        // Set flag first
+        hasAutoSelectedMarkRef.current = true;
+        
+        const today = new Date();
+        const currentDay = today.getDate();
+        const currentMonth = getCurrentMonthValue();
+        
+        if (currentDay >= 1 && currentDay <= 14) {
+          // If today is 1-14, select the previous month
+          // Example: 5/1/2025 -> select December 2024
+          const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 15);
+          const monthToUse = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+          
+          setMarkForm((prev) => ({ ...prev, month: monthToUse }));
+        } else {
+          // If today is 15 or later, keep current month
+          setMarkForm((prev) => ({ ...prev, month: currentMonth }));
+        }
+      }, 0);
+    }
+    
+    // Reset when switching away from mark tab
+    if (activeTab !== 'mark') {
+      hasAutoSelectedMarkRef.current = false;
+    }
+  }, [activeTab]);
 
   const selectedMarkWorker = useMemo(
     () => selectedWorkerForDetail ? workers.find((worker) => worker.id === selectedWorkerForDetail) : null,
@@ -1072,45 +1226,35 @@ export default function AttendancePage() {
 
   // Fetch all attendances for overview (admin/approver)
   useEffect(() => {
-    if ((userRole === 'Admin' || userRole === 'approver') && workers.length > 0 && overviewMonth) {
+    if ((userRole === 'Admin' || userRole === 'approver') && overviewMonth) {
       setIsLoadingOverviewAll(true);
       const [year, month] = overviewMonth.split('-');
-      const attendanceMap = new Map<number, Attendance>();
-
-      Promise.all(
-        workers.map(async (worker) => {
-          try {
-            const response = await fetch(
-              `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${worker.id}/month/${year}/${Number(month)}`,
-              {
-                method: 'GET',
-                headers: buildAuthHeaders(),
-              }
-            );
-            if (response.ok) {
-              const data: Attendance = await response.json();
-              return { workerId: worker.id, attendance: data };
-            }
-            return null;
-          } catch {
-            return null;
-          }
-        })
+      
+      fetch(
+        `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/overview/month/${year}/${Number(month)}`,
+        {
+          method: 'GET',
+          headers: buildAuthHeaders(),
+        }
       )
-        .then((results) => {
-          results.forEach((result) => {
-            if (result) {
-              attendanceMap.set(result.workerId, result.attendance);
-            }
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const data: Record<number, Attendance> = await response.json();
+          const attendanceMap = new Map<number, Attendance>();
+          Object.entries(data).forEach(([workerId, attendance]) => {
+            attendanceMap.set(Number(workerId), attendance);
           });
           setOverviewAttendances(attendanceMap);
         })
         .catch((error) => {
           console.error('Could not load overview attendances:', error);
+          setOverviewAttendances(new Map());
         })
         .finally(() => setIsLoadingOverviewAll(false));
     }
-  }, [userRole, workers, overviewMonth]);
+  }, [userRole, overviewMonth]);
 
   const handleViewSalary = (worker: Worker) => {
     setViewingSalaryWorker(worker);
@@ -2525,16 +2669,14 @@ export default function AttendancePage() {
                         <th className="px-4 py-3 text-left font-bold text-gray-900 sticky left-0 bg-gray-50 z-10 border-r border-gray-200 min-w-[200px]">
                           Nhân viên
                         </th>
-                        {Array.from({ length: getDaysInMonth(overviewMonth) }, (_, i) => {
-                          const day = i + 1;
-                          const dateValue = `${overviewMonth}-${String(day).padStart(2, '0')}`;
+                        {getOverviewDays(overviewMonth).map((dayInfo) => {
                           return (
                             <th
-                              key={day}
+                              key={dayInfo.dateValue}
                               className="px-2 py-3 text-center font-semibold text-gray-700 border-r border-gray-200 min-w-[80px]"
-                              title={formatDateLabel(dateValue)}
+                              title={formatDateLabel(dayInfo.dateValue)}
                             >
-                              {day}
+                              {dayInfo.day}
                             </th>
                           );
                         })}
@@ -2563,22 +2705,20 @@ export default function AttendancePage() {
                                 <div className="text-xs text-gray-500">{formatCurrency(worker.salary)}</div>
                               </div>
                             </td>
-                            {Array.from({ length: getDaysInMonth(overviewMonth) }, (_, i) => {
-                              const day = i + 1;
-                              const dateValue = `${overviewMonth}-${String(day).padStart(2, '0')}`;
-                              const workDate = getWorkDateForOverview(attendance || null, dateValue);
+                            {getOverviewDays(overviewMonth).map((dayInfo) => {
+                              const workDate = getWorkDateForOverview(attendance || null, dayInfo.dateValue);
                               const hasWork = workDate && workDate.workQuantity > 0;
 
                               return (
                                 <td
-                                  key={day}
+                                  key={dayInfo.dateValue}
                                   className={`px-2 py-2 text-center border-r border-gray-100 ${
                                     hasWork ? 'bg-green-50' : ''
                                   }`}
                                   title={
                                     hasWork
-                                      ? `${formatDateLabel(dateValue)}: Công ${workDate.workQuantity}, OT ${workDate.workOvertime}h`
-                                      : formatDateLabel(dateValue)
+                                      ? `${formatDateLabel(dayInfo.dateValue)}: Công ${workDate.workQuantity}, OT ${workDate.workOvertime}h`
+                                      : formatDateLabel(dayInfo.dateValue)
                                   }
                                 >
                                   {hasWork ? (
