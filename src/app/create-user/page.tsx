@@ -3,17 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { getCookie } from '@/lib/ultis';
-
-
-type UserFormData = {
-  userName: string;
-  name: string;
-  role: string;
-  department: string;
-  password: string;
-  confirmPassword: string;
-};
+import { userApi } from '@/api/userApi';
+import { UserFormData } from '@/types';
 
 export default function CreateUserPage() {
   const router = useRouter();
@@ -23,11 +16,11 @@ export default function CreateUserPage() {
     role: 'user',
     department: '',
     password: '',
-    confirmPassword: ''
   });
-  
+  const [confirmPassword, setConfirmPassword] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -37,24 +30,24 @@ export default function CreateUserPage() {
     const userId = getCookie('userId');
     const userName = getCookie('userName');
     const role = getCookie('role');
-    
+
     // Redirect to login if userId or userName is missing
     if (!userId || !userName) {
       router.push('/login');
       return;
     }
-    
+
     // Only allow admin role to access this page
     if (role !== 'Admin') {
       router.push('/');
       return;
     }
-    
+
     setIsCheckingAuth(false);
   }, [router]);
 
   const validateForm = () => {
-    const newErrors: {[key: string]: string} = {};
+    const newErrors: { [key: string]: string } = {};
 
     // Validate username
     if (!formData.userName) {
@@ -91,9 +84,9 @@ export default function CreateUserPage() {
     }
 
     // Validate confirm password
-    if (!formData.confirmPassword) {
+    if (!confirmPassword) {
       newErrors.confirmPassword = 'Vui lòng xác nhận mật khẩu';
-    } else if (formData.password !== formData.confirmPassword) {
+    } else if (formData.password !== confirmPassword) {
       newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp';
     }
 
@@ -103,11 +96,15 @@ export default function CreateUserPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
+    if (name === 'confirmPassword') {
+      setConfirmPassword(value);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
@@ -119,7 +116,7 @@ export default function CreateUserPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -128,22 +125,10 @@ export default function CreateUserPage() {
     setErrors({});
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/User`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userName: formData.userName,
-          name: formData.name,
-          role: formData.role,
-          department: formData.department,
-          password: formData.password
-        }),
-      });
+      const response = await userApi.createUser(formData);
 
-      if (response.ok) {
-        alert('Tạo người dùng thành công!');
+      if (response.success) {
+        toast.success('Tạo người dùng thành công!');
         // Reset form
         setFormData({
           userName: '',
@@ -151,14 +136,13 @@ export default function CreateUserPage() {
           role: 'user',
           department: '',
           password: '',
-          confirmPassword: ''
         });
+        setConfirmPassword('');
       } else {
-        const errorData = await response.json();
-        if (errorData.errors) {
-          setErrors(errorData.errors);
+        if (response.errors) {
+          setErrors(response.errors);
         } else {
-          setErrors({ general: errorData.message || 'Có lỗi xảy ra khi tạo người dùng' });
+          setErrors({ general: response.message || 'Có lỗi xảy ra khi tạo người dùng' });
         }
       }
     } catch (error) {
@@ -212,9 +196,8 @@ export default function CreateUserPage() {
                 name="userName"
                 value={formData.userName}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black ${
-                  errors.userName ? 'border-red-300' : 'border-gray-300'
-                }`}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black ${errors.userName ? 'border-red-300' : 'border-gray-300'
+                  }`}
                 placeholder="Nhập tên người dùng"
               />
               {errors.userName && <p className="mt-1 text-sm text-red-600">{errors.userName}</p>}
@@ -231,9 +214,8 @@ export default function CreateUserPage() {
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black ${
-                  errors.name ? 'border-red-300' : 'border-gray-300'
-                }`}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black ${errors.name ? 'border-red-300' : 'border-gray-300'
+                  }`}
                 placeholder="Nhập họ và tên"
               />
               {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
@@ -249,9 +231,8 @@ export default function CreateUserPage() {
                 name="role"
                 value={formData.role}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black ${
-                  errors.role ? 'border-red-300' : 'border-gray-300'
-                }`}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black ${errors.role ? 'border-red-300' : 'border-gray-300'
+                  }`}
               >
                 <option value="user">Người dùng</option>
                 <option value="Admin">Quản trị viên</option>
@@ -271,9 +252,8 @@ export default function CreateUserPage() {
                 name="department"
                 value={formData.department}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black ${
-                  errors.department ? 'border-red-300' : 'border-gray-300'
-                }`}
+                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black ${errors.department ? 'border-red-300' : 'border-gray-300'
+                  }`}
                 placeholder="Nhập phòng ban"
               />
               {errors.department && <p className="mt-1 text-sm text-red-600">{errors.department}</p>}
@@ -292,9 +272,8 @@ export default function CreateUserPage() {
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className={`block w-full px-3 py-2 pr-10 border rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black ${
-                    errors.password ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                  className={`block w-full px-3 py-2 pr-10 border rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black ${errors.password ? 'border-red-300' : 'border-gray-300'
+                    }`}
                   placeholder="Nhập mật khẩu"
                 />
                 <button
@@ -324,11 +303,10 @@ export default function CreateUserPage() {
                   type={showConfirmPassword ? 'text' : 'password'}
                   id="confirmPassword"
                   name="confirmPassword"
-                  value={formData.confirmPassword}
+                  value={confirmPassword}
                   onChange={handleInputChange}
-                  className={`block w-full px-3 py-2 pr-10 border rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black ${
-                    errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                  className={`block w-full px-3 py-2 pr-10 border rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 text-black ${errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                    }`}
                   placeholder="Nhập lại mật khẩu"
                 />
                 <button
@@ -357,7 +335,7 @@ export default function CreateUserPage() {
               >
                 {isLoading ? 'Đang tạo...' : 'Tạo người dùng'}
               </button>
-              
+
               <Link
                 href="/"
                 className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 text-center"

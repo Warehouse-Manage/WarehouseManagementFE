@@ -4,34 +4,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
+import { statisticsApi } from '@/api/statisticsApi';
+import { materialApi } from '@/api/materialApi';
+import { MonthlyData, RequestDetail, ApiRequest } from '@/types';
+import { Modal, DataTable } from '@/components/shared';
 
 
-// Kiểu dữ liệu cho chi tiết theo tháng
-type MonthlyData = {
-  month: string;
-  year: number;
-  amount: number;
-  requestCount: number;
-};
-
-type RequestDetail = {
-  id: number;
-  requesterId: number;
-  requesterName: string;
-  department: string;
-  status: string;
-  totalPrice: number;
-  requestDate: string;
-  createdDate: string;
-  items: Array<{
-    id: number;
-    name: string;
-    type: string;
-    quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-  }>;
-};
 
 export default function MonthlyDetailsPage() {
   const router = useRouter();
@@ -43,24 +21,33 @@ export default function MonthlyDetailsPage() {
   const [detailsLoading, setDetailsLoading] = useState<boolean>(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
+  interface RequestItemMaterial {
+    id: number;
+    name: string;
+    type: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }
+
   // Authentication check
   useEffect(() => {
     const role = getCookie('role');
     const userId = getCookie('userId');
     const userName = getCookie('userName');
-    
+
     // Redirect to login if userId or userName is missing
     if (!userId || !userName) {
       router.push('/login');
       return;
     }
-    
+
     // Redirect users with 'user' or 'approver' role away from this page
     if (role === 'user' || role === 'approver') {
       window.location.replace('/');
       return;
     }
-    
+
     setIsCheckingAuth(false);
   }, [router]);
 
@@ -69,19 +56,10 @@ export default function MonthlyDetailsPage() {
       try {
         setLoading(true);
         setError(null);
-        
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/statistics/monthly-spending`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status} ${response.statusText}`);
-        }
-        
-        const data: MonthlyData[] = await response.json();
+
+        const data = await statisticsApi.getMonthlySpending();
         setMonthlyData(data);
-        
+
       } catch (e) {
         console.error('Lỗi tải dữ liệu tháng:', e);
         setError('Không thể tải dữ liệu tháng.');
@@ -89,7 +67,7 @@ export default function MonthlyDetailsPage() {
         setLoading(false);
       }
     };
-    
+
     fetchMonthlyData();
   }, []);
 
@@ -97,20 +75,35 @@ export default function MonthlyDetailsPage() {
     try {
       setDetailsLoading(true);
       setSelectedMonth(`${year}-${month}`);
-      
-        // Lấy yêu cầu đã duyệt cho tháng cụ thể
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materialrequests?status=approved&year=${year}&month=${month}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+
+      // Lấy yêu cầu đã duyệt cho tháng cụ thể
+      const data = await materialApi.getMaterialRequests({
+        status: 'approved',
+        year,
+        month
       });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status} ${response.statusText}`);
-      }
-      
-      const data: RequestDetail[] = await response.json();
-      setRequestDetails(data);
-      
+
+      // Map ApiRequest to RequestDetail for UI
+      const mapped: RequestDetail[] = (data || []).map((rb: ApiRequest) => ({
+        id: rb.id,
+        requesterId: rb.requesterId,
+        requesterName: rb.requesterName || 'Không rõ',
+        department: rb.department || '',
+        status: rb.status,
+        totalPrice: rb.totalPrice || 0,
+        requestDate: rb.requestDate,
+        createdDate: rb.createdDate,
+        items: (rb.items || []).map(it => ({
+          id: it.id,
+          name: it.name,
+          type: it.type || '',
+          quantity: it.quantity,
+          unitPrice: it.unitPrice || 0,
+          totalPrice: it.totalPrice || 0
+        }))
+      }));
+      setRequestDetails(mapped);
+
     } catch (e) {
       console.error('Lỗi tải chi tiết yêu cầu:', e);
       setError('Không thể tải chi tiết yêu cầu.');
@@ -176,8 +169,8 @@ export default function MonthlyDetailsPage() {
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Lỗi tải dữ liệu</h2>
           <p className="text-gray-600">{error}</p>
-          <Link 
-            href="/statistics" 
+          <Link
+            href="/statistics"
             className="mt-4 inline-block bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
           >
             Quay lại
@@ -210,9 +203,9 @@ export default function MonthlyDetailsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Chi tiết yêu cầu theo tháng</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Xem danh sách các tháng có yêu cầu được phê duyệt</p>
         </div>
-        
-        <Link 
-          href="/statistics" 
+
+        <Link
+          href="/statistics"
           className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm sm:text-base"
         >
           Quay lại
@@ -223,8 +216,8 @@ export default function MonthlyDetailsPage() {
       <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {monthlyData.length > 0 ? (
           monthlyData.map((month, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => fetchRequestDetails(month.year, month.month)}
             >
@@ -239,8 +232,8 @@ export default function MonthlyDetailsPage() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-500">Tổng chi tiêu:</span>
-                    <span 
-                      className="font-semibold text-orange-600 cursor-help" 
+                    <span
+                      className="font-semibold text-orange-600 cursor-help"
                       title={formatCurrencyFull(month.amount)}
                     >
                       {formatCurrency(month.amount)}
@@ -265,90 +258,95 @@ export default function MonthlyDetailsPage() {
       </div>
 
       {/* Modal chi tiết yêu cầu */}
-      {selectedMonth && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Chi tiết yêu cầu - {getMonthName(selectedMonth.split('-')[1])} {selectedMonth.split('-')[0]}
-                </h2>
-                <button
-                  onClick={() => {
-                    setSelectedMonth(null);
-                    setRequestDetails([]);
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              {detailsLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Đang tải chi tiết...</p>
+      <Modal
+        isOpen={!!selectedMonth}
+        onClose={() => {
+          setSelectedMonth(null);
+          setRequestDetails([]);
+        }}
+        title={`Chi tiết yêu cầu - ${selectedMonth ? getMonthName(selectedMonth.split('-')[1]) + ' ' + selectedMonth.split('-')[0] : ''}`}
+        size="4xl"
+        isLoading={detailsLoading}
+      >
+        {requestDetails.length > 0 ? (
+          <div className="space-y-4">
+            {requestDetails.map((request) => (
+              <div key={request.id} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm overflow-hidden">
+                <div className="flex flex-col sm:flex-row justify-between items-start mb-3 gap-2">
+                  <div>
+                    <h4 className="font-black text-gray-900 text-lg">Yêu cầu #{request.id}</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      <span className="font-semibold text-gray-700">Người yêu cầu:</span> {request.requesterName} | <span className="font-semibold text-gray-700">Phòng ban:</span> {request.department}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Tạo: {new Date(request.createdDate).toLocaleDateString('vi-VN')} |
+                      Yêu cầu: {new Date(request.requestDate).toLocaleDateString('vi-VN')}
+                    </p>
+                  </div>
+                  <div className="text-right flex flex-col items-end gap-1">
+                    <p className="text-xl font-black text-orange-600">
+                      {formatCurrencyFull(request.totalPrice)}
+                    </p>
+                    <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-black text-green-800 uppercase tracking-tighter">
+                      {getStatusLabel(request.status)}
+                    </span>
+                  </div>
                 </div>
-              ) : requestDetails.length > 0 ? (
-                <div className="space-y-4">
-                  {requestDetails.map((request) => (
-                    <div key={request.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="font-semibold text-gray-900">Yêu cầu #{request.id}</h4>
-                          <p className="text-sm text-gray-500">
-                            Người yêu cầu: {request.requesterName} | Phòng ban: {request.department}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            Tạo: {new Date(request.createdDate).toLocaleDateString('vi-VN')} | 
-                            Yêu cầu: {new Date(request.requestDate).toLocaleDateString('vi-VN')}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-orange-600">
-                            {formatCurrency(request.totalPrice)}
-                          </p>
-                          <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                            {getStatusLabel(request.status)}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="border-t border-gray-100 pt-3">
-                        <h5 className="font-medium text-gray-700 mb-2">Danh sách vật tư:</h5>
-                        <div className="space-y-2">
-                          {request.items.map((item, itemIndex) => (
-                            <div key={itemIndex} className="flex justify-between items-center text-sm">
-                              <div>
-                                <span className="text-gray-700">{item.name}</span>
-                                <span className="ml-2 text-xs text-gray-500">({item.type})</span>
-                              </div>
-                              <div className="flex items-center space-x-4">
-                                <span className="text-gray-500">{item.quantity} đơn vị</span>
-                                <span className="text-gray-500">{formatCurrency(item.unitPrice)}/đơn vị</span>
-                                <span className="font-semibold text-gray-900">{formatCurrency(item.totalPrice)}</span>
-                              </div>
+
+                <div className="border-t border-gray-100 pt-3">
+                  <h5 className="font-black text-gray-700 mb-3 flex items-center gap-2 text-sm uppercase">
+                    <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    Danh sách vật tư
+                  </h5>
+                  <DataTable
+                    data={request.items}
+                    columns={[
+                      {
+                        key: 'name',
+                        header: 'Tên vật tư',
+                        render: (it: unknown) => {
+                          const item = it as RequestItemMaterial;
+                          return (
+                            <div>
+                              <span className="font-bold text-gray-900">{item.name}</span>
+                              <span className="ml-2 text-xs text-gray-500 italic">({item.type})</span>
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                          );
+                        }
+                      },
+                      {
+                        key: 'quantity',
+                        header: 'Số lượng',
+                        className: 'w-24 text-center',
+                        render: (it: unknown) => <span className="font-bold text-gray-700">{(it as RequestItemMaterial).quantity.toLocaleString('vi-VN')}</span>
+                      },
+                      {
+                        key: 'unitPrice',
+                        header: 'Đơn giá',
+                        className: 'w-32 text-right',
+                        render: (it: unknown) => <span className="text-gray-600">{(it as RequestItemMaterial).unitPrice.toLocaleString('vi-VN')} đ</span>
+                      },
+                      {
+                        key: 'totalPrice',
+                        header: 'Thành tiền',
+                        className: 'w-32 text-right',
+                        render: (it: unknown) => <span className="font-black text-green-600">{(it as RequestItemMaterial).totalPrice.toLocaleString('vi-VN')} đ</span>
+                      }
+                    ]}
+                  />
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="text-gray-400 text-4xl mb-4">📋</div>
-                  <p className="text-gray-500">Không có yêu cầu nào trong tháng này.</p>
-                </div>
-              )}
-            </div>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+            <div className="text-gray-300 text-6xl mb-4">📋</div>
+            <p className="text-gray-500 font-medium">Không có yêu cầu nào trong tháng này.</p>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

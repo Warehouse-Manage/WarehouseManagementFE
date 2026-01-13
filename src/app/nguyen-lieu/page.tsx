@@ -2,18 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { getCookie } from '@/lib/ultis';
+import { inventoryApi } from '@/api';
+import { RawMaterial } from '@/types';
+import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
 
-type NguyenLieu = {
-  id: number;
-  name: string;
-  unit: string;
-  quantity: number;
-  description?: string;
-};
+// Type NguyenLieu moved to @/types/inventory.ts as RawMaterial
 
 export default function NguyenLieuPage() {
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
-  const [nguyenLieu, setNguyenLieu] = useState<NguyenLieu[]>([]);
+  const [nguyenLieu, setNguyenLieu] = useState<RawMaterial[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -23,31 +20,42 @@ export default function NguyenLieuPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
+  const nguyenLieuFormFields: FormField[] = [
+    { name: 'name', label: 'Tên nguyên liệu', type: 'text', required: true, placeholder: 'Nhập tên...' },
+    {
+      name: 'unit',
+      label: 'Đơn vị',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'Cây', label: 'Cây' },
+        { value: 'Bao', label: 'Bao' },
+        { value: 'Viên', label: 'Viên' },
+        { value: 'm³', label: 'm³' },
+        { value: 'Kg', label: 'Kg' },
+        { value: 'Tấn', label: 'Tấn' },
+        { value: 'Lít', label: 'Lít' },
+      ]
+    },
+    { name: 'quantity', label: 'Số lượng', type: 'number', required: true, placeholder: 'Nhập số lượng...' },
+    { name: 'description', label: 'Mô tả', type: 'textarea', placeholder: 'Nhập mô tả (không bắt buộc)...' },
+  ];
+
   useEffect(() => {
     const r = getCookie('role');
     setRole(r);
   }, []);
 
-  const apiHost = process.env.NEXT_PUBLIC_API_HOST;
+  // apiHost removed, handled in inventoryApi
 
   const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
-  const formatNumber = (value: number | '') => (value === '' ? '' : value.toLocaleString());
-  const parseNumber = (input: string) => {
-    const cleaned = input.replace(/,/g, '');
-    const num = Number(cleaned);
-    return Number.isNaN(num) ? '' : num;
-  };
+  // formatNumber and parseNumber removed
 
   const loadNguyenLieu = async () => {
-    if (!apiHost) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/nguyenlieu`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || `HTTP ${res.status}`);
-      }
+      const data = await inventoryApi.getRawMaterials();
       setNguyenLieu(data);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tải danh sách nguyên liệu');
@@ -60,7 +68,7 @@ export default function NguyenLieuPage() {
   useEffect(() => {
     loadNguyenLieu();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiHost]);
+  }, []);
 
   // Show blank page if role is not 'Admin' or 'accountance'
   if (role !== 'Admin' && role !== 'accountance') {
@@ -68,7 +76,6 @@ export default function NguyenLieuPage() {
   }
 
   const handleCreate = async () => {
-    if (!apiHost) return;
     if (!name || !unit || quantity === '') {
       setError('Vui lòng nhập đầy đủ thông tin (Tên, Đơn vị, Số lượng)');
       return;
@@ -81,21 +88,13 @@ export default function NguyenLieuPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/nguyenlieu`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          unit,
-          quantity: Number(quantity),
-          description: description || '',
-          createdUserId: Number(userId),
-        }),
+      await inventoryApi.createRawMaterial({
+        name,
+        unit,
+        quantity: Number(quantity),
+        description: description || '',
+        createdUserId: Number(userId),
       });
-      if (!res.ok) {
-        const msg = await res.json().catch(() => null);
-        throw new Error(msg?.message || `HTTP ${res.status}`);
-      }
       setName('');
       setUnit('');
       setQuantity('');
@@ -120,143 +119,108 @@ export default function NguyenLieuPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Nguyên liệu</h1>
+        <div>
+          <h1 className="text-2xl font-black text-gray-900">Nguyên liệu</h1>
+          <p className="text-sm text-gray-600 mt-1">Theo dõi tồn kho nguyên liệu và vật tư thô</p>
+        </div>
         <button
           onClick={() => {
             resetForm();
             setShowForm(true);
           }}
-          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+          className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 transition-colors shadow-sm"
         >
           + Thêm nguyên liệu
         </button>
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Thêm nguyên liệu</h2>
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  resetForm();
-                }}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded">{error}</div>}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Tên nguyên liệu *</label>
-                  <input
-                    className="border rounded px-3 py-2 w-full"
-                    placeholder="Tên nguyên liệu"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Đơn vị *</label>
-                  <select
-                    className="border rounded px-3 py-2 w-full"
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
-                  >
-                    <option value="">-- Chọn đơn vị --</option>
-                    <option value="Cây">Cây</option>
-                    <option value="Bao">Bao</option>
-                    <option value="Viên">Viên</option>
-                    <option value="m³">m³</option>
-                    <option value="Kg">Kg</option>
-                    <option value="Tấn">Tấn</option>
-                    <option value="Lít">Lít</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Số lượng *</label>
-                  <input
-                    className="border rounded px-3 py-2 w-full"
-                    placeholder="Số lượng"
-                    inputMode="decimal"
-                    value={formatNumber(quantity)}
-                    onChange={(e) => setQuantity(parseNumber(e.target.value))}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Mô tả</label>
-                <textarea
-                  className="border rounded px-3 py-2 w-full"
-                  placeholder="Mô tả (tùy chọn)"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleCreate}
-                  disabled={submitting}
-                  className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-60"
-                >
-                  {submitting ? 'Đang lưu...' : 'Lưu'}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowForm(false);
-                    resetForm();
-                  }}
-                  className="px-4 py-2 border rounded hover:bg-gray-50"
-                >
-                  Hủy
-                </button>
-              </div>
-            </div>
-          </div>
+      <Modal
+        isOpen={showForm}
+        onClose={() => {
+          setShowForm(false);
+          resetForm();
+        }}
+        title="Thêm nguyên liệu mới"
+        size="lg"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setShowForm(false);
+                resetForm();
+              }}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={submitting}
+              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors"
+            >
+              {submitting ? 'Đang lưu...' : 'Lưu'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
+          <DynamicForm
+            fields={nguyenLieuFormFields}
+            values={{ name, unit, quantity, description }}
+            onChange={(field, value) => {
+              if (field === 'name') setName(value as string);
+              if (field === 'unit') setUnit(value as string);
+              if (field === 'quantity') setQuantity(value as number);
+              if (field === 'description') setDescription(value as string);
+            }}
+            columns={2}
+          />
         </div>
-      )}
+      </Modal>
 
-      <div className="border rounded-lg p-4 bg-white shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold">Danh sách</h2>
+      <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-gray-900">Danh sách nguyên liệu</h2>
           <button
             onClick={loadNguyenLieu}
-            className="px-3 py-1 border rounded text-sm hover:bg-gray-50"
+            className="px-3 py-1 border rounded text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
           >
             Làm mới
           </button>
         </div>
-        {loading ? (
-          <div>Đang tải...</div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="min-w-full text-base">
-              <thead>
-                <tr className="bg-orange-50">
-                  <th className="px-4 py-3 text-left">Tên</th>
-                  <th className="px-4 py-3 text-left">Đơn vị</th>
-                  <th className="px-4 py-3 text-right">Số lượng</th>
-                  <th className="px-4 py-3 text-left">Mô tả</th>
-                </tr>
-              </thead>
-              <tbody className="text-base">
-                {nguyenLieu.map((n) => (
-                  <tr key={n.id} className="border-b">
-                    <td className="px-4 py-3">{n.name}</td>
-                    <td className="px-4 py-3">{n.unit}</td>
-                    <td className="px-4 py-3 text-right">{n.quantity.toLocaleString()}</td>
-                    <td className="px-4 py-3">{n.description || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!nguyenLieu.length && <div className="text-sm text-gray-500 py-3">Chưa có dữ liệu</div>}
-          </div>
-        )}
+        <DataTable
+          data={nguyenLieu}
+          isLoading={loading}
+          columns={[
+            {
+              key: 'name',
+              header: 'Tên nguyên liệu',
+              className: 'font-bold text-gray-900',
+              render: (n) => <span>{n.name}</span>
+            },
+            {
+              key: 'unit',
+              header: 'Đơn vị',
+              className: 'text-gray-500 font-medium',
+              render: (n) => <span>{n.unit}</span>
+            },
+            {
+              key: 'quantity',
+              header: 'Số lượng tồn',
+              headerClassName: 'text-right',
+              className: 'text-right font-black text-gray-900',
+              render: (n) => <span>{n.quantity.toLocaleString()}</span>
+            },
+            {
+              key: 'description',
+              header: 'Mô tả',
+              className: 'text-gray-500 italic max-w-xs truncate',
+              render: (n) => <span title={n.description || ''}>{n.description || '-'}</span>
+            }
+          ]}
+          emptyMessage="Chưa có dữ liệu nguyên liệu"
+        />
       </div>
     </div>
   );

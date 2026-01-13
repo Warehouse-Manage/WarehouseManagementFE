@@ -2,15 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { getCookie } from '@/lib/ultis';
+import { financeApi } from '@/api';
+import { Deliver } from '@/types';
+import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
 
-type Deliver = {
-  id: number;
-  name: string;
-  phoneNumber: string;
-  plateNumber: string;
-  amountMoneyTotal: number;
-  amountMoneyPaid: number;
-};
+// Type Deliver moved to @/types/finance.ts
 
 export default function DeliversPage() {
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
@@ -22,6 +18,13 @@ export default function DeliversPage() {
   const [plateNumber, setPlateNumber] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+
+  const deliverFormFields: FormField[] = [
+    { name: 'name', label: 'Tên người giao hàng', type: 'text', required: true, placeholder: 'Nhập tên...' },
+    { name: 'phoneNumber', label: 'Số điện thoại', type: 'text', required: true, placeholder: 'Nhập số điện thoại...' },
+    { name: 'plateNumber', label: 'Biển số xe', type: 'text', required: true, placeholder: 'Nhập biển số xe...' },
+  ];
+
   const [selectedDeliver, setSelectedDeliver] = useState<Deliver | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<number | ''>(0);
@@ -34,20 +37,15 @@ export default function DeliversPage() {
     setRole(r);
   }, []);
 
-  const apiHost = process.env.NEXT_PUBLIC_API_HOST;
+  // apiHost removed, handled in financeApi
 
   const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
   const loadDelivers = async () => {
-    if (!apiHost) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/delivers`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || `HTTP ${res.status}`);
-      }
+      const data = await financeApi.getDelivers();
       setDelivers(data);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tải danh sách người giao hàng');
@@ -60,7 +58,7 @@ export default function DeliversPage() {
   useEffect(() => {
     loadDelivers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiHost]);
+  }, []);
 
   const getCurrentMonth = () => {
     const now = new Date();
@@ -79,14 +77,9 @@ export default function DeliversPage() {
   }
 
   const loadMonthlyTotal = async (deliverId: number, month: string) => {
-    if (!apiHost) return;
     setLoadingMonthlyTotal(true);
     try {
-      const res = await fetch(`${apiHost}/api/delivers/${deliverId}/monthly-total?month=${month}`);
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const data = await res.json();
+      const data = await financeApi.getDeliverMonthlyTotal(deliverId, month);
       setMonthlyTotal(data.totalCost);
     } catch (err: unknown) {
       console.error('Failed to load monthly total:', err);
@@ -106,7 +99,7 @@ export default function DeliversPage() {
   };
 
   const handlePayment = async () => {
-    if (!apiHost || !selectedDeliver) return;
+    if (!selectedDeliver) return;
     if (!paymentAmount || Number(paymentAmount) <= 0) {
       setError('Vui lòng nhập số tiền hợp lệ');
       return;
@@ -119,18 +112,10 @@ export default function DeliversPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/delivers/${selectedDeliver.id}/pay`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: Number(paymentAmount),
-          createdUserId: Number(userId),
-        }),
+      await financeApi.payDeliver(selectedDeliver.id, {
+        amount: Number(paymentAmount),
+        createdUserId: Number(userId),
       });
-      if (!res.ok) {
-        const msg = await res.json().catch(() => null);
-        throw new Error(msg?.message || `HTTP ${res.status}`);
-      }
       setShowPaymentModal(false);
       setSelectedDeliver(null);
       setPaymentAmount(0);
@@ -146,7 +131,6 @@ export default function DeliversPage() {
   };
 
   const handleCreate = async () => {
-    if (!apiHost) return;
     if (!name || !phoneNumber || !plateNumber) {
       setError('Vui lòng nhập đầy đủ thông tin');
       return;
@@ -159,15 +143,12 @@ export default function DeliversPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/delivers`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phoneNumber, plateNumber, createdUserId: Number(userId) }),
+      await financeApi.createDeliver({
+        name,
+        phoneNumber,
+        plateNumber,
+        createdUserId: Number(userId)
       });
-      if (!res.ok) {
-        const msg = await res.json().catch(() => null);
-        throw new Error(msg?.message || `HTTP ${res.status}`);
-      }
       setName('');
       setPhoneNumber('');
       setPlateNumber('');
@@ -183,7 +164,10 @@ export default function DeliversPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-      <h1 className="text-2xl font-semibold">Người giao hàng</h1>
+        <div>
+          <h1 className="text-2xl font-black text-gray-900">Người giao hàng</h1>
+          <p className="text-sm text-gray-600 mt-1">Quản lý đội ngũ vận chuyển và chi phí giao hàng</p>
+        </div>
         <button
           onClick={() => {
             setName('');
@@ -192,231 +176,226 @@ export default function DeliversPage() {
             setError(null);
             setShowForm(true);
           }}
-          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+          className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 transition-colors shadow-sm"
         >
           + Thêm người giao hàng
         </button>
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Thêm người giao hàng</h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-        {error && <div className="text-red-600 text-sm">{error}</div>}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input
-            className="border rounded px-3 py-2"
-            placeholder="Tên"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            className="border rounded px-3 py-2"
-            placeholder="Số điện thoại"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-          />
-          <input
-            className="border rounded px-3 py-2"
-            placeholder="Biển số"
-            value={plateNumber}
-            onChange={(e) => setPlateNumber(e.target.value)}
+      <Modal
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
+        title="Thêm người giao hàng mới"
+        size="lg"
+        footer={
+          <>
+            <button
+              onClick={() => setShowForm(false)}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={submitting}
+              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors"
+            >
+              {submitting ? 'Đang lưu...' : 'Lưu'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
+          <DynamicForm
+            fields={deliverFormFields}
+            values={{ name, phoneNumber, plateNumber }}
+            onChange={(field, value) => {
+              if (field === 'name') setName(value as string);
+              if (field === 'phoneNumber') setPhoneNumber(value as string);
+              if (field === 'plateNumber') setPlateNumber(value as string);
+            }}
+            columns={1}
           />
         </div>
-              <div className="flex gap-3">
-        <button
-          onClick={handleCreate}
-          disabled={submitting}
-          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-60"
-        >
-          {submitting ? 'Đang lưu...' : 'Lưu'}
-        </button>
-                <button
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-2 border rounded hover:bg-gray-50"
-                >
-                  Hủy
-                </button>
-              </div>
-            </div>
-          </div>
-      </div>
-      )}
+      </Modal>
 
-      <div className="border rounded-lg p-4 bg-white shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold">Danh sách</h2>
+      <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-gray-900">Danh sách người giao hàng</h2>
           <button
             onClick={loadDelivers}
-            className="px-3 py-1 border rounded text-sm hover:bg-gray-50"
+            className="px-3 py-1 border rounded text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
           >
             Làm mới
           </button>
         </div>
-        {loading ? (
-          <div>Đang tải...</div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="min-w-full text-base">
-              <thead>
-                <tr className="bg-orange-50">
-                  <th className="px-4 py-3 text-left">Tên</th>
-                  <th className="px-4 py-3 text-left">Số điện thoại</th>
-                  <th className="px-4 py-3 text-left">Biển số</th>
-                  <th className="px-4 py-3 text-right">Tổng chi phí</th>
-                  <th className="px-4 py-3 text-right">Đã thanh toán</th>
-                  <th className="px-4 py-3 text-right">Còn lại</th>
-                  <th className="px-4 py-3 text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="text-base">
-                {delivers.map((d) => {
-                  const remaining = (d.amountMoneyTotal || 0) - (d.amountMoneyPaid || 0);
-                  return (
-                  <tr key={d.id} className="border-b">
-                      <td className="px-4 py-3">{d.name}</td>
-                      <td className="px-4 py-3">{d.phoneNumber}</td>
-                      <td className="px-4 py-3">{d.plateNumber}</td>
-                      <td className="px-4 py-3 text-right font-semibold">
-                        {(d.amountMoneyTotal || 0).toLocaleString('vi-VN')} VNĐ
-                      </td>
-                      <td className="px-4 py-3 text-right text-green-600">
-                        {(d.amountMoneyPaid || 0).toLocaleString('vi-VN')} VNĐ
-                      </td>
-                      <td className="px-4 py-3 text-right text-orange-600 font-semibold">
-                        {remaining.toLocaleString('vi-VN')} VNĐ
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => handleOpenPaymentModal(d)}
-                          className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm"
-                          disabled={remaining <= 0}
-                        >
-                          Thanh toán
-                        </button>
-                      </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {!delivers.length && <div className="text-sm text-gray-500 py-3">Chưa có dữ liệu</div>}
-          </div>
-        )}
+        <DataTable
+          data={delivers}
+          isLoading={loading}
+          columns={[
+            {
+              key: 'info',
+              header: 'Thông tin người giao',
+              className: 'min-w-[200px]',
+              render: (d) => (
+                <div>
+                  <div className="font-bold text-gray-900">{d.name}</div>
+                  <div className="text-xs text-gray-500">{d.phoneNumber} - <span className="font-semibold">{d.plateNumber}</span></div>
+                </div>
+              )
+            },
+            {
+              key: 'amountMoneyTotal',
+              header: 'Tổng chi phí',
+              headerClassName: 'text-right',
+              className: 'text-right font-semibold text-gray-900',
+              render: (d) => <span>{(d.amountMoneyTotal || 0).toLocaleString('vi-VN')}đ</span>
+            },
+            {
+              key: 'amountMoneyPaid',
+              header: 'Đã thanh toán',
+              headerClassName: 'text-right',
+              className: 'text-right text-green-600 font-medium',
+              render: (d) => <span>{(d.amountMoneyPaid || 0).toLocaleString('vi-VN')}đ</span>
+            },
+            {
+              key: 'remaining',
+              header: 'Còn lại',
+              headerClassName: 'text-right',
+              className: 'text-right text-orange-600 font-black text-lg',
+              render: (d) => {
+                const remaining = (d.amountMoneyTotal || 0) - (d.amountMoneyPaid || 0);
+                return <span>{remaining.toLocaleString('vi-VN')}đ</span>;
+              }
+            },
+            {
+              key: 'actions',
+              header: 'Thao tác',
+              headerClassName: 'text-center',
+              className: 'text-center',
+              render: (d) => {
+                const remaining = (d.amountMoneyTotal || 0) - (d.amountMoneyPaid || 0);
+                return (
+                  <button
+                    onClick={() => handleOpenPaymentModal(d)}
+                    className="rounded-lg bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-600 hover:bg-orange-100 transition-colors disabled:opacity-30 disabled:grayscale"
+                    disabled={remaining <= 0}
+                  >
+                    Thanh toán
+                  </button>
+                );
+              }
+            }
+          ]}
+          emptyMessage="Chưa có dữ liệu người giao hàng"
+        />
       </div>
 
-      {showPaymentModal && selectedDeliver && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Thanh toán cho {selectedDeliver.name}</h2>
-              <button
-                onClick={() => {
-                  setShowPaymentModal(false);
-                  setSelectedDeliver(null);
-                  setPaymentAmount(0);
-                  setMonthlyTotal(null);
-                }}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded">{error}</div>}
-              
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-gray-50 p-4 rounded">
-                  <div className="text-sm text-gray-600">Tổng chi phí</div>
-                  <div className="text-lg font-semibold">{(selectedDeliver.amountMoneyTotal || 0).toLocaleString('vi-VN')} VNĐ</div>
+      <Modal
+        isOpen={showPaymentModal && !!selectedDeliver}
+        onClose={() => {
+          setShowPaymentModal(false);
+          setSelectedDeliver(null);
+          setPaymentAmount(0);
+          setMonthlyTotal(null);
+        }}
+        title={`Thanh toán - ${selectedDeliver?.name}`}
+        size="lg"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setShowPaymentModal(false);
+                setSelectedDeliver(null);
+                setPaymentAmount(0);
+                setMonthlyTotal(null);
+              }}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handlePayment}
+              disabled={submitting || !paymentAmount || Number(paymentAmount) <= 0}
+              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors"
+            >
+              {submitting ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
+
+          {selectedDeliver && (
+            <>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 shadow-sm">
+                  <div className="text-[10px] uppercase font-black text-gray-400 mb-1">Tổng chi phí</div>
+                  <div className="text-sm font-bold text-gray-900">{(selectedDeliver.amountMoneyTotal || 0).toLocaleString('vi-VN')}đ</div>
                 </div>
-                <div className="bg-green-50 p-4 rounded">
-                  <div className="text-sm text-gray-600">Đã thanh toán</div>
-                  <div className="text-lg font-semibold text-green-600">{(selectedDeliver.amountMoneyPaid || 0).toLocaleString('vi-VN')} VNĐ</div>
+                <div className="bg-green-50 p-3 rounded-xl border border-green-100 shadow-sm">
+                  <div className="text-[10px] uppercase font-black text-green-400 mb-1">Đã trả</div>
+                  <div className="text-sm font-bold text-green-600">{(selectedDeliver.amountMoneyPaid || 0).toLocaleString('vi-VN')}đ</div>
+                </div>
+                <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 shadow-sm">
+                  <div className="text-[10px] uppercase font-black text-orange-400 mb-1">Còn nợ</div>
+                  <div className="text-sm font-black text-orange-600">
+                    {((selectedDeliver.amountMoneyTotal || 0) - (selectedDeliver.amountMoneyPaid || 0)).toLocaleString('vi-VN')}đ
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-orange-50 p-4 rounded">
-                <div className="text-sm text-gray-600">Còn lại</div>
-                <div className="text-lg font-semibold text-orange-600">
-                  {((selectedDeliver.amountMoneyTotal || 0) - (selectedDeliver.amountMoneyPaid || 0)).toLocaleString('vi-VN')} VNĐ
+              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase text-blue-600">Chi phí theo tháng</h4>
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => {
+                      setSelectedMonth(e.target.value);
+                      if (e.target.value) {
+                        loadMonthlyTotal(selectedDeliver.id, e.target.value);
+                      }
+                    }}
+                    className="rounded-lg border border-blue-200 px-2 py-1 text-xs focus:ring-2 focus:ring-blue-100 outline-none shadow-sm"
+                  />
                 </div>
+                {loadingMonthlyTotal ? (
+                  <div className="text-xs text-blue-400 italic">Đang tính toán...</div>
+                ) : monthlyTotal !== null ? (
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm text-blue-700">Chi phí tháng {selectedMonth}:</span>
+                    <span className="text-lg font-black text-blue-800">{monthlyTotal.toLocaleString('vi-VN')}đ</span>
+                  </div>
+                ) : (
+                  <div className="text-xs text-blue-400">Chọn tháng để xem chi tiết chi phí phát sinh</div>
+                )}
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Chọn tháng để xem chi phí</label>
-                <input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={(e) => {
-                    setSelectedMonth(e.target.value);
-                    if (e.target.value) {
-                      loadMonthlyTotal(selectedDeliver.id, e.target.value);
-                    }
-                  }}
-                  className="border rounded px-3 py-2 w-full"
-                />
-                {loadingMonthlyTotal ? (
-                  <div className="text-sm text-gray-500">Đang tải...</div>
-                ) : monthlyTotal !== null ? (
-                  <div className="bg-blue-50 p-3 rounded">
-                    <div className="text-sm text-gray-600">Chi phí tháng {selectedMonth}</div>
-                    <div className="text-lg font-semibold text-blue-600">
-                      {monthlyTotal.toLocaleString('vi-VN')} VNĐ
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Số tiền thanh toán</label>
-                <input
-                  type="number"
-                  className="border rounded px-3 py-2 w-full"
-                  placeholder="Nhập số tiền"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                  min="0"
-                  max={(selectedDeliver.amountMoneyTotal || 0) - (selectedDeliver.amountMoneyPaid || 0)}
-                />
-                <div className="text-xs text-gray-500 mt-1">
-                  Tối đa: {((selectedDeliver.amountMoneyTotal || 0) - (selectedDeliver.amountMoneyPaid || 0)).toLocaleString('vi-VN')} VNĐ
+                <label className="text-xs font-black uppercase text-gray-500">Số tiền muốn thanh toán</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    className="w-full rounded-xl border border-gray-200 p-4 text-2xl font-black text-orange-600 placeholder:text-gray-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-50 outline-none transition-all"
+                    placeholder="0"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                    min="0"
+                    max={(selectedDeliver.amountMoneyTotal || 0) - (selectedDeliver.amountMoneyPaid || 0)}
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">VNĐ</div>
+                </div>
+                <div className="text-[10px] font-bold text-gray-400 text-right uppercase italic">
+                  Tối đa: {((selectedDeliver.amountMoneyTotal || 0) - (selectedDeliver.amountMoneyPaid || 0)).toLocaleString('vi-VN')}đ
                 </div>
               </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={handlePayment}
-                  disabled={submitting || !paymentAmount || Number(paymentAmount) <= 0}
-                  className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-60"
-                >
-                  {submitting ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowPaymentModal(false);
-                    setSelectedDeliver(null);
-                    setPaymentAmount(0);
-                    setMonthlyTotal(null);
-                  }}
-                  className="px-4 py-2 border rounded hover:bg-gray-50"
-                >
-                  Hủy
-                </button>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

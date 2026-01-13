@@ -3,22 +3,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
+import { productionApi } from '@/api';
+import { BrickYardStatus, BrickYardAggregated } from '@/types';
+import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
 
 // Client-side guard: redirect role 'user' away from this page
 
-interface BrickYardStatus {
-  id: number;
-  packageQuantity: number;
-  dateTime: string;
-}
-
-interface BrickYardAggregated {
-  totalPackageQuantity: number;
-  periodStart: string;
-  periodEnd: string;
-  periodType: string;
-  recordCount: number;
-}
+// Types moved to @/types/production.ts
 
 type ChartDatum = { label: string; value: number };
 
@@ -40,8 +31,13 @@ export default function LoGachPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newStatus, setNewStatus] = useState({
     packageQuantity: 0,
-    dateTime: new Date().toISOString().slice(0, 19) + 'Z'
+    dateTime: new Date().toISOString().slice(0, 16)
   });
+
+  const brickYardFormFields: FormField[] = [
+    { name: 'packageQuantity', label: 'Số lượng gói', type: 'number', required: true, placeholder: 'Nhập số lượng...' },
+    { name: 'dateTime', label: 'Thời gian', type: 'datetime-local', required: true },
+  ];
   const [canFetch, setCanFetch] = useState<boolean>(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [chartData, setChartData] = useState<ChartDatum[]>([]);
@@ -50,13 +46,13 @@ export default function LoGachPage() {
     const role = getCookie('role');
     const userId = getCookie('userId');
     const userName = getCookie('userName');
-    
+
     // Redirect to login if userId or userName is missing
     if (!userId || !userName) {
       router.push('/login');
       return;
     }
-    
+
     // Only allow 'Admin' and 'accountance' roles to access this page
     if (role !== 'Admin' && role !== 'accountance') {
       setCanFetch(false);
@@ -71,11 +67,10 @@ export default function LoGachPage() {
     try {
       setLoading(true);
       setError(null);
-      
-      let url = `${process.env.NEXT_PUBLIC_API_HOST}/api/brickyardstatus`;
+
       const params = new URLSearchParams();
       let apiType: 'hour' | 'date' | 'month' | undefined;
-      
+
       switch (filter.type) {
         case 'today':
           const today = new Date().toISOString().split('T')[0];
@@ -119,16 +114,7 @@ export default function LoGachPage() {
         params.append('type', apiType);
       }
 
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error('Không thể tải dữ liệu');
-      }
-
-      const data = await response.json();
+      const data = await productionApi.getBrickYardStatuses(Object.fromEntries(params));
 
       if (Array.isArray(data) && data.length > 0 && 'totalPackageQuantity' in data[0]) {
         const aggregated = data as BrickYardAggregated[];
@@ -150,10 +136,10 @@ export default function LoGachPage() {
               label = `${d.getHours().toString().padStart(2, '0')}:00`;
               break;
             case 'date':
-              label = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}`;
+              label = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
               break;
             case 'month':
-              label = `${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+              label = `${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
               break;
             case 'year':
               label = `${d.getFullYear()}`;
@@ -183,22 +169,15 @@ export default function LoGachPage() {
 
   const addNewStatus = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/brickyardstatus`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newStatus),
+      await productionApi.createBrickYardStatus({
+        packageQuantity: newStatus.packageQuantity,
+        dateTime: new Date(newStatus.dateTime).toISOString()
       });
-
-      if (!response.ok) {
-        throw new Error('Không thể thêm dữ liệu');
-      }
 
       setShowAddForm(false);
       setNewStatus({
         packageQuantity: 0,
-        dateTime: new Date().toISOString().slice(0, 19) + 'Z'
+        dateTime: new Date().toISOString().slice(0, 16)
       });
       fetchStatuses();
     } catch (err) {
@@ -471,128 +450,81 @@ export default function LoGachPage() {
       </div>
 
       {/* Data Table */}
-      <div className="bg-white rounded-lg shadow-sm border">
+      {/* Data Table */}
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold">Dữ liệu tình trạng lò gạch</h2>
+          <h2 className="text-lg font-bold text-gray-900">Dữ liệu tình trạng lò gạch</h2>
         </div>
+
         {/* Column Chart */}
         {!loading && !error && chartData.length > 0 && (
-          <div className="px-6 py-4">
+          <div className="px-6 py-6 bg-gray-50/50 border-b">
             <Chart data={chartData} />
           </div>
         )}
-        
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
-            <p className="mt-2 text-gray-600">Đang tải dữ liệu...</p>
-          </div>
-        ) : error ? (
-          <div className="p-8 text-center">
-            <div className="text-red-600 mb-2">
-              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <p className="text-red-600 font-medium">{error}</p>
-            <button
-              onClick={fetchStatuses}
-              className="mt-4 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
-            >
-              Thử lại
-            </button>
-          </div>
-        ) : statuses.length === 0 ? (
-          <div className="p-8 text-center">
-            <div className="text-gray-400 mb-2">
-              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <p className="text-gray-600">Không có dữ liệu</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    STT
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Thời gian
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Số lượng gói
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {statuses.map((status, index) => (
-                  <tr key={status.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {index + 1}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDateTime(status.dateTime)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {status.packageQuantity.toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+
+        <div className="p-4">
+          <DataTable
+            data={statuses}
+            isLoading={loading}
+            columns={[
+              {
+                key: 'stt',
+                header: 'STT',
+                className: 'w-16 text-gray-500 font-mono',
+                render: (_, index) => <span>{index + 1}</span>
+              },
+              {
+                key: 'dateTime',
+                header: 'Thời gian',
+                className: 'font-medium text-gray-900',
+                render: (s) => <span>{formatDateTime(s.dateTime)}</span>
+              },
+              {
+                key: 'packageQuantity',
+                header: 'Số lượng gói',
+                headerClassName: 'text-right',
+                className: 'text-right font-black text-orange-600 text-lg',
+                render: (s) => <span>{s.packageQuantity.toLocaleString()}</span>
+              }
+            ]}
+            emptyMessage="Không có dữ liệu tình trạng lò gạch trong khoảng thời gian này"
+          />
+        </div>
       </div>
 
-      {/* Add New Status Modal */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Thêm dữ liệu tình trạng lò gạch</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Số lượng gói</label>
-                <input
-                  type="number"
-                  value={newStatus.packageQuantity}
-                  onChange={(e) => setNewStatus({ ...newStatus, packageQuantity: parseInt(e.target.value) || 0 })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  min="0"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Thời gian</label>
-                <input
-                  type="datetime-local"
-                  value={newStatus.dateTime}
-                  onChange={(e) => setNewStatus({ ...newStatus, dateTime: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowAddForm(false)}
-                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={addNewStatus}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-              >
-                Thêm
-              </button>
-            </div>
-          </div>
+      <Modal
+        isOpen={showAddForm}
+        onClose={() => setShowAddForm(false)}
+        title="Thêm dữ liệu tình trạng lò gạch"
+        size="md"
+        footer={
+          <>
+            <button
+              onClick={() => setShowAddForm(false)}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={addNewStatus}
+              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 transition-colors"
+            >
+              Thêm dữ liệu
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
+          <DynamicForm
+            fields={brickYardFormFields}
+            values={newStatus}
+            onChange={(field, value) => setNewStatus(prev => ({ ...prev, [field]: value }))}
+            columns={1}
+          />
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

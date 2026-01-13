@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { ClipboardList, CheckCircle2, BarChart3 } from 'lucide-react';
 
 export default function VatTuLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -9,30 +10,18 @@ export default function VatTuLayout({ children }: { children: React.ReactNode })
   const sidebarLinks = [
     {
       href: '/vat-tu/yeu-cau',
-      label: 'Yêu cầu',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-      ),
+      label: 'Yêu cầu vật tư',
+      icon: <ClipboardList className="w-5 h-5" />,
     },
     {
       href: '/vat-tu/duyet',
-      label: 'Duyệt',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
+      label: 'Phê duyệt yêu cầu',
+      icon: <CheckCircle2 className="w-5 h-5" />,
     },
     {
       href: '/vat-tu/thong-ke',
-      label: 'Thống kê',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      ),
+      label: 'Báo cáo thống kê',
+      icon: <BarChart3 className="w-5 h-5" />,
     },
   ];
 
@@ -44,69 +33,46 @@ export default function VatTuLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="hidden md:flex md:flex-shrink-0">
-        <div className="flex flex-col w-64 bg-white border-r border-gray-200">
-          <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-            <nav className="flex-1 px-2 space-y-1">
-              {sidebarLinks.map((link) => {
-                const active = isActive(link.href);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`group flex items-center px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                      active
-                        ? 'bg-orange-600 text-white'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                    }`}
-                  >
-                    <span className={`mr-3 ${active ? 'text-white' : 'text-gray-400 group-hover:text-gray-500'}`}>
-                      {link.icon}
-                    </span>
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </nav>
+    <div className="flex flex-col md:flex-row min-h-[calc(100vh-120px)] gap-6">
+      {/* Sidebar - Modern Floating Design */}
+      <aside className="w-full md:w-72 flex-shrink-0">
+        <div className="sticky top-6 flex flex-col bg-white/80 backdrop-blur-md border border-gray-100 rounded-3xl p-4 shadow-xl shadow-gray-200/50">
+          <div className="px-4 py-4 mb-2">
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">Quản lý vật tư</h2>
           </div>
-        </div>
-      </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Navigation Bar */}
-        <div className="md:hidden bg-white border-b border-gray-200 sticky top-0 z-10">
-          <nav className="flex px-4 py-2 space-x-2 overflow-x-auto">
+          <nav className="space-y-2">
             {sidebarLinks.map((link) => {
               const active = isActive(link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center px-4 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
-                    active
-                      ? 'bg-orange-600 text-white'
-                      : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
-                  }`}
+                  className={`group flex items-center gap-4 px-4 py-3.5 text-sm font-black rounded-2xl transition-all duration-300 ${active
+                    ? 'bg-orange-600 text-white shadow-lg shadow-orange-200 translate-x-1'
+                    : 'text-gray-600 hover:bg-orange-50 hover:text-orange-600'
+                    }`}
                 >
-                  <span className={`mr-2 ${active ? 'text-white' : 'text-gray-500'}`}>
+                  <span className={`${active ? 'text-white' : 'text-gray-400 group-hover:text-orange-500'} transition-colors`}>
                     {link.icon}
                   </span>
                   {link.label}
+                  {active && (
+                    <div className="ml-auto w-1.5 h-1.5 bg-orange-300 rounded-full animate-pulse" />
+                  )}
                 </Link>
               );
             })}
           </nav>
         </div>
+      </aside>
 
-        <main className="flex-1 overflow-y-auto bg-gray-50">
-          <div className="py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">{children}</div>
-          </div>
-        </main>
-      </div>
+      {/* Main Content Area */}
+      <main className="flex-1 min-w-0">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

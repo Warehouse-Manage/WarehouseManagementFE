@@ -3,64 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
+import { toast } from 'sonner';
 
 
-type RequestItem = {
-  id: number;
-  name: string;
-  unit: string;
-  quantity: number;
-  note?: string;
-  unitPrice?: number;
-  discount?: number;
-};
-
-type Request = {
-  id: number;
-  requester: string;
-  department: string;
-  date: string;
-  status: 'pending' | 'approved' | 'rejected';
-  items: RequestItem[];
-  totalItems: number;
-  totalPrice?: number;
-  createdAt: string;
-};
-
-// Kiểu dữ liệu phản hồi API (một phần)
-type ApiShortItem = {
-  id: number;
-  name: string;
-  type: string;
-  quantity: number;
-  unitPrice?: number;
-  totalPrice?: number;
-};
-type ApiRequestItem = {
-  id: number;
-  materialRequestId: number;
-  materialId: number;
-  quantity: number;
-  unitPrice?: number;
-  totalPrice?: number;
-  note?: string;
-  material?: { id: number; name: string; type: string };
-};
-type ApiRequest = {
-  id: number;
-  requesterId: number;
-  requesterName?: string;
-  department: string;
-  requestDate: string;
-  status: string;
-  description?: string;
-  createdDate: string;
-  updatedDate?: string | null;
-  totalPrice?: number;
-  requester?: { id: number; userName: string; name: string; role: string; email: string };
-  requestItems?: ApiRequestItem[];
-  items?: ApiShortItem[];
-};
+import { Request, RequestItem, ApiRequest, ApiRequestItem, ApiShortItem } from '@/types';
+import { materialApi } from '@/api/materialApi';
+import { Modal, DataTable } from '@/components/shared';
+import { ArrowLeft, Check, X, FileText, Package, Calendar, User, Building2, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
 
 export default function ApprovalsPage() {
   const router = useRouter();
@@ -74,15 +24,15 @@ export default function ApprovalsPage() {
   useEffect(() => {
     const userUserId = getCookie('userId');
     const userUserName = getCookie('userName');
-    
+
     setUserId(userUserId);
     setUserName(userUserName);
-    
+
     // Redirect to login if userId or userName is missing
     if (!userUserId || !userUserName) {
       router.push('/login');
     }
-    
+
     setIsCheckingAuth(false);
   }, [router]);
 
@@ -92,28 +42,14 @@ export default function ApprovalsPage() {
       if (!userName) {
         return;
       }
-      
+
       try {
         setLoading(true);
         setError(null);
-        
+
         // Build query parameters - always include userName
-        const params = new URLSearchParams();
-        params.append('userName', userName);
-        
-        const queryString = params.toString();
-        const url = `${process.env.NEXT_PUBLIC_API_HOST}/api/materialrequests?${queryString}`;
-        
-        const resp = await fetch(url, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (!resp.ok) {
-          const errText = await resp.text().catch(() => '');
-          throw new Error(`HTTP ${resp.status} ${resp.statusText} ${errText}`);
-        }
-        const data: ApiRequest[] = await resp.json();
-        const mapped: Request[] = (data || []).map((rb) => {
+        const data = await materialApi.getMaterialRequests({ userName });
+        const mapped: Request[] = (data || []).map((rb: ApiRequest) => {
           const candidateItems = (rb.items ?? rb.requestItems ?? []) as Array<ApiShortItem | ApiRequestItem>;
           const items: RequestItem[] = candidateItems.map((it) => {
             if ('name' in it && 'type' in it) {
@@ -171,7 +107,7 @@ export default function ApprovalsPage() {
   const handleApprove = async (requestId: number) => {
     const request = requests.find(r => r.id === requestId);
     if (!request) return;
-    
+
     setEditingRequest(request);
     setEditedItems([...request.items]);
     setTotalDiscountAmount(0);
@@ -180,7 +116,7 @@ export default function ApprovalsPage() {
 
   const handleConfirmApproval = async () => {
     if (!editingRequest) return;
-    
+
     setIsSubmitting(true);
     try {
       const approvalData = {
@@ -194,32 +130,23 @@ export default function ApprovalsPage() {
           unitPrice: it.unitPrice ?? 0,
         })),
       };
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materialrequests/${editingRequest.id}/approve`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(approvalData),
-      });
 
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        throw new Error(`HTTP ${response.status} ${response.statusText} ${errText}`);
-      }
-      
+      await materialApi.approveRequest(editingRequest.id, approvalData);
+
       // Cập nhật trạng thái yêu cầu trong state local
-      setRequests(prev => prev.map(req => 
-        req.id === editingRequest.id 
+      setRequests(prev => prev.map(req =>
+        req.id === editingRequest.id
           ? { ...req, status: 'approved' as const }
           : req
       ));
-      
-      alert('Đã duyệt và mua yêu cầu thành công!');
+
+      toast.success('Đã duyệt và mua yêu cầu thành công!');
       setShowApprovalModal(false);
       setEditingRequest(null);
       setEditedItems([]);
     } catch (error) {
       console.error('Lỗi khi duyệt yêu cầu:', error);
-      alert('Có lỗi xảy ra, vui lòng thử lại!');
+      toast.error('Có lỗi xảy ra, vui lòng thử lại!');
     } finally {
       setIsSubmitting(false);
     }
@@ -233,7 +160,7 @@ export default function ApprovalsPage() {
   };
 
   const handleItemChange = (itemId: number, field: keyof RequestItem, value: string | number) => {
-    setEditedItems(prev => prev.map(item => 
+    setEditedItems(prev => prev.map(item =>
       item.id === itemId ? { ...item, [field]: value } : item
     ));
   };
@@ -242,7 +169,7 @@ export default function ApprovalsPage() {
     if (editedItems.length > 1) {
       setEditedItems(prev => prev.filter(item => item.id !== itemId));
     } else {
-      alert('Không thể xóa vật tư cuối cùng. Yêu cầu phải có ít nhất 1 vật tư.');
+      toast.warning('Không thể xóa vật tư cuối cùng. Yêu cầu phải có ít nhất 1 vật tư.');
     }
   };
 
@@ -266,26 +193,17 @@ export default function ApprovalsPage() {
         approverId: userId ? parseInt(userId) : 1, // Use actual user ID from cookie
         comments: 'Yêu cầu bị từ chối'
       };
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/materialrequests/${requestId}/reject`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rejectionData),
-      });
 
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        throw new Error(`HTTP ${response.status} ${response.statusText} ${errText}`);
-      }
-      
+      await materialApi.rejectRequest(requestId, rejectionData);
+
       // Cập nhật trạng thái yêu cầu trong state local
-      setRequests(prev => prev.map(req => 
-        req.id === requestId 
+      setRequests(prev => prev.map(req =>
+        req.id === requestId
           ? { ...req, status: 'rejected' as const }
           : req
       ));
-      
-      alert('Đã từ chối yêu cầu!');
+
+      toast.success('Đã từ chối yêu cầu!');
     } finally {
       setActionLoading(null);
     }
@@ -324,525 +242,401 @@ export default function ApprovalsPage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <h1 className="text-xl sm:text-2xl font-black text-gray-800">Duyệt yêu cầu mua vật tư</h1>
-        <div className="text-sm text-gray-600">
-          Tổng: {requests.length} yêu cầu
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600">
+            <Check className="h-6 w-6" strokeWidth={3} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Duyệt Yêu Cầu</h1>
+            <p className="text-gray-500 font-medium">Quản lý và phê duyệt đề nghị vật tư</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/vat-tu"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Vật Tư
+          </Link>
+          <div className="bg-orange-600 px-4 py-2.5 rounded-xl shadow-lg shadow-orange-200">
+            <span className="text-sm font-black text-white">{requests.length} Yêu cầu</span>
+          </div>
         </div>
       </div>
 
       {/* Danh sách yêu cầu */}
-      {loading && (
-        <div className="flex items-center justify-center py-12 text-gray-600">Đang tải danh sách yêu cầu...</div>
-      )}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-      )}
-      {!loading && !error && (
-        <div className="space-y-4">
-          {requests.map((request) => (
-            <div key={request.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="p-4 sm:p-6">
-                {/* Header with title, status and action buttons */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-                    <h3 className="text-base sm:text-lg font-black text-gray-900">Yêu cầu #{request.id}</h3>
-                    {getStatusBadge(request.status)}
-                  </div>
-                  
-                  {/* Action buttons - moved to header for mobile */}
-                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    {request.status === 'pending' && (
-                      <>
-                        <button
-                          onClick={() => handleApprove(request.id)}
-                          disabled={actionLoading === request.id}
-                          className="inline-flex items-center justify-center rounded-lg bg-green-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {actionLoading === request.id ? (
-                            <>
-                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              <span className="hidden sm:inline">Đang xử lý...</span>
-                              <span className="sm:hidden">Đang xử lý</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="hidden sm:inline">Duyệt và mua</span>
-                              <span className="sm:hidden">Duyệt</span>
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleReject(request.id)}
-                          disabled={actionLoading === request.id}
-                          className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Từ chối
-                        </button>
-                      </>
-                    )}
-                    
-                    <button
-                      onClick={() => setSelectedRequest(request)}
-                      className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    >
-                      <span className="hidden sm:inline">Xem chi tiết</span>
-                      <span className="sm:hidden">Chi tiết</span>
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Request details */}
-                <div className="flex-1">
-                  <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Người đề nghị</p>
-                      <p className="font-bold text-gray-900">{request.requester}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Phòng ban</p>
-                      <p className="font-bold text-gray-900">{request.department}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Ngày đề nghị</p>
-                      <p className="font-bold text-gray-900">{formatDate(request.date)}</p>
-                    </div>
-                    {request.totalPrice && (
-                      <div>
-                        <p className="text-sm text-gray-500">Tổng tiền</p>
-                        <p className="font-black text-lg text-green-600">{request.totalPrice.toLocaleString('vi-VN')} VNĐ</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Materials section */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                        <svg className="h-4 w-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                        Danh mục vật tư
-                      </h4>
-                      <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
-                        {request.totalItems} mục
-                      </span>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-                      <div className="space-y-3">
-                        {request.items.map((item, index) => (
-                          <div key={item.id} className="bg-white rounded-lg border border-gray-100 p-4 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                              <div className="flex items-start gap-3 flex-1 min-w-0">
-                                <div className="flex-shrink-0 w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                                  <span className="text-sm font-bold text-orange-600">{index + 1}</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h5 className="text-sm font-semibold text-gray-900 truncate">{item.name}</h5>
-                                  {item.note && (
-                                    <p className="text-xs text-gray-500 mt-1 italic">Ghi chú: {item.note}</p>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                                <div className="text-center">
-                                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">ĐVT</div>
-                                  <div className="text-sm font-bold text-gray-700 mt-1">{item.unit}</div>
-                                </div>
-                                <div className="text-center">
-                                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Số lượng</div>
-                                  <div className="text-sm font-bold text-gray-700 mt-1">{item.quantity.toLocaleString('vi-VN')}</div>
-                                </div>
-                                {request.status === 'approved' && (
-                                  <>
-                                    <div className="text-center">
-                                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Đơn giá</div>
-                                      <div className="text-sm font-bold text-gray-700 mt-1">{(item.unitPrice ?? 0).toLocaleString('vi-VN')} đ</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Thành tiền</div>
-                                      <div className="text-sm font-bold text-green-600 mt-1">
-                                        {(((item.unitPrice ?? 0) * item.quantity) || 0).toLocaleString('vi-VN')} đ
-                                      </div>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-          {requests.length === 0 && (
-            <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-600">Không có yêu cầu nào</div>
-          )}
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 text-red-700 font-bold mb-4 shadow-sm animate-in slide-in-from-top duration-300">
+          <AlertTriangle className="h-5 w-5 text-red-500" />
+          <p>{error}</p>
         </div>
       )}
+
+      <DataTable
+        data={requests}
+        isLoading={loading}
+        emptyMessage="Không có yêu cầu nào cần xử lý"
+        columns={[
+          {
+            key: 'id',
+            header: 'Mã số',
+            className: 'w-24 font-black text-gray-400',
+            render: (it) => <span>#{(it as Request).id}</span>
+          },
+          {
+            key: 'info',
+            header: 'Thông tin đề nghị',
+            render: (it: unknown) => {
+              const req = it as Request;
+              return (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <User className="h-3 w-3 text-gray-400" />
+                    <span className="font-bold text-gray-900">{req.requester}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Building2 className="h-3 w-3" />
+                    <span>{req.department}</span>
+                    <span className="mx-1">•</span>
+                    <Calendar className="h-3 w-3" />
+                    <span>{formatDate(req.date)}</span>
+                  </div>
+                </div>
+              );
+            }
+          },
+          {
+            key: 'items',
+            header: 'Vật tư',
+            className: 'w-32',
+            render: (it) => (
+              <div className="flex items-center gap-2 text-orange-600 font-black">
+                <Package className="h-4 w-4" />
+                <span>{(it as Request).totalItems} mục</span>
+              </div>
+            )
+          },
+          {
+            key: 'total',
+            header: 'Ước tính',
+            className: 'w-40 text-right',
+            render: (it: unknown) => {
+              const req = it as Request;
+              return req.totalPrice ? (
+                <span className="font-black text-green-600">{req.totalPrice.toLocaleString('vi-VN')} đ</span>
+              ) : <span className="text-gray-400 italic">N/A</span>;
+            }
+          },
+          {
+            key: 'status',
+            header: 'Trạng thái',
+            className: 'w-32 text-center',
+            render: (it) => getStatusBadge((it as Request).status)
+          },
+          {
+            key: 'actions',
+            header: '',
+            className: 'w-48 text-right',
+            render: (it: unknown) => {
+              const req = it as Request;
+              return (
+                <div className="flex items-center justify-end gap-2">
+                  {req.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => handleApprove(req.id)}
+                        disabled={actionLoading === req.id}
+                        className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors shadow-sm"
+                        title="Duyệt và mua"
+                      >
+                        <Check className="h-4 w-4" strokeWidth={3} />
+                      </button>
+                      <button
+                        onClick={() => handleReject(req.id)}
+                        disabled={actionLoading === req.id}
+                        className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors shadow-sm"
+                        title="Từ chối"
+                      >
+                        <X className="h-4 w-4" strokeWidth={3} />
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setSelectedRequest(req)}
+                    className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors shadow-sm"
+                    title="Xem chi tiết"
+                  >
+                    <FileText className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            }
+          }
+        ]}
+      />
 
       {/* Modal chi tiết */}
-      {selectedRequest && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-screen items-center justify-center p-4">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={() => setSelectedRequest(null)}></div>
-            <div className="relative w-full max-w-4xl rounded-xl bg-white mx-4 p-4 sm:p-6 shadow-xl">
-              <div className="mb-4 sm:mb-6 flex items-center justify-between">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Chi tiết yêu cầu #{selectedRequest.id}</h2>
-                <button
-                  onClick={() => setSelectedRequest(null)}
-                  className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                >
-                  <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="space-y-4 sm:space-y-6">
-                <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Người đề nghị</p>
-                    <p className="font-medium text-gray-900">{selectedRequest.requester}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Phòng ban</p>
-                    <p className="font-medium text-gray-900">{selectedRequest.department}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Ngày đề nghị</p>
-                    <p className="font-medium text-gray-900">{formatDate(selectedRequest.date)}</p>
-                  </div>
-                  {selectedRequest.totalPrice && (
-                    <div>
-                      <p className="text-sm text-gray-500">Tổng tiền</p>
-                      <p className="font-semibold text-base sm:text-lg text-green-600">{selectedRequest.totalPrice.toLocaleString('vi-VN')} đ</p>
-                    </div>
-                  )}
+      <Modal
+        isOpen={!!selectedRequest}
+        onClose={() => setSelectedRequest(null)}
+        title={`Chi tiết yêu cầu #${selectedRequest?.id}`}
+        size="4xl"
+      >
+        {selectedRequest && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 bg-white rounded-lg flex items-center justify-center shadow-sm text-gray-400">
+                  <User className="h-5 w-5" />
                 </div>
-
                 <div>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <svg className="h-4 sm:h-5 w-4 sm:w-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                      </svg>
-                      Danh mục vật tư
-                    </h3>
-                    <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 sm:px-3 py-1 text-xs sm:text-sm font-medium text-orange-800">
-                      {selectedRequest.items.length} mục
-                    </span>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 sm:p-4">
-                    <div className="space-y-3">
-                      {selectedRequest.items.map((item, index) => (
-                        <div key={item.id} className="bg-white rounded-lg border border-gray-100 p-3 sm:p-4 shadow-sm">
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                            <div className="flex items-start gap-3 flex-1 min-w-0">
-                              <div className="flex-shrink-0 w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                                <span className="text-sm font-bold text-orange-600">{index + 1}</span>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h5 className="text-sm font-semibold text-gray-900 truncate">{item.name}</h5>
-                                {item.note && (
-                                  <p className="text-xs text-gray-500 mt-1 italic">Ghi chú: {item.note}</p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 sm:gap-3 lg:gap-6 w-full sm:w-auto justify-between sm:justify-end">
-                              <div className="text-center">
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">ĐVT</div>
-                                <div className="text-sm font-bold text-gray-700 mt-1">{item.unit}</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Số lượng</div>
-                                <div className="text-sm font-bold text-gray-700 mt-1">{item.quantity.toLocaleString('vi-VN')}</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Đơn giá</div>
-                                <div className="text-sm font-bold text-gray-700 mt-1">{(item.unitPrice ?? 0).toLocaleString('vi-VN')} đ</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Thành tiền</div>
-                                <div className="text-sm font-bold text-green-600 mt-1">
-                                  {(((item.unitPrice ?? 0) * item.quantity) || 0).toLocaleString('vi-VN')} đ
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Người đề nghị</p>
+                  <p className="font-black text-gray-900">{selectedRequest.requester}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 bg-white rounded-lg flex items-center justify-center shadow-sm text-gray-400">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Phòng ban</p>
+                  <p className="font-black text-gray-900">{selectedRequest.department}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 bg-white rounded-lg flex items-center justify-center shadow-sm text-gray-400">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Ngày đề nghị</p>
+                  <p className="font-black text-gray-900">{formatDate(selectedRequest.date)}</p>
                 </div>
               </div>
             </div>
+
+            <DataTable
+              data={selectedRequest.items}
+              columns={[
+                {
+                  key: 'name',
+                  header: 'Vật tư',
+                  render: (it) => <span className="font-bold text-gray-900">{(it as RequestItem).name}</span>
+                },
+                {
+                  key: 'unit',
+                  header: 'ĐVT',
+                  className: 'w-24 text-center text-gray-500 font-bold',
+                  render: (it) => (it as RequestItem).unit
+                },
+                {
+                  key: 'quantity',
+                  header: 'Số lượng',
+                  className: 'w-24 text-center font-black text-orange-600',
+                  render: (it) => (it as RequestItem).quantity.toLocaleString('vi-VN')
+                },
+                {
+                  key: 'unitPrice',
+                  header: 'Đơn giá',
+                  className: 'w-32 text-right',
+                  render: (it) => {
+                    const price = (it as RequestItem).unitPrice;
+                    return price ? <span className="text-gray-600 font-bold">{price.toLocaleString('vi-VN')} đ</span> : <span className="text-gray-300">---</span>;
+                  }
+                },
+                {
+                  key: 'total',
+                  header: 'Thành tiền',
+                  className: 'w-32 text-right',
+                  render: (it) => {
+                    const item = it as RequestItem;
+                    const total = (item.unitPrice ?? 0) * item.quantity;
+                    return total > 0 ? <span className="text-green-600 font-black">{total.toLocaleString('vi-VN')} đ</span> : <span className="text-gray-300">---</span>;
+                  }
+                }
+              ]}
+            />
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Modal duyệt và mua */}
-      {showApprovalModal && editingRequest && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-screen items-center justify-center p-4">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={handleCancelApproval}></div>
-            <div className="relative w-full max-w-6xl rounded-xl bg-white mx-4 p-4 sm:p-6 shadow-xl">
-              <div className="mb-4 sm:mb-6 flex items-center justify-between">
-                <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Duyệt và mua yêu cầu #{editingRequest.id}</h2>
-                <button
-                  onClick={handleCancelApproval}
-                  className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                >
-                  <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="space-y-4 sm:space-y-6">
-                {/* Thông tin yêu cầu */}
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <div>
-                      <p className="text-sm text-gray-500">Người đề nghị</p>
-                      <p className="font-medium text-gray-900">{editingRequest.requester}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Phòng ban</p>
-                      <p className="font-medium text-gray-900">{editingRequest.department}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Ngày đề nghị</p>
-                      <p className="font-medium text-gray-900">{formatDate(editingRequest.date)}</p>
-                    </div>
-                  </div>
+      <Modal
+        isOpen={showApprovalModal}
+        onClose={handleCancelApproval}
+        title={`Duyệt và mua yêu cầu #${editingRequest?.id}`}
+        size="full"
+        footer={(
+          <>
+            <button
+              onClick={handleCancelApproval}
+              disabled={isSubmitting}
+              className="px-6 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-600 hover:bg-gray-50 transition-all"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleConfirmApproval}
+              disabled={isSubmitting || editedItems.length === 0}
+              className="inline-flex items-center gap-2 px-8 py-2.5 rounded-xl bg-orange-600 font-black text-white shadow-lg shadow-orange-100 hover:bg-orange-700 transition-all disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="h-4 w-4 border-2 border-white border-t-transparent animate-spin rounded-full" />
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4" />
+                  Xác nhận duyệt
+                </>
+              )}
+            </button>
+          </>
+        )}
+      >
+        {editingRequest && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 bg-white rounded-lg flex items-center justify-center shadow-sm text-gray-400">
+                  <User className="h-5 w-5" />
                 </div>
-
-                {/* Bảng chỉnh sửa vật tư */}
                 <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Chỉnh sửa thông tin mua hàng</h3>
-                  {editedItems.length === 0 ? (
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                      </svg>
-                      <h3 className="mt-2 text-sm font-medium text-gray-900">Không có vật tư nào</h3>
-                      <p className="mt-1 text-sm text-gray-500">Tất cả vật tư đã bị xóa khỏi yêu cầu.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {editedItems.map((item, index) => {
-                        const unitPrice = item.unitPrice || 0;
-                        const quantity = item.quantity;
-                        const subtotal = unitPrice * quantity;
-                        
-                        return (
-                          <div key={item.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                            {/* Mobile Layout */}
-                            <div className="block sm:hidden">
-                              <div className="flex items-start justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
-                                    <span className="text-xs font-bold text-orange-600">{index + 1}</span>
-                                  </div>
-                                  <h4 className="text-sm font-semibold text-gray-900 truncate">{item.name}</h4>
-                                </div>
-                                <button
-                                  onClick={() => handleRemoveItem(item.id)}
-                                  className="inline-flex items-center rounded-lg bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-                                >
-                                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-3 mb-3">
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-500 mb-1">ĐVT</label>
-                                  <div className="text-sm font-semibold text-gray-900">{item.unit}</div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-500 mb-1">Số lượng</label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={quantity}
-                                    onChange={(e) => handleItemChange(item.id, 'quantity', Number(e.target.value))}
-                                    className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                                  />
-                                </div>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-3 mb-3">
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-500 mb-1">Đơn giá (đ)</label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={unitPrice}
-                                    onChange={(e) => handleItemChange(item.id, 'unitPrice', Number(e.target.value))}
-                                    className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                                    placeholder="0"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-500 mb-1">Thành tiền</label>
-                                  <div className="text-sm font-bold text-green-600">
-                                    {subtotal.toLocaleString('vi-VN')} đ
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Desktop Layout */}
-                            <div className="hidden sm:block">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3 flex-1">
-                                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                                    <span className="text-sm font-bold text-orange-600">{index + 1}</span>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm font-semibold text-gray-900 truncate">{item.name}</h4>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex items-center gap-4">
-                                  <div className="text-center">
-                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">ĐVT</div>
-                                    <div className="text-sm font-bold text-gray-700 mt-1">{item.unit}</div>
-                                  </div>
-                                  <div className="text-center">
-                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Số lượng</div>
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      value={quantity}
-                                      onChange={(e) => handleItemChange(item.id, 'quantity', Number(e.target.value))}
-                                      className="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                                    />
-                                  </div>
-                                  <div className="text-center">
-                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Đơn giá (đ)</div>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={unitPrice}
-                                      onChange={(e) => handleItemChange(item.id, 'unitPrice', Number(e.target.value))}
-                                      className="w-32 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                                      placeholder="0"
-                                    />
-                                  </div>
-                                  <div className="text-center">
-                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Thành tiền</div>
-                                    <div className="text-sm font-bold text-green-600 mt-1">
-                                      {subtotal.toLocaleString('vi-VN')} đ
-                                    </div>
-                                  </div>
-                                  <div className="text-center">
-                                    <button
-                                      onClick={() => handleRemoveItem(item.id)}
-                                      className="inline-flex items-center rounded-lg bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-                                    >
-                                      <svg className="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                      </svg>
-                                      Xóa
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Tổng tiền */}
-                <div className="space-y-3">
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Tổng phụ:</span>
-                        <span className="text-sm font-semibold text-gray-900">
-                          {calculateSubtotal().toLocaleString('vi-VN')} đ
-                        </span>
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-700">Giảm giá tiền mặt:</span>
-                          <input
-                            type="number"
-                            min="0"
-                            max={calculateSubtotal()}
-                            value={totalDiscountAmount}
-                            onChange={(e) => setTotalDiscountAmount(Number(e.target.value))}
-                            className="w-24 sm:w-32 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs sm:text-sm text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                            placeholder="0"
-                          />
-                          <span className="text-xs sm:text-sm text-gray-500">đ</span>
-                        </div>
-                        <span className="text-sm font-semibold text-red-600">
-                          -{totalDiscountAmount.toLocaleString('vi-VN')} đ
-                        </span>
-                      </div>
-                      <div className="border-t border-gray-200 pt-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-base sm:text-lg font-semibold text-gray-900">Tổng cộng:</span>
-                          <span className="text-lg sm:text-2xl font-bold text-orange-600">
-                            {calculateTotal().toLocaleString('vi-VN')} đ
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Người đề nghị</p>
+                  <p className="font-black text-gray-900">{editingRequest.requester}</p>
                 </div>
               </div>
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 bg-white rounded-lg flex items-center justify-center shadow-sm text-gray-400">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Phòng ban</p>
+                  <p className="font-black text-gray-900">{editingRequest.department}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 bg-white rounded-lg flex items-center justify-center shadow-sm text-gray-400">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Ngày đề nghị</p>
+                  <p className="font-black text-gray-900">{formatDate(editingRequest.date)}</p>
+                </div>
+              </div>
+            </div>
 
-              {/* Nút hành động */}
-              <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
-                <button
-                  onClick={handleCancelApproval}
-                  disabled={isSubmitting}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleConfirmApproval}
-                  disabled={isSubmitting || editedItems.length === 0}
-                  className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-green-500 via-green-600 to-green-700 px-4 sm:px-6 py-2.5 text-sm font-bold text-white shadow hover:from-green-600 hover:via-green-700 hover:to-green-800 focus:outline-none focus:ring-4 focus:ring-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span className="hidden sm:inline">Đang xử lý...</span>
-                      <span className="sm:hidden">Đang xử lý</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="hidden sm:inline">Xác nhận duyệt và mua</span>
-                      <span className="sm:hidden">Duyệt và mua</span>
-                    </>
-                  )}
-                </button>
+            <DataTable
+              data={editedItems}
+              emptyMessage="Không có vật tư nào"
+              columns={[
+                {
+                  key: 'name',
+                  header: 'Tên vật tư',
+                  render: (it) => <span className="font-bold text-gray-900">{(it as RequestItem).name}</span>
+                },
+                {
+                  key: 'unit',
+                  header: 'ĐVT',
+                  className: 'w-24 text-center font-bold text-gray-500',
+                  render: (it) => (it as RequestItem).unit
+                },
+                {
+                  key: 'quantity',
+                  header: 'Số lượng mua',
+                  className: 'w-32',
+                  render: (it) => {
+                    const item = it as RequestItem;
+                    return (
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(item.id, 'quantity', Number(e.target.value))}
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-black text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-all"
+                      />
+                    );
+                  }
+                },
+                {
+                  key: 'unitPrice',
+                  header: 'Đơn giá mua (đ)',
+                  className: 'w-48',
+                  render: (it) => {
+                    const item = it as RequestItem;
+                    return (
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.unitPrice || 0}
+                        onChange={(e) => handleItemChange(item.id, 'unitPrice', Number(e.target.value))}
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-black text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-all"
+                        placeholder="Nhập giá..."
+                      />
+                    );
+                  }
+                },
+                {
+                  key: 'total',
+                  header: 'Thành tiền',
+                  className: 'w-40 text-right',
+                  render: (it) => {
+                    const item = it as RequestItem;
+                    const total = (item.unitPrice || 0) * item.quantity;
+                    return <span className="font-black text-green-600">{total.toLocaleString('vi-VN')} đ</span>;
+                  }
+                },
+                {
+                  key: 'actions',
+                  header: '',
+                  className: 'w-16 text-center',
+                  render: (it) => (
+                    <button
+                      onClick={() => handleRemoveItem((it as RequestItem).id)}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Xóa vật tư"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )
+                }
+              ]}
+            />
+
+            <div className="bg-orange-50 rounded-2xl p-6 border border-orange-100 flex flex-col items-end gap-3 max-w-md ml-auto">
+              <div className="w-full flex justify-between items-center text-orange-900 opacity-60">
+                <span className="font-bold text-sm uppercase">Tổng chưa giảm:</span>
+                <span className="font-black">{calculateSubtotal().toLocaleString('vi-VN')} đ</span>
+              </div>
+              <div className="w-full flex justify-between items-center bg-white p-3 rounded-xl border border-orange-100 shadow-sm">
+                <span className="font-bold text-sm text-gray-500 uppercase">Giảm giá:</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max={calculateSubtotal()}
+                    value={totalDiscountAmount}
+                    onChange={(e) => setTotalDiscountAmount(Number(e.target.value))}
+                    className="w-32 text-right font-black text-red-600 focus:outline-none"
+                  />
+                  <span className="font-bold text-red-300">đ</span>
+                </div>
+              </div>
+              <div className="w-full h-px bg-orange-200 my-1" />
+              <div className="w-full flex justify-between items-center">
+                <span className="font-black text-orange-900 text-lg uppercase">Tổng cộng:</span>
+                <span className="text-3xl font-black text-orange-600 tracking-tighter">
+                  {calculateTotal().toLocaleString('vi-VN')} đ
+                </span>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

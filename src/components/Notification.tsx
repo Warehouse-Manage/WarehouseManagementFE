@@ -6,7 +6,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 
 // API configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_HOST || 'https://localhost:7149';
+import { notificationApi } from "@/api/notificationApi";
 
 export default function NotificationRequest() {
 	const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
@@ -18,61 +18,8 @@ export default function NotificationRequest() {
 	// Check permission status when component mounts
 
 	// API functions
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const subscribeToNotifications = async (subscriptionData: {
-		userId: string;
-		endpoint: string;
-		p256dh: string;
-		auth: string;
-	}) => {
-		try {
-			const response = await fetch(`${API_BASE_URL}/api/notification/subscribe`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(subscriptionData),
-			});
+	// API functions (moved to notificationApi)
 
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.message || 'Failed to subscribe to notifications');
-			}
-
-			const result = await response.json();
-			toast.success(result.message || 'Đăng ký thông báo thành công');
-			return true;
-		} catch (error) {
-			console.error('Error subscribing to notifications:', error);
-			toast.error(error instanceof Error ? error.message : 'Có lỗi xảy ra khi đăng ký thông báo');
-			return false;
-		}
-	};
-
-	const unsubscribeFromNotifications = async (userId: string) => {
-		try {
-			const response = await fetch(`${API_BASE_URL}/api/notification/unsubscribe`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({ userId }),
-			});
-
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.message || 'Failed to unsubscribe from notifications');
-			}
-
-			const result = await response.json();
-			toast.success(result.message || 'Hủy đăng ký thông báo thành công');
-			return true;
-		} catch (error) {
-			console.error('Error unsubscribing from notifications:', error);
-			toast.error(error instanceof Error ? error.message : 'Có lỗi xảy ra khi hủy đăng ký thông báo');
-			return false;
-		}
-	};
 
 	const showNotification = async () => {
 		if (!pushNotificationService.isPushSupported()) {
@@ -85,19 +32,19 @@ export default function NotificationRequest() {
 		try {
 			// Request permission
 			const granted = await pushNotificationService.requestPermission();
-			
+
 			if (granted) {
 				// Register service worker
 				await pushNotificationService.registerServiceWorker();
-				
+
 				// Subscribe to push notifications
 				const userId = getCookie('userId');
 				if (userId) {
 					await pushNotificationService.subscribeToPush(userId);
-					
+
 					// Enable notifications in backend
 					await toggleNotificationStatus(true);
-					
+
 					setIsSubscribed(true);
 					setNotificationPermission('granted');
 					toast.success('Notifications enabled successfully!');
@@ -118,7 +65,7 @@ export default function NotificationRequest() {
 
 	const removeNotification = async () => {
 		setIsLoading(true);
-		
+
 		try {
 			const userId = getCookie('userId');
 			if (!userId) {
@@ -128,10 +75,11 @@ export default function NotificationRequest() {
 
 			// Unsubscribe from push notifications
 			await pushNotificationService.unsubscribeFromPush();
-			
+
 			// Call backend API to unsubscribe
-			const success = await unsubscribeFromNotifications(userId);
-			if (success) {
+			const result = await notificationApi.unsubscribe({ userId });
+			if (result) {
+				toast.success(result.message || 'Hủy đăng ký thông báo thành công');
 				// Also toggle the notification status in backend
 				await toggleNotificationStatus(false);
 			}
@@ -146,21 +94,11 @@ export default function NotificationRequest() {
 	// Fetch user notification status from backend
 	const fetchUserNotificationStatus = async (userId: string) => {
 		try {
-			const response = await fetch(`${API_BASE_URL}/api/notification/user-status/${userId}`, {
-				method: 'GET',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-			});
-
-			if (response.ok) {
-				const data = await response.json();
-				return {
-					notificationEnabled: data.notificationEnabled || false,
-					hasSubscription: data.hasSubscription || false
-				};
-			}
-			return { notificationEnabled: false, hasSubscription: false };
+			const data = await notificationApi.getUserStatus(userId);
+			return {
+				notificationEnabled: data.notificationEnabled || false,
+				hasSubscription: data.hasSubscription || false
+			};
 		} catch (error) {
 			console.error('Error fetching user notification status:', error);
 			return { notificationEnabled: false, hasSubscription: false };
@@ -180,7 +118,7 @@ export default function NotificationRequest() {
 	// Toggle notification status (enable/disable)
 	const toggleNotificationStatus = async (enabled: boolean) => {
 		setIsLoading(true);
-		
+
 		try {
 			const userId = getCookie('userId');
 			if (!userId) {
@@ -188,30 +126,8 @@ export default function NotificationRequest() {
 				return;
 			}
 
-			const response = await fetch(`${API_BASE_URL}/api/notification/toggle/${userId}`, {
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({ enabled }),
-			});
+			await notificationApi.toggleNotifications(userId, enabled);
 
-			if (response.ok) {
-				const result = await response.json();
-				toast.success(result.message || `Notifications ${enabled ? 'enabled' : 'disabled'} successfully`);
-				
-				// Update local state
-				setBackendNotificationEnabled(enabled);
-				if (!enabled) {
-					setIsSubscribed(false);
-				} else {
-					// Refresh status after enabling
-					await refreshNotificationStatus();
-				}
-			} else {
-				const errorData = await response.json();
-				throw new Error(errorData.message || 'Failed to toggle notification status');
-			}
 		} catch (error) {
 			console.error('Error toggling notification status:', error);
 			toast.error(error instanceof Error ? error.message : 'Failed to toggle notification status');
@@ -223,7 +139,7 @@ export default function NotificationRequest() {
 	useEffect(() => {
 		// Mark component as mounted to avoid hydration issues
 		setIsMounted(true);
-		
+
 		// Check notification permission and subscription status
 		const checkStatus = async () => {
 			if (!pushNotificationService.isPushSupported()) {
@@ -237,7 +153,7 @@ export default function NotificationRequest() {
 			const userId = getCookie('userId');
 			if (userId) {
 				const userStatus = await fetchUserNotificationStatus(userId);
-				
+
 				// Update subscription status and backend notification status
 				setIsSubscribed(userStatus.hasSubscription);
 				setBackendNotificationEnabled(userStatus.notificationEnabled);
@@ -251,12 +167,12 @@ export default function NotificationRequest() {
 		};
 
 		checkStatus();
-		
+
 		// Set up periodic refresh every 30 seconds to keep status in sync
 		const refreshInterval = setInterval(() => {
 			refreshNotificationStatus();
 		}, 30000);
-		
+
 		// Cleanup interval on unmount
 		return () => {
 			clearInterval(refreshInterval);
@@ -283,8 +199,8 @@ export default function NotificationRequest() {
 					</div>
 				) : notificationPermission === "granted" && isSubscribed && backendNotificationEnabled ? (
 					<div title="Disable notifications">
-						<BellRing 
-							onClick={removeNotification} 
+						<BellRing
+							onClick={removeNotification}
 							className={isLoading ? "animate-pulse" : ""}
 						/>
 					</div>
@@ -294,15 +210,15 @@ export default function NotificationRequest() {
 					</div>
 				) : !backendNotificationEnabled ? (
 					<div title="Notifications disabled in settings - click to enable">
-						<BellOff 
-							onClick={() => toggleNotificationStatus(true)} 
+						<BellOff
+							onClick={() => toggleNotificationStatus(true)}
 							className={isLoading ? "animate-pulse" : ""}
 						/>
 					</div>
 				) : (
 					<div title="Enable notifications">
-						<BellOff 
-							onClick={showNotification} 
+						<BellOff
+							onClick={showNotification}
 							className={isLoading ? "animate-pulse" : ""}
 						/>
 					</div>

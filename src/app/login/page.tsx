@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
+import { authApi } from '@/api/authApi';
 
 const PERSISTENT_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 10; // 10 years
 
@@ -10,7 +12,7 @@ export default function LoginPage() {
     password: '',
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordData, setForgotPasswordData] = useState({
@@ -22,13 +24,12 @@ export default function LoginPage() {
   const [isForgotPasswordLoading, setIsForgotPasswordLoading] = useState(false);
 
   const validateUsername = (username: string) => {
-    // Tên người dùng phải có ít nhất 3 ký tự, chỉ chứa chữ cái, số và dấu gạch dưới
     const usernameRegex = /^[a-zA-Z0-9_]{3,}$/;
     return usernameRegex.test(username);
   };
 
   const validateForm = () => {
-    const newErrors: {[key: string]: string} = {};
+    const newErrors: { [key: string]: string } = {};
 
     if (!formData.username) {
       newErrors.username = 'Vui lòng nhập tên người dùng';
@@ -52,8 +53,7 @@ export default function LoginPage() {
       ...prev,
       [name]: value
     }));
-    
-    // 清除对应字段的错误
+
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -64,48 +64,41 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     setIsLoading(true);
-    
+
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userName: formData.username,
-          password: formData.password,
-        }),
+      const data = await authApi.login({
+        userName: formData.username,
+        password: formData.password,
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        // Save role, userName, name, id, department, and token to cookies (persistent)
+      if (data.success) {
         document.cookie = `role=${data.user.role}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
         document.cookie = `userName=${encodeURIComponent(data.user.userName || '')}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
         document.cookie = `name=${encodeURIComponent(data.user.name || '')}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
         document.cookie = `userId=${data.user.id}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
-        document.cookie = `department=${encodeURIComponent(data.user.department || '')}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
+        if (data.user.department) {
+          document.cookie = `department=${encodeURIComponent(data.user.department)}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
+        }
         document.cookie = `token=${data.token}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
-        
+
+        localStorage.setItem('token', data.token);
+
         console.log('Đăng nhập thành công:', data);
-        alert('Đăng nhập thành công!');
-        
-        // Redirect to main page
+        toast.success('Đăng nhập thành công!');
         window.location.href = '/';
       } else {
-        console.error('Lỗi đăng nhập:', data.message);
-        alert(data.message || 'Đăng nhập thất bại');
+        toast.error(data.message || 'Đăng nhập thất bại');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Lỗi kết nối:', error);
-      alert('Lỗi kết nối đến server');
+      const errorMessage = error instanceof Error ? error.message : 'Lỗi kết nối đến server';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -113,37 +106,25 @@ export default function LoginPage() {
 
   const handleForgotPassword = async () => {
     if (!forgotPasswordData.username) {
-      alert('Vui lòng nhập tên người dùng');
+      toast.warning('Vui lòng nhập tên người dùng');
       return;
     }
 
     setIsForgotPasswordLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/auth/forgot-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userName: forgotPasswordData.username,
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        alert(data.message);
-        // Trong development, hiển thị reset token
+      const data = await authApi.forgotPassword(forgotPasswordData.username);
+      if (data.success) {
+        toast.info(data.message);
         if (data.resetToken) {
-          setForgotPasswordData(prev => ({ ...prev, resetToken: data.resetToken }));
-          alert(`Reset Token (Development): ${data.resetToken}`);
+          setForgotPasswordData(prev => ({ ...prev, resetToken: data.resetToken || '' }));
+          toast.success(`Reset Token (Development): ${data.resetToken}`);
         }
       } else {
-        alert(data.message || 'Có lỗi xảy ra');
+        toast.error(data.message || 'Có lỗi xảy ra');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Lỗi:', error);
-      alert('Lỗi kết nối đến server');
+      toast.error('Lỗi kết nối đến server');
     } finally {
       setIsForgotPasswordLoading(false);
     }
@@ -151,38 +132,28 @@ export default function LoginPage() {
 
   const handleResetPassword = async () => {
     if (!forgotPasswordData.newPassword || !forgotPasswordData.confirmPassword) {
-      alert('Vui lòng nhập mật khẩu mới và xác nhận mật khẩu');
+      toast.warning('Vui lòng nhập mật khẩu mới và xác nhận mật khẩu');
       return;
     }
-
     if (forgotPasswordData.newPassword !== forgotPasswordData.confirmPassword) {
-      alert('Mật khẩu xác nhận không khớp');
+      toast.warning('Mật khẩu xác nhận không khớp');
       return;
     }
-
     if (forgotPasswordData.newPassword.length < 6) {
-      alert('Mật khẩu phải có ít nhất 6 ký tự');
+      toast.warning('Mật khẩu phải có ít nhất 6 ký tự');
       return;
     }
 
     setIsForgotPasswordLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/auth/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userName: forgotPasswordData.username,
-          resetToken: forgotPasswordData.resetToken,
-          newPassword: forgotPasswordData.newPassword,
-        }),
+      const data = await authApi.resetPassword({
+        userName: forgotPasswordData.username,
+        token: forgotPasswordData.resetToken,
+        newPassword: forgotPasswordData.newPassword
       });
 
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        alert(data.message);
+      if (data.success) {
+        toast.success(data.message);
         setShowForgotPassword(false);
         setForgotPasswordData({
           username: '',
@@ -191,11 +162,11 @@ export default function LoginPage() {
           resetToken: ''
         });
       } else {
-        alert(data.message || 'Có lỗi xảy ra');
+        toast.error(data.message || 'Có lỗi xảy ra');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Lỗi:', error);
-      alert('Lỗi kết nối đến server');
+      toast.error('Lỗi kết nối đến server');
     } finally {
       setIsForgotPasswordLoading(false);
     }
@@ -237,11 +208,10 @@ export default function LoginPage() {
                   required
                   value={formData.username}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition-all duration-200 text-black placeholder-gray-400 ${
-                    errors.username 
-                      ? 'border-red-300 focus:ring-red-100 focus:border-red-500 bg-red-50' 
-                      : 'border-gray-300 bg-white'
-                  }`}
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition-all duration-200 text-black placeholder-gray-400 ${errors.username
+                    ? 'border-red-300 focus:ring-red-100 focus:border-red-500 bg-red-50'
+                    : 'border-gray-300 bg-white'
+                    }`}
                   placeholder="Nhập tên người dùng của bạn"
                 />
               </div>
@@ -273,11 +243,10 @@ export default function LoginPage() {
                   required
                   value={formData.password}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition-all duration-200 text-black placeholder-gray-400 ${
-                    errors.password 
-                      ? 'border-red-300 focus:ring-red-100 focus:border-red-500 bg-red-50' 
-                      : 'border-gray-300 bg-white'
-                  }`}
+                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-orange-100 focus:border-orange-500 transition-all duration-200 text-black placeholder-gray-400 ${errors.password
+                    ? 'border-red-300 focus:ring-red-100 focus:border-red-500 bg-red-50'
+                    : 'border-gray-300 bg-white'
+                    }`}
                   placeholder="Nhập mật khẩu của bạn"
                 />
                 <button
@@ -321,7 +290,7 @@ export default function LoginPage() {
                 </label>
               </div>
               <div className="text-sm">
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
                   className="font-medium text-orange-600 hover:text-orange-500 transition-colors duration-200 hover:underline"

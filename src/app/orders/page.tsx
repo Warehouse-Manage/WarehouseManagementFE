@@ -1,47 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCookie } from '@/lib/ultis';
-type Order = {
-  id: number;
-  customerId: number;
-  deliverId: number;
-  sale: number;
-  amountCustomerPayment: number;
-  shipCost?: number;
-  productOrders: { productId: number; amount: number; price: number; sale: number }[];
-  dateCreated: string;
-  customer?: Customer;
-  deliver?: Deliver;
-};
+import { getCookie, printBlob } from '@/lib/ultis';
+import { financeApi, inventoryApi } from '@/api';
+import { Order, Customer, Deliver, Product } from '@/types';
+import { Modal, DataTable } from '@/components/shared';
+import { toast } from 'sonner';
+import { Printer } from 'lucide-react';
 
-type Customer = {
-  id: number;
-  name: string;
-  address: string;
-  phoneNumber: string;
-};
-
-type Deliver = {
-  id: number;
-  name: string;
-  phoneNumber: string;
-  plateNumber: string;
-};
-
-type Product = {
-  id: number;
-  name: string;
-  price: number;
-  quantity: number;
-};
+// Types moved to @/types/finance.ts and @/types/inventory.ts
 
 export default function OrdersPage() {
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const apiHost = process.env.NEXT_PUBLIC_API_HOST;
+  // apiHost removed, handled in API modules
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [delivers, setDelivers] = useState<Deliver[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -85,15 +59,10 @@ export default function OrdersPage() {
   };
 
   const loadOrders = async () => {
-    if (!apiHost) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/orders`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || `HTTP ${res.status}`);
-      }
+      const data = await financeApi.getOrders();
       setOrders(data);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tải danh sách đơn hàng');
@@ -104,14 +73,9 @@ export default function OrdersPage() {
   };
 
   const loadCustomers = async () => {
-    if (!apiHost) return;
     setLoadingCustomers(true);
     try {
-      const res = await fetch(`${apiHost}/api/customers`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || `HTTP ${res.status}`);
-      }
+      const data = await financeApi.getCustomers();
       setCustomers(data);
     } catch (err: unknown) {
       console.error('Failed to load customers:', err);
@@ -121,14 +85,9 @@ export default function OrdersPage() {
   };
 
   const loadDelivers = async () => {
-    if (!apiHost) return;
     setLoadingDelivers(true);
     try {
-      const res = await fetch(`${apiHost}/api/delivers`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || `HTTP ${res.status}`);
-      }
+      const data = await financeApi.getDelivers();
       setDelivers(data);
     } catch (err: unknown) {
       console.error('Failed to load delivers:', err);
@@ -138,14 +97,9 @@ export default function OrdersPage() {
   };
 
   const loadProducts = async () => {
-    if (!apiHost) return;
     setLoadingProducts(true);
     try {
-      const res = await fetch(`${apiHost}/api/products`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || `HTTP ${res.status}`);
-      }
+      const data = await inventoryApi.getProducts();
       setProducts(data);
     } catch (err: unknown) {
       console.error('Failed to load products:', err);
@@ -160,7 +114,7 @@ export default function OrdersPage() {
     loadDelivers();
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiHost]);
+  }, []);
 
   const updateProductOrderField = (index: number, field: string, value: number | '') => {
     setProductOrdersInput((prev) => {
@@ -196,7 +150,7 @@ export default function OrdersPage() {
   useEffect(() => {
     const remaining = calculateOrderTotal() - Number(amountCustomerPayment || 0);
     setShipcod(remaining);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productOrdersInput, sale, amountCustomerPayment]);
 
   // Show blank page if role is not 'Admin' or 'accountance'
@@ -229,8 +183,30 @@ export default function OrdersPage() {
     setProductOrdersInput((prev) => [...prev, { productId: '', amount: '', price: '', sale: 0 }]);
   };
 
+  const handlePrintReceipt = async (id: number) => {
+    try {
+      const blob = await financeApi.printOrderReceipt(id);
+      await printBlob(blob);
+    } catch (err) {
+      toast.error('Không thể tải phiếu thu: ' + getErrorMessage(err));
+    }
+  };
+
+  const handlePrintDeliveryNote = async (id: number) => {
+    try {
+      const blob = await financeApi.printOrderDeliveryNote(id);
+      await printBlob(blob);
+    } catch (err) {
+      toast.error('Không thể tải phiếu xuất kho: ' + getErrorMessage(err));
+    }
+  };
+
+  const handlePrintAll = async (id: number) => {
+    await handlePrintReceipt(id);
+    await handlePrintDeliveryNote(id);
+  };
+
   const handleCreate = async () => {
-    if (!apiHost) return;
     if (customerId === '' || deliverId === '') {
       setError('Cần nhập CustomerId và DeliverId');
       return;
@@ -240,7 +216,7 @@ export default function OrdersPage() {
       setError('Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.');
       return;
     }
-    const products = productOrdersInput
+    const productsToOrder = productOrdersInput
       .filter((p) => p.productId !== '' && p.amount !== '' && p.price !== '')
       .map((p) => ({
         productId: Number(p.productId),
@@ -248,30 +224,28 @@ export default function OrdersPage() {
         price: Number(p.price),
         sale: Number(p.sale || 0),
       }));
-    if (!products.length) {
+    if (!productsToOrder.length) {
       setError('Cần ít nhất một sản phẩm');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: Number(customerId),
-          deliverId: Number(deliverId),
-          sale: Number(sale || 0),
-          amountCustomerPayment: Number(amountCustomerPayment || 0),
-            shipCost: Number(shipCost || 0),
-          productOrders: products,
-            createdUserId: Number(userId),
-        }),
+      const res = await financeApi.createOrder({
+        customerId: Number(customerId),
+        deliverId: Number(deliverId),
+        sale: Number(sale || 0),
+        amountCustomerPayment: Number(amountCustomerPayment || 0),
+        shipCost: Number(shipCost || 0),
+        productOrders: productsToOrder,
+        createdUserId: Number(userId),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || `HTTP ${res.status}`);
+
+      if (res && res.id) {
+        await handlePrintReceipt(res.id);
+        await handlePrintDeliveryNote(res.id);
       }
+
       resetForm();
       setShowModal(false);
       await loadOrders();
@@ -294,280 +268,300 @@ export default function OrdersPage() {
         </button>
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Tạo đơn hàng mới</h2>
-              <button
-                onClick={handleCloseModal}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+      <Modal
+        isOpen={showModal}
+        onClose={handleCloseModal}
+        title="Tạo đơn hàng mới"
+        size="xl"
+        footer={
+          <>
+            <button
+              onClick={handleCloseModal}
+              className="px-4 py-2 border rounded font-semibold text-gray-700 hover:bg-gray-50"
+              disabled={submitting}
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={submitting}
+              className="px-4 py-2 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 disabled:opacity-60"
+            >
+              {submitting ? 'Đang lưu...' : 'Lưu đơn hàng'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Khách hàng *</label>
+              <select
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value === '' ? '' : Number(e.target.value))}
+                disabled={loadingCustomers}
               >
-                ×
+                <option value="">-- Chọn khách hàng --</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} - {c.phoneNumber}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Người giao hàng *</label>
+              <select
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                value={deliverId}
+                onChange={(e) => setDeliverId(e.target.value === '' ? '' : Number(e.target.value))}
+                disabled={loadingDelivers}
+              >
+                <option value="">-- Chọn người giao hàng --</option>
+                {delivers.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} - {d.plateNumber}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Giảm giá đơn hàng</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                placeholder="0"
+                inputMode="decimal"
+                value={formatNumber(sale)}
+                onChange={(e) => setSale(parseNumber(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Khách trả</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                placeholder="0"
+                inputMode="decimal"
+                value={formatNumber(amountCustomerPayment)}
+                onChange={(e) => setAmountCustomerPayment(parseNumber(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Phí giao hàng</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                placeholder="0"
+                inputMode="decimal"
+                value={formatNumber(shipCost)}
+                onChange={(e) => setShipCost(parseNumber(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Ship COD / Còn lại</label>
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 font-bold text-orange-600"
+                placeholder="0"
+                type="text"
+                value={formatNumber(shipcod)}
+                readOnly
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3 border-t pt-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black uppercase tracking-wider text-gray-700">Danh sách sản phẩm</h3>
+              <button
+                onClick={addProductOrderRow}
+                className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Thêm sản phẩm
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded">{error}</div>}
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Khách hàng *</label>
-                  <select
-                    className="border rounded px-3 py-2 w-full"
-                    value={customerId}
-                    onChange={(e) => setCustomerId(e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={loadingCustomers}
-                  >
-                    <option value="">-- Chọn khách hàng --</option>
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} - {c.phoneNumber}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Người giao hàng *</label>
-                  <select
-                    className="border rounded px-3 py-2 w-full"
-                    value={deliverId}
-                    onChange={(e) => setDeliverId(e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={loadingDelivers}
-                  >
-                    <option value="">-- Chọn người giao hàng --</option>
-                    {delivers.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name} - {d.plateNumber}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Giảm giá đơn hàng</label>
-                  <input
-                    className="border rounded px-3 py-2 w-full"
-                    placeholder="Sale"
-                    inputMode="decimal"
-                    value={formatNumber(sale)}
-                    onChange={(e) => setSale(parseNumber(e.target.value))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Khách trả</label>
-                  <input
-                    className="border rounded px-3 py-2 w-full"
-                    placeholder="Khách trả"
-                    inputMode="decimal"
-                    value={formatNumber(amountCustomerPayment)}
-                    onChange={(e) => setAmountCustomerPayment(parseNumber(e.target.value))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Phí giao hàng</label>
-                  <input
-                    className="border rounded px-3 py-2 w-full"
-                    placeholder="Phí giao hàng"
-                    inputMode="decimal"
-                    value={formatNumber(shipCost)}
-                    onChange={(e) => setShipCost(parseNumber(e.target.value))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Ship COD / còn lại (tự tính)</label>
-                  <input
-                    className="border rounded px-3 py-2 w-full bg-gray-50"
-                    placeholder="Ship COD / còn lại"
-                    type="text"
-                    value={formatNumber(shipcod)}
-                    readOnly
-                  />
-                </div>
-              </div>
 
-              <div className="space-y-2 border-t pt-4">
-                <div className="flex items-center justify-between">
-                  <div className="font-semibold">Sản phẩm</div>
-                  <button
-                    onClick={addProductOrderRow}
-                    className="px-3 py-1 border rounded text-sm hover:bg-gray-50"
-                  >
-                    + Thêm sản phẩm
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {productOrdersInput.map((p, idx) => {
-                    const total = calculateProductTotal(p);
-                    return (
-                      <div key={idx} className="border rounded p-3 bg-gray-50">
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Sản phẩm</label>
-                            <select
-                              className="border rounded px-2 py-1 w-full text-sm"
-                              value={p.productId}
-                              onChange={(e) => {
-                                const selectedProductId = e.target.value === '' ? '' : Number(e.target.value);
-                                const selectedProduct = products.find(pr => pr.id === selectedProductId);
-                                updateProductOrderField(idx, 'productId', selectedProductId);
-                                if (selectedProduct) {
-                                  updateProductOrderField(idx, 'price', selectedProduct.price);
-                                }
-                              }}
-                              disabled={loadingProducts}
-                            >
-                              <option value="">-- Chọn sản phẩm --</option>
-                              {products.map((pr) => (
-                                <option key={pr.id} value={pr.id}>
-                                  {pr.name} - {pr.price.toLocaleString()}đ
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Số lượng</label>
-                            <input
-                              className="border rounded px-2 py-1 w-full text-sm"
-                              placeholder="Số lượng"
-                              inputMode="decimal"
-                              min="1"
-                              value={formatNumber(p.amount)}
-                              onChange={(e) => updateProductOrderField(idx, 'amount', parseNumber(e.target.value))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Giá</label>
-                            <input
-                              className="border rounded px-2 py-1 w-full text-sm"
-                              placeholder="Giá"
-                              inputMode="decimal"
-                              min="0"
-                              value={formatNumber(p.price)}
-                              onChange={(e) => updateProductOrderField(idx, 'price', parseNumber(e.target.value))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Giảm giá</label>
-                            <input
-                              className="border rounded px-2 py-1 w-full text-sm"
-                              placeholder="Giảm giá"
-                              inputMode="decimal"
-                              min="0"
-                              value={formatNumber(p.sale)}
-                              onChange={(e) => updateProductOrderField(idx, 'sale', parseNumber(e.target.value))}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Thành tiền</label>
-                            <div className="border rounded px-2 py-1 w-full text-sm bg-white font-semibold text-orange-600">
-                              {total > 0 ? total.toLocaleString() + 'đ' : '0đ'}
-                            </div>
-                          </div>
+            <div className="space-y-4 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+              {productOrdersInput.map((p, idx) => {
+                const total = calculateProductTotal(p);
+                return (
+                  <div key={idx} className="relative rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="lg:col-span-1">
+                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Sản phẩm</label>
+                        <select
+                          className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                          value={p.productId}
+                          onChange={(e) => {
+                            const selectedProductId = e.target.value === '' ? '' : Number(e.target.value);
+                            const selectedProduct = products.find(pr => pr.id === selectedProductId);
+                            updateProductOrderField(idx, 'productId', selectedProductId);
+                            if (selectedProduct) {
+                              updateProductOrderField(idx, 'price', selectedProduct.price);
+                            }
+                          }}
+                          disabled={loadingProducts}
+                        >
+                          <option value="">-- Chọn --</option>
+                          {products.map((pr) => (
+                            <option key={pr.id} value={pr.id}>
+                              {pr.name} ({pr.price.toLocaleString()}đ)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Số lượng</label>
+                        <input
+                          className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                          placeholder="0"
+                          inputMode="decimal"
+                          value={formatNumber(p.amount)}
+                          onChange={(e) => updateProductOrderField(idx, 'amount', parseNumber(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Giá</label>
+                        <input
+                          className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                          placeholder="0"
+                          inputMode="decimal"
+                          value={formatNumber(p.price)}
+                          onChange={(e) => updateProductOrderField(idx, 'price', parseNumber(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Thành tiền</label>
+                        <div className="font-bold text-sm text-orange-600 pt-1.5">
+                          {total > 0 ? total.toLocaleString() + 'đ' : '0đ'}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-                <div className="border-t pt-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="text-sm text-gray-700">
-                      <div>Tổng sản phẩm: <span className="font-semibold">{calculateGrandTotal().toLocaleString()}đ</span></div>
-                      <div>Giảm giá đơn hàng: <span className="font-semibold text-red-600">{Number(sale || 0).toLocaleString()}đ</span></div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-600">Tổng cộng sau giảm:</div>
-                      <div className="text-xl font-bold text-orange-600">
-                        {calculateOrderTotal().toLocaleString()}đ
-                      </div>
-                      <div className="text-sm text-gray-600 mt-1">Còn lại (Ship COD): <span className="font-semibold">{shipcod.toLocaleString()}đ</span></div>
-                    </div>
+                    {productOrdersInput.length > 1 && (
+                      <button
+                        onClick={() => setProductOrdersInput(prev => prev.filter((_, i) => i !== idx))}
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-200 transition-colors"
+                      >
+                        <span className="text-sm">×</span>
+                      </button>
+                    )}
                   </div>
-                </div>
-              </div>
+                );
+              })}
+            </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 border rounded hover:bg-gray-50"
-                  disabled={submitting}
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleCreate}
-                  disabled={submitting}
-                  className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-60"
-                >
-                  {submitting ? 'Đang lưu...' : 'Lưu đơn hàng'}
-                </button>
+            <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-4">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
+                <div className="text-gray-600">
+                  <p>Tổng tiền hàng: <span className="font-bold text-gray-900">{calculateGrandTotal().toLocaleString()}đ</span></p>
+                  <p>Giảm giá đơn hàng: <span className="font-bold text-red-600">-{Number(sale || 0).toLocaleString()}đ</span></p>
+                </div>
+                <div className="text-center sm:text-right">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Tổng cộng sau giảm</p>
+                  <p className="text-2xl font-black text-orange-600 leading-none">
+                    {calculateOrderTotal().toLocaleString()}đ
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      )}
+      </Modal>
 
-      <div className="border rounded-lg p-4 bg-white shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold">Danh sách</h2>
+      <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-gray-900">Danh sách đơn hàng</h2>
           <button
             onClick={loadOrders}
-            className="px-3 py-1 border rounded text-sm hover:bg-gray-50"
+            className="px-3 py-1 border rounded text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
           >
             Làm mới
           </button>
         </div>
-        {loading ? (
-          <div>Đang tải...</div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="min-w-full text-base">
-              <thead>
-                <tr className="bg-orange-50">
-                  <th className="px-4 py-3 text-left">Khách hàng</th>
-                  <th className="px-4 py-3 text-left">Thời gian</th>
-                  <th className="px-4 py-3 text-right">Tổng tiền hàng</th>
-                  <th className="px-4 py-3 text-right">Giảm giá</th>
-                  <th className="px-4 py-3 text-right">Khách đã trả</th>
-                </tr>
-              </thead>
-              <tbody className="text-base">
-                {orders.length > 0 && (
-                  <tr className="font-semibold bg-gray-50 border-b">
-                    <td className="px-4 py-3">Tổng</td>
-                    <td className="px-4 py-3" />
-                    <td className="px-4 py-3 text-right">
-                      {orders.reduce((sum, o) => sum + calculateOrderGoodsTotal(o), 0).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {orders.reduce((sum, o) => sum + o.sale, 0).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {orders.reduce((sum, o) => sum + o.amountCustomerPayment, 0).toLocaleString()}
-                    </td>
-                  </tr>
-                )}
-                {orders.map((o) => (
-                  <tr key={o.id} className="border-b align-top">
-                    <td className="px-4 py-3">
-                      {o.customer ? (
-                        <div className="font-medium whitespace-nowrap">
-                          {o.customer.name}
-                        </div>
-                      ) : (
-                        <div className="font-medium whitespace-nowrap">
-                          Khách #{o.customerId}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">{formatDateTime(o.dateCreated)}</td>
-                    <td className="px-4 py-3 text-right">{calculateOrderGoodsTotal(o).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right">{o.sale.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right">{o.amountCustomerPayment.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!orders.length && <div className="text-sm text-gray-500 py-3">Chưa có dữ liệu</div>}
+
+        <DataTable
+          data={orders}
+          isLoading={loading}
+          columns={[
+            {
+              key: 'customer',
+              header: 'Khách hàng',
+              render: (o) => (
+                <div>
+                  <div className="font-bold text-gray-900">{o.customer?.name || `Khách #${o.customerId}`}</div>
+                  <div className="text-xs text-gray-500">ID: {o.id}</div>
+                </div>
+              )
+            },
+            {
+              key: 'dateCreated',
+              header: 'Thời gian',
+              render: (o) => <span className="text-sm text-gray-600">{formatDateTime(o.dateCreated)}</span>
+            },
+            {
+              key: 'totalGoods',
+              header: 'Tổng tiền hàng',
+              headerClassName: 'text-right',
+              className: 'text-right',
+              render: (o) => <span className="font-bold">{calculateOrderGoodsTotal(o).toLocaleString()}</span>
+            },
+            {
+              key: 'sale',
+              header: 'Giảm giá',
+              headerClassName: 'text-right',
+              className: 'text-right',
+              render: (o) => <span className="text-red-600 font-semibold">{o.sale.toLocaleString()}</span>
+            },
+            {
+              key: 'amountCustomerPayment',
+              header: 'Khách đã trả',
+              headerClassName: 'text-right',
+              className: 'text-right',
+              render: (o) => <span className="text-blue-600 font-bold">{o.amountCustomerPayment.toLocaleString()}</span>
+            },
+            {
+              key: 'status',
+              header: 'Còn lại',
+              headerClassName: 'text-right',
+              className: 'text-right',
+              render: (o) => {
+                const total = calculateOrderGoodsTotal(o) - o.sale;
+                const remaining = total - o.amountCustomerPayment;
+                return (
+                  <span className={`font-black ${remaining > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                    {remaining.toLocaleString()}
+                  </span>
+                );
+              }
+            }
+          ]}
+          actions={(o) => [
+            {
+              label: 'In đơn hàng',
+              icon: <Printer className="h-4 w-4" />,
+              onClick: () => handlePrintAll(o.id)
+            }
+          ]}
+          emptyMessage="Chưa có dữ liệu đơn hàng"
+        />
+
+        {orders.length > 0 && !loading && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+            <div className="rounded-lg bg-gray-50 p-3 text-center">
+              <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Tổng tiền hàng</p>
+              <p className="text-lg font-black text-gray-900">{orders.reduce((sum, o) => sum + calculateOrderGoodsTotal(o), 0).toLocaleString()}</p>
+            </div>
+            <div className="rounded-lg bg-red-50 p-3 text-center">
+              <p className="text-xs text-red-600 font-bold uppercase tracking-wider">Tổng giảm giá</p>
+              <p className="text-lg font-black text-red-600">{orders.reduce((sum, o) => sum + o.sale, 0).toLocaleString()}</p>
+            </div>
+            <div className="rounded-lg bg-blue-50 p-3 text-center">
+              <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Tổng khách trả</p>
+              <p className="text-lg font-black text-blue-600">{orders.reduce((sum, o) => sum + o.amountCustomerPayment, 0).toLocaleString()}</p>
+            </div>
           </div>
         )}
       </div>

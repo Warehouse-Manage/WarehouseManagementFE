@@ -3,29 +3,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const sidebarLinks = [
-  {
-    href: '/san-xuat/lo-gach',
-    label: 'Lò gạch',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-      </svg>
-    ),
-  },
-  {
-    href: '/san-xuat/thiet-bi',
-    label: 'Thiết bị IoT',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  },
-];
+import { Factory, Cpu } from 'lucide-react';
 
 export default function SanXuatLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+
+  const sidebarLinks = [
+    {
+      href: '/san-xuat/lo-gach',
+      label: 'Quản lý lò gạch',
+      icon: <Factory className="w-5 h-5" />,
+    },
+    {
+      href: '/san-xuat/thiet-bi',
+      label: 'Thiết bị & IoT',
+      icon: <Cpu className="w-5 h-5" />,
+    },
+  ];
 
   const isActive = (href: string) => {
     if (href === '/san-xuat/lo-gach') {
@@ -35,67 +29,46 @@ export default function SanXuatLayout({ children }: { children: React.ReactNode 
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <aside className="hidden md:flex md:flex-shrink-0">
-        <div className="flex flex-col w-64 bg-white border-r border-gray-200">
-          <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-            <nav className="flex-1 px-2 space-y-1">
-              {sidebarLinks.map((link) => {
-                const active = isActive(link.href);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`group flex items-center px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                      active
-                        ? 'bg-orange-600 text-white'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                    }`}
-                  >
-                    <span className={`mr-3 ${active ? 'text-white' : 'text-gray-400 group-hover:text-gray-500'}`}>
-                      {link.icon}
-                    </span>
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </nav>
+    <div className="flex flex-col md:flex-row min-h-[calc(100vh-120px)] gap-6">
+      {/* Sidebar - Modern Floating Design */}
+      <aside className="w-full md:w-72 flex-shrink-0">
+        <div className="sticky top-6 flex flex-col bg-white/80 backdrop-blur-md border border-gray-100 rounded-3xl p-4 shadow-xl shadow-gray-200/50">
+          <div className="px-4 py-4 mb-2">
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">Điều hành sản xuất</h2>
           </div>
-        </div>
-      </aside>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Tab Navigation */}
-        <div className="md:hidden bg-white border-b border-gray-200 sticky top-0 z-10">
-          <nav className="flex">
+          <nav className="space-y-2">
             {sidebarLinks.map((link) => {
               const active = isActive(link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${
-                    active
-                      ? 'border-orange-600 text-orange-600 bg-orange-50'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
+                  className={`group flex items-center gap-4 px-4 py-3.5 text-sm font-black rounded-2xl transition-all duration-300 ${active
+                    ? 'bg-orange-600 text-white shadow-lg shadow-orange-200 translate-x-1'
+                    : 'text-gray-600 hover:bg-orange-50 hover:text-orange-600'
+                    }`}
                 >
-                  <span className={active ? 'text-orange-600' : 'text-gray-400'}>
+                  <span className={`${active ? 'text-white' : 'text-gray-400 group-hover:text-orange-500'} transition-colors`}>
                     {link.icon}
                   </span>
                   {link.label}
+                  {active && (
+                    <div className="ml-auto w-1.5 h-1.5 bg-orange-300 rounded-full animate-pulse" />
+                  )}
                 </Link>
               );
             })}
           </nav>
         </div>
+      </aside>
 
-        <main className="flex-1 overflow-y-auto bg-gray-50">
-          <div className="py-4 md:py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">{children}</div>
-          </div>
-        </main>
-      </div>
+      {/* Main Content Area */}
+      <main className="flex-1 min-w-0">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

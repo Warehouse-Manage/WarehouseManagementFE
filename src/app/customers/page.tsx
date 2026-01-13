@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { getCookie } from '@/lib/ultis';
+import { financeApi } from '@/api';
+import { Customer } from '@/types';
+import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
 
-type Customer = {
-  id: number;
-  name: string;
-  address: string;
-  phoneNumber: string;
-};
+// Type Customer moved to @/types/finance.ts
 
 export default function CustomersPage() {
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
@@ -21,25 +19,26 @@ export default function CustomersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
+  const customerFormFields: FormField[] = [
+    { name: 'name', label: 'Tên khách hàng', type: 'text', required: true, placeholder: 'Nhập tên khách hàng...' },
+    { name: 'address', label: 'Địa chỉ', type: 'text', required: true, placeholder: 'Nhập địa chỉ...' },
+    { name: 'phoneNumber', label: 'Số điện thoại', type: 'text', required: true, placeholder: 'Nhập số điện thoại...' },
+  ];
+
   useEffect(() => {
     const r = getCookie('role');
     setRole(r);
   }, []);
 
-  const apiHost = process.env.NEXT_PUBLIC_API_HOST;
+  // apiHost removed, handled in financeApi
 
   const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
   const loadCustomers = async () => {
-    if (!apiHost) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/customers`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || `HTTP ${res.status}`);
-      }
+      const data = await financeApi.getCustomers();
       setCustomers(data);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tải danh sách khách hàng');
@@ -52,7 +51,7 @@ export default function CustomersPage() {
   useEffect(() => {
     loadCustomers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiHost]);
+  }, []);
 
   // Show blank page if role is not 'Admin' or 'accountance'
   if (role !== 'Admin' && role !== 'accountance') {
@@ -60,7 +59,6 @@ export default function CustomersPage() {
   }
 
   const handleCreate = async () => {
-    if (!apiHost) return;
     if (!name || !address || !phoneNumber) {
       setError('Vui lòng nhập đầy đủ thông tin');
       return;
@@ -73,15 +71,12 @@ export default function CustomersPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/customers`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, address, phoneNumber, createdUserId: Number(userId) }),
+      await financeApi.createCustomer({
+        name,
+        address,
+        phoneNumber,
+        createdUserId: Number(userId)
       });
-      if (!res.ok) {
-        const msg = await res.json().catch(() => null);
-        throw new Error(msg?.message || `HTTP ${res.status}`);
-      }
       setName('');
       setAddress('');
       setPhoneNumber('');
@@ -97,7 +92,10 @@ export default function CustomersPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-      <h1 className="text-2xl font-semibold">Khách hàng</h1>
+        <div>
+          <h1 className="text-2xl font-black text-gray-900">Khách hàng</h1>
+          <p className="text-sm text-gray-600 mt-1">Quản lý danh sách khách hàng và thông tin liên hệ</p>
+        </div>
         <button
           onClick={() => {
             setName('');
@@ -106,101 +104,85 @@ export default function CustomersPage() {
             setError(null);
             setShowForm(true);
           }}
-          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+          className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 transition-colors shadow-sm"
         >
           + Thêm khách hàng
         </button>
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Thêm khách hàng</h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-        {error && <div className="text-red-600 text-sm">{error}</div>}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input
-            className="border rounded px-3 py-2"
-            placeholder="Tên"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            className="border rounded px-3 py-2"
-            placeholder="Địa chỉ"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-          />
-          <input
-            className="border rounded px-3 py-2"
-            placeholder="Số điện thoại"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
+      <Modal
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
+        title="Thêm khách hàng mới"
+        size="lg"
+        footer={
+          <>
+            <button
+              onClick={() => setShowForm(false)}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={submitting}
+              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors"
+            >
+              {submitting ? 'Đang lưu...' : 'Lưu'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
+          <DynamicForm
+            fields={customerFormFields}
+            values={{ name, address, phoneNumber }}
+            onChange={(field, value) => {
+              if (field === 'name') setName(value as string);
+              if (field === 'address') setAddress(value as string);
+              if (field === 'phoneNumber') setPhoneNumber(value as string);
+            }}
+            columns={1}
           />
         </div>
-              <div className="flex gap-3">
-        <button
-          onClick={handleCreate}
-          disabled={submitting}
-          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-60"
-        >
-          {submitting ? 'Đang lưu...' : 'Lưu'}
-        </button>
-                <button
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-2 border rounded hover:bg-gray-50"
-                >
-                  Hủy
-                </button>
-              </div>
-            </div>
-          </div>
-      </div>
-      )}
+      </Modal>
 
-      <div className="border rounded-lg p-4 bg-white shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold">Danh sách</h2>
+      <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-gray-900">Danh sách khách hàng</h2>
           <button
             onClick={loadCustomers}
-            className="px-3 py-1 border rounded text-sm hover:bg-gray-50"
+            className="px-3 py-1 border rounded text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
           >
             Làm mới
           </button>
         </div>
-        {loading ? (
-          <div>Đang tải...</div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="min-w-full text-base">
-              <thead>
-                <tr className="bg-orange-50">
-                  <th className="px-4 py-3 text-left">Tên</th>
-                  <th className="px-4 py-3 text-left">Địa chỉ</th>
-                  <th className="px-4 py-3 text-left">Số điện thoại</th>
-                </tr>
-              </thead>
-              <tbody className="text-base">
-                {customers.map((c) => (
-                  <tr key={c.id} className="border-b">
-                    <td className="px-4 py-3">{c.name}</td>
-                    <td className="px-4 py-3">{c.address}</td>
-                    <td className="px-4 py-3">{c.phoneNumber}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!customers.length && <div className="text-sm text-gray-500 py-3">Chưa có dữ liệu</div>}
-          </div>
-        )}
+        <DataTable
+          data={customers}
+          isLoading={loading}
+          columns={[
+            {
+              key: 'name',
+              header: 'Tên khách hàng',
+              className: 'font-bold text-gray-900',
+              render: (c) => <span>{c.name}</span>
+            },
+            {
+              key: 'address',
+              header: 'Địa chỉ',
+              className: 'text-gray-600',
+              render: (c) => <span>{c.address}</span>
+            },
+            {
+              key: 'phoneNumber',
+              header: 'Số điện thoại',
+              className: 'font-mono text-gray-900',
+              render: (c) => <span>{c.phoneNumber}</span>
+            }
+          ]}
+          emptyMessage="Chưa có dữ liệu khách hàng"
+        />
       </div>
     </div>
   );

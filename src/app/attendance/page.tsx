@@ -3,33 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
+import { workerApi, attendanceApi } from '@/api';
+import { Worker, Attendance, WorkDate } from '@/types';
+import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
 
-type Worker = {
-  id: number;
-  name: string;
-  salary: number;
-  phoneNumber: string;
-  age: number;
-  userId?: number | null;
-};
-
-type WorkDate = {
-  id?: number;
-  workDate: string;
-  workQuantity: number;
-  workOvertime: number;
-};
-
-type Attendance = {
-  id: number;
-  workerId: number;
-  daysOff: WorkDate[]; // Backend still uses DaysOff property name but contains WorkDate objects
-  monthlySalary: number;
-  salaryPaid: number;
-  calculationMonth: string;
-  worker?: Worker;
-};
-
+// Types moved to @/types/worker.ts and @/types/attendance.ts
 type ToastState = {
   type: 'success' | 'error' | 'info';
   message: string;
@@ -83,13 +61,6 @@ const toDateIsoString = (dateValue: string) => {
   return new Date(`${dateValue}T00:00:00Z`).toISOString();
 };
 
-const getDaysInMonth = (monthValue: string) => {
-  if (!monthValue) return 30;
-  const [year, month] = monthValue.split('-').map(Number);
-  if (!year || !month) return 30;
-  return new Date(year, month, 0).getDate();
-};
-
 // Helper function to get days from 15th of selected month to 15th of next month
 const getOverviewDays = (monthValue: string): Array<{ day: number; dateValue: string; month: string }> => {
   if (!monthValue) return [];
@@ -120,11 +91,11 @@ const getSalaryPeriod = (monthValue: string) => {
   if (!monthValue) return { startDate: '', endDate: '' };
   const [year, month] = monthValue.split('-').map(Number);
   if (!year || !month) return { startDate: '', endDate: '' };
-  
+
   const now = new Date();
   let startDate: string;
   let endDate: string;
-  
+
   if (now.getDate() > 15) {
     // Start date: 16th of current month
     startDate = `${year}-${String(month).padStart(2, '0')}-16`;
@@ -139,7 +110,7 @@ const getSalaryPeriod = (monthValue: string) => {
     // End date: 15th of current month
     endDate = `${year}-${String(month).padStart(2, '0')}-15`;
   }
-  
+
   return { startDate, endDate };
 };
 
@@ -154,7 +125,7 @@ const isDateInSalaryPeriod = (dateValue: string, monthValue: string) => {
 const getNearest16thDate = () => {
   const today = new Date();
   const currentDay = today.getDate();
-  
+
   if (currentDay >= 16) {
     // If today is 16th or later, return 16th of current month
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-16`;
@@ -187,10 +158,10 @@ const buildCalendarDays = (monthValue: string): CalendarDay[] => {
   // Calculate the period: 15th of selected month to 15th of next month
   const startDate = new Date(year, month - 1, 15);
   const endDate = new Date(year, month, 15); // 15th of next month
-  
+
   const days: CalendarDay[] = [];
   const currentDate = new Date(startDate);
-  
+
   // Get the day of week for the 15th (0 = Sunday, 1 = Monday, etc.)
   const leadingEmpty = startDate.getDay();
   for (let i = 0; i < leadingEmpty; i++) {
@@ -200,10 +171,10 @@ const buildCalendarDays = (monthValue: string): CalendarDay[] => {
   // Generate days from 15th of selected month to 15th of next month
   while (currentDate < endDate) {
     const dateValue = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
-    days.push({ 
-      label: String(currentDate.getDate()), 
-      dateValue, 
-      inMonth: true 
+    days.push({
+      label: String(currentDate.getDate()),
+      dateValue,
+      inMonth: true
     });
     currentDate.setDate(currentDate.getDate() + 1);
   }
@@ -234,20 +205,6 @@ const formatMonthTitle = (monthValue: string) => {
   } catch {
     return monthValue;
   }
-};
-
-const buildAuthHeaders = () => {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  if (typeof window === 'undefined') return headers;
-  try {
-    const token = localStorage.getItem('token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-  } catch (error) {
-    console.warn('Không thể truy cập localStorage:', error);
-  }
-  return headers;
 };
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -298,13 +255,21 @@ export default function AttendancePage() {
   const [isLoadingAllAttendances, setIsLoadingAllAttendances] = useState(false);
   const [selectedWorkerForDetail, setSelectedWorkerForDetail] = useState<number | null>(null);
   const [workerSearch, setWorkerSearch] = useState('');
-  const [workerForm, setWorkerForm] = useState({
+  const [workerForm, setWorkerForm] = useState<Record<string, unknown>>({
     name: '',
     age: '',
     phoneNumber: '',
     salary: '',
     userId: '',
   });
+
+  const workerFormFields: FormField[] = [
+    { name: 'name', label: 'Tên nhân viên', type: 'text', placeholder: 'Ví dụ: Nguyễn Văn A', required: true },
+    { name: 'age', label: 'Tuổi', type: 'number', placeholder: '30' },
+    { name: 'phoneNumber', label: 'Số điện thoại', type: 'tel', placeholder: '0901...', required: true },
+    { name: 'salary', label: 'Lương cơ bản', type: 'number', placeholder: '10000000', required: true },
+    { name: 'userId', label: 'User ID (tùy chọn)', type: 'number', placeholder: 'Liên kết tài khoản người dùng' },
+  ];
   const [workerToast, setWorkerToast] = useState<ToastState | null>(null);
   const [isSavingWorker, setIsSavingWorker] = useState(false);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
@@ -342,19 +307,8 @@ export default function AttendancePage() {
       setLoadingCurrentUserWorker(true);
       setGlobalError(null);
       try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_HOST}/api/workers?userId=${currentUserId}`,
-          {
-            method: 'GET',
-            headers: buildAuthHeaders(),
-          }
-        );
+        const data = await workerApi.getWorkers(currentUserId);
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data: Worker[] = await response.json();
         if (data && data.length > 0) {
           const worker = data[0];
           setCurrentUserWorker(worker);
@@ -365,23 +319,14 @@ export default function AttendancePage() {
           // Auto-load attendance for current month
           const [year, month] = currentMonth.split('-');
           try {
-            const attendanceResponse = await fetch(
-              `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${worker.id}/month/${year}/${Number(month)}`,
-              {
-                method: 'GET',
-                headers: buildAuthHeaders(),
-              }
-            );
-            if (attendanceResponse.ok) {
-              const attendanceData: Attendance = await attendanceResponse.json();
-              setMarkAttendance(attendanceData);
-              setMarkWorkDates((attendanceData.daysOff || []).map(wd => ({
-                id: wd.id,
-                workDate: wd.workDate,
-                workQuantity: wd.workQuantity,
-                workOvertime: wd.workOvertime,
-              })));
-            }
+            const attendanceData = await attendanceApi.getWorkerAttendance(worker.id, year, Number(month));
+            setMarkAttendance(attendanceData);
+            setMarkWorkDates((attendanceData.daysOff || []).map(wd => ({
+              id: wd.id,
+              workDate: wd.workDate,
+              workQuantity: wd.workQuantity,
+              workOvertime: wd.workOvertime,
+            })));
           } catch (error) {
             // Silently fail - attendance will be loaded when user clicks "Tải bảng chấm công"
             console.log('Could not auto-load attendance:', error);
@@ -423,18 +368,9 @@ export default function AttendancePage() {
       setLoadingWorkers(true);
       setGlobalError(null);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/workers`, {
-          method: 'GET',
-          headers: buildAuthHeaders(),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = await workerApi.getWorkers();
         setWorkers(data);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Không thể tải danh sách nhân viên:', error);
         setGlobalError('Không thể tải danh sách nhân viên. Vui lòng thử lại sau.');
       } finally {
@@ -461,19 +397,7 @@ export default function AttendancePage() {
       try {
         const fetchPromises = workers.map(async (worker) => {
           try {
-            const response = await fetch(
-              `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${worker.id}/month/${year}/${Number(month)}`,
-              {
-                method: 'GET',
-                headers: buildAuthHeaders(),
-              }
-            );
-
-            if (!response.ok) {
-              return null;
-            }
-
-            const data: Attendance = await response.json();
+            const data = await attendanceApi.getWorkerAttendance(worker.id, year, Number(month));
             return { workerId: worker.id, attendance: data };
           } catch (error) {
             console.error(`Không thể tải chấm công cho nhân viên ${worker.id}:`, error);
@@ -514,7 +438,7 @@ export default function AttendancePage() {
     if (prevMonthRef.current !== createForm.month && !hasAutoSelectedRef.current) {
       const today = getCurrentDateValue();
       const currentMonth = getCurrentMonthValue();
-      
+
       // If the selected month is the current month, auto-select today
       if (createForm.month === currentMonth) {
         setCreateForm((prev) => ({ ...prev, selectedDate: today }));
@@ -534,11 +458,11 @@ export default function AttendancePage() {
       setTimeout(() => {
         // Set flag first to prevent other useEffect from interfering
         hasAutoSelectedRef.current = true;
-        
+
         const today = new Date();
         const currentDay = today.getDate();
         const currentMonth = getCurrentMonthValue();
-        
+
         if (currentDay >= 1 && currentDay <= 14) {
           // If today is 1-14, select the same day in last month's calendar view
           // The calendar shows Dec 15 - Jan 15, so if today is 5/1/2025,
@@ -547,10 +471,10 @@ export default function AttendancePage() {
           const monthToUse = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
           // Select the same day in current month (which is visible in last month's calendar)
           const selectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
-          
+
           // Update prevMonthRef first to prevent the other useEffect from clearing
           prevMonthRef.current = monthToUse;
-          
+
           // Set both month and selectedDate together to ensure the date is selected
           setCreateForm({
             month: monthToUse,
@@ -559,10 +483,10 @@ export default function AttendancePage() {
         } else {
           // If today is 15 or later, select today in current month
           const selectedDate = getCurrentDateValue();
-          
+
           // Update prevMonthRef first to prevent the other useEffect from clearing
           prevMonthRef.current = currentMonth;
-          
+
           setCreateForm({
             month: currentMonth,
             selectedDate: selectedDate
@@ -570,7 +494,7 @@ export default function AttendancePage() {
         }
       }, 0);
     }
-    
+
     // Reset when switching away from create tab
     if (activeTab !== 'create') {
       hasAutoSelectedRef.current = false;
@@ -585,17 +509,17 @@ export default function AttendancePage() {
       setTimeout(() => {
         // Set flag first
         hasAutoSelectedOverviewRef.current = true;
-        
+
         const today = new Date();
         const currentDay = today.getDate();
         const currentMonth = getCurrentMonthValue();
-        
+
         if (currentDay >= 1 && currentDay <= 14) {
           // If today is 1-14, select the previous month
           // Example: 5/1/2025 -> select December 2024
           const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 15);
           const monthToUse = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
-          
+
           setOverviewMonth(monthToUse);
         } else {
           // If today is 15 or later, keep current month
@@ -603,7 +527,7 @@ export default function AttendancePage() {
         }
       }, 0);
     }
-    
+
     // Reset when switching away from overview tab
     if (activeTab !== 'overview') {
       hasAutoSelectedOverviewRef.current = false;
@@ -618,17 +542,17 @@ export default function AttendancePage() {
       setTimeout(() => {
         // Set flag first
         hasAutoSelectedMarkRef.current = true;
-        
+
         const today = new Date();
         const currentDay = today.getDate();
         const currentMonth = getCurrentMonthValue();
-        
+
         if (currentDay >= 1 && currentDay <= 14) {
           // If today is 1-14, select the previous month
           // Example: 5/1/2025 -> select December 2024
           const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 15);
           const monthToUse = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
-          
+
           setMarkForm((prev) => ({ ...prev, month: monthToUse }));
         } else {
           // If today is 15 or later, keep current month
@@ -636,7 +560,7 @@ export default function AttendancePage() {
         }
       }, 0);
     }
-    
+
     // Reset when switching away from mark tab
     if (activeTab !== 'mark') {
       hasAutoSelectedMarkRef.current = false;
@@ -708,18 +632,7 @@ export default function AttendancePage() {
         workOvertime: workOvertime,
       };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/mark`, {
-        method: 'POST',
-        headers: buildAuthHeaders(),
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        throw new Error(errorBody.message || `HTTP ${response.status}`);
-      }
-
-      const updated: Attendance = await response.json();
+      const updated = await attendanceApi.markAttendance(payload);
       setWorkerAttendances((prev) => {
         const next = new Map(prev);
         next.set(workerId, updated);
@@ -750,11 +663,11 @@ export default function AttendancePage() {
       setMarkToast({ type: 'error', message: 'Vui lòng chọn ngày làm việc.' });
       return;
     }
-    
+
     // Validate that the date is from nearest 16th to today
     const nearest16th = getNearest16thDate();
     const today = getTodayDate();
-    
+
     if (markDayInput < nearest16th || markDayInput > today) {
       setMarkToast({
         type: 'error',
@@ -774,7 +687,7 @@ export default function AttendancePage() {
         workQuantity: 1,
         workOvertime: 0,
       };
-      return [...prev, newWorkDate].sort((a, b) => 
+      return [...prev, newWorkDate].sort((a, b) =>
         new Date(a.workDate).getTime() - new Date(b.workDate).getTime()
       );
     });
@@ -804,20 +717,7 @@ export default function AttendancePage() {
     setMarkToast(null);
     const [year, month] = markForm.month.split('-');
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances?year=${year}&month=${Number(month)}`,
-        {
-          method: 'GET',
-          headers: buildAuthHeaders(),
-        }
-      );
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        throw new Error(errorBody.message || `HTTP ${response.status}`);
-      }
-
-      const data: Attendance[] = await response.json();
+      const data = await attendanceApi.getAttendances(year, Number(month));
       setAllAttendances(data);
     } catch (error: unknown) {
       console.error('Không thể tải danh sách chấm công:', error);
@@ -840,39 +740,20 @@ export default function AttendancePage() {
     setIsLoadingAttendance(true);
     setMarkToast(null);
     const [year, month] = markForm.month.split('-');
-    
+
     try {
       // Get attendance for the selected month (for salary info)
-      const attendanceResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${workerId}/month/${year}/${Number(month)}`,
-        {
-          method: 'GET',
-          headers: buildAuthHeaders(),
-        }
-      );
-
-      if (!attendanceResponse.ok) {
-        const errorBody = await attendanceResponse.json().catch(() => ({}));
-        throw new Error(errorBody.message || `HTTP ${attendanceResponse.status}`);
-      }
-
-      const attendanceData: Attendance = await attendanceResponse.json();
+      const attendanceData = await attendanceApi.getWorkerAttendance(workerId, year, Number(month));
       setMarkAttendance(attendanceData);
 
       // Get work dates from nearest 16th to today
       const startDate = getNearest16thDate();
       const endDate = getTodayDate();
-      
-      const workDatesResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${workerId}/workdates?startDate=${startDate}&endDate=${endDate}`,
-        {
-          method: 'GET',
-          headers: buildAuthHeaders(),
-        }
-      );
 
-      if (!workDatesResponse.ok) {
-        // If work dates API fails, fall back to attendance work dates
+      const workDatesData = await attendanceApi.getWorkerWorkDates(workerId, startDate, endDate);
+
+      if (workDatesData.length === 0) {
+        // Fallback to attendance work dates if no work dates found in the specific period
         setMarkWorkDates((attendanceData.daysOff || []).map(wd => ({
           id: wd.id,
           workDate: wd.workDate,
@@ -880,7 +761,6 @@ export default function AttendancePage() {
           workOvertime: wd.workOvertime,
         })));
       } else {
-        const workDatesData: WorkDate[] = await workDatesResponse.json();
         setMarkWorkDates(workDatesData.map(wd => ({
           id: wd.id,
           workDate: wd.workDate,
@@ -925,35 +805,17 @@ export default function AttendancePage() {
         })),
       };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/attendances`, {
-        method: 'POST',
-        headers: buildAuthHeaders(),
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        throw new Error(errorBody.message || `HTTP ${response.status}`);
-      }
-
-      const updated: Attendance = await response.json();
+      const updated = await attendanceApi.saveAttendance(payload);
       setMarkAttendance(updated);
-      
+
       // Reload work dates from nearest 16th to today
       const startDate = getNearest16thDate();
       const endDate = getTodayDate();
-      
-      try {
-        const workDatesResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${selectedWorkerForDetail}/workdates?startDate=${startDate}&endDate=${endDate}`,
-          {
-            method: 'GET',
-            headers: buildAuthHeaders(),
-          }
-        );
 
-        if (workDatesResponse.ok) {
-          const workDatesData: WorkDate[] = await workDatesResponse.json();
+      try {
+        const workDatesData = await attendanceApi.getWorkerWorkDates(selectedWorkerForDetail, startDate, endDate);
+
+        if (workDatesData.length > 0) {
           setMarkWorkDates(workDatesData.map(wd => ({
             id: wd.id,
             workDate: wd.workDate,
@@ -978,7 +840,7 @@ export default function AttendancePage() {
           workOvertime: wd.workOvertime,
         })));
       }
-      
+
       setMarkToast({ type: 'success', message: 'Đã cập nhật chấm công.' });
       // Refresh all attendances list
       await fetchAllAttendancesForMonth();
@@ -1014,25 +876,14 @@ export default function AttendancePage() {
     setIsPayingSalary(true);
     setMarkToast(null);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/${markAttendance.id}/pay-salary`, {
-        method: 'POST',
-        headers: buildAuthHeaders(),
-        body: JSON.stringify({
-          amount: amount,
-          createdUserId: Number(userId),
-        }),
+      const updated = await attendanceApi.paySalary(markAttendance.id, {
+        amount: amount,
+        createdUserId: Number(userId),
       });
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        throw new Error(errorBody.message || `HTTP ${response.status}`);
-      }
-
-      const updated: Attendance = await response.json();
       setMarkAttendance(updated);
       setSalaryPaymentAmount('');
       setMarkToast({ type: 'success', message: 'Đã thanh toán lương và tạo bản ghi trong sổ quỹ.' });
-      
+
       // Refresh attendance data
       await fetchAttendanceForMarking();
       // Refresh all attendances list
@@ -1074,15 +925,7 @@ export default function AttendancePage() {
     setIsSavingWorker(true);
     setWorkerToast(null);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/workers/${workerId}`, {
-        method: 'DELETE',
-        headers: buildAuthHeaders(),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        throw new Error(errorBody.message || `HTTP ${response.status}`);
-      }
+      await workerApi.deleteWorker(workerId);
 
       setWorkers((prev) => prev.filter((w) => w.id !== workerId));
       setWorkerToast({ type: 'success', message: 'Đã xóa nhân viên.' });
@@ -1105,10 +948,10 @@ export default function AttendancePage() {
     }
 
     const payload = {
-      name: workerForm.name,
+      name: (workerForm.name as string) || '',
       age: workerForm.age ? Number(workerForm.age) : 0,
-      phoneNumber: workerForm.phoneNumber,
-      salary: Number(workerForm.salary),
+      phoneNumber: (workerForm.phoneNumber as string) || '',
+      salary: Number(workerForm.salary) || 0,
       userId: workerForm.userId ? Number(workerForm.userId) : null,
     };
 
@@ -1120,23 +963,13 @@ export default function AttendancePage() {
     setIsSavingWorker(true);
     setWorkerToast(null);
     try {
-      const url = editingWorker
-        ? `${process.env.NEXT_PUBLIC_API_HOST}/api/workers/${editingWorker.id}`
-        : `${process.env.NEXT_PUBLIC_API_HOST}/api/workers`;
-      const method = editingWorker ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: buildAuthHeaders(),
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        throw new Error(errorBody.message || `HTTP ${response.status}`);
+      let result: Worker;
+      if (editingWorker) {
+        result = await workerApi.updateWorker(editingWorker.id, payload);
+      } else {
+        result = await workerApi.createWorker(payload);
       }
 
-      const result: Worker = await response.json();
       if (editingWorker) {
         setWorkers((prev) => prev.map((w) => (w.id === editingWorker.id ? result : w)));
         setWorkerToast({ type: 'success', message: 'Đã cập nhật nhân viên.' });
@@ -1170,19 +1003,7 @@ export default function AttendancePage() {
     setWorkerAttendanceView(null);
     try {
       const [year, monthNum] = month.split('-');
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${workerId}/month/${year}/${Number(monthNum)}`,
-        {
-          method: 'GET',
-          headers: buildAuthHeaders(),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data: Attendance = await response.json();
+      const data = await attendanceApi.getWorkerAttendance(workerId, year, Number(monthNum));
       setWorkerAttendanceView(data);
     } catch (error) {
       console.error('Không thể tải chấm công:', error);
@@ -1205,15 +1026,8 @@ export default function AttendancePage() {
     if (userRole === 'user' && currentUserWorker && overviewMonth) {
       setIsLoadingOverview(true);
       const [year, month] = overviewMonth.split('-');
-      fetch(
-        `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/worker/${currentUserWorker.id}/month/${year}/${Number(month)}`,
-        {
-          method: 'GET',
-          headers: buildAuthHeaders(),
-        }
-      )
-        .then((res) => res.ok ? res.json() : null)
-        .then((data: Attendance | null) => {
+      attendanceApi.getWorkerAttendance(currentUserWorker.id, year, Number(month))
+        .then((data) => {
           setOverviewAttendance(data);
         })
         .catch((error) => {
@@ -1229,19 +1043,9 @@ export default function AttendancePage() {
     if ((userRole === 'Admin' || userRole === 'approver') && overviewMonth) {
       setIsLoadingOverviewAll(true);
       const [year, month] = overviewMonth.split('-');
-      
-      fetch(
-        `${process.env.NEXT_PUBLIC_API_HOST}/api/attendances/overview/month/${year}/${Number(month)}`,
-        {
-          method: 'GET',
-          headers: buildAuthHeaders(),
-        }
-      )
-        .then(async (response) => {
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          const data: Record<number, Attendance> = await response.json();
+
+      attendanceApi.getOverview(year, Number(month))
+        .then((data) => {
           const attendanceMap = new Map<number, Attendance>();
           Object.entries(data).forEach(([workerId, attendance]) => {
             attendanceMap.set(Number(workerId), attendance);
@@ -1261,25 +1065,6 @@ export default function AttendancePage() {
     setSalaryViewMonth(getCurrentMonthValue());
   };
 
-  const salaryViewCalendarDays = useMemo(() => buildCalendarDays(salaryViewMonth), [salaryViewMonth]);
-  const salaryViewCalendarRows = useMemo(() => chunkArray(salaryViewCalendarDays, 7), [salaryViewCalendarDays]);
-
-  const getWorkDateInSalaryView = (dateValue: string): WorkDate | null => {
-    if (!workerAttendanceView || !workerAttendanceView.daysOff) return null;
-    const normalizedDate = normalizeDateString(dateValue);
-    return workerAttendanceView.daysOff.find(wd => normalizeDateString(wd.workDate) === normalizedDate) || null;
-  };
-
-  const isDayWorkedInSalaryView = (dateValue: string): boolean => {
-    const workDate = getWorkDateInSalaryView(dateValue);
-    return workDate !== null && workDate.workQuantity > 0;
-  };
-
-  const calculateDaysWorked = (): number => {
-    if (!workerAttendanceView) return 0;
-    return workerAttendanceView.daysOff?.filter(wd => wd.workQuantity > 0).length || 0;
-  };
-
   const calculateTotalWorkQuantity = (): number => {
     if (!workerAttendanceView) return 0;
     return workerAttendanceView.daysOff?.reduce((sum, wd) => sum + wd.workQuantity, 0) || 0;
@@ -1288,13 +1073,6 @@ export default function AttendancePage() {
   const calculateTotalOvertime = (): number => {
     if (!workerAttendanceView) return 0;
     return workerAttendanceView.daysOff?.reduce((sum, wd) => sum + wd.workOvertime, 0) || 0;
-  };
-
-  const isDefaultAttendanceRecord = (): boolean => {
-    if (!workerAttendanceView) return false;
-    // Check if it's a default record (Id is 0 or monthlySalary is 0 with no work dates)
-    return workerAttendanceView.id === 0 || 
-           (workerAttendanceView.monthlySalary === 0 && (workerAttendanceView.daysOff?.length || 0) === 0);
   };
 
   const getWorkDateForOverview = (attendance: Attendance | null, dateValue: string): WorkDate | null => {
@@ -1308,7 +1086,7 @@ export default function AttendancePage() {
     month: string;
     worker: Worker | null;
     buildCalendarDays: (monthValue: string) => CalendarDay[];
-    chunkArray: <T,>(array: T[], size: number) => T[][];
+    chunkArray: <T, >(array: T[], size: number) => T[][];
     weekDayLabels: string[];
     formatCurrency: (value?: number | null) => string;
   }) => {
@@ -1337,17 +1115,16 @@ export default function AttendancePage() {
                 day.inMonth ? (
                   <div
                     key={`${day.dateValue}-${rowIndex}-${colIndex}`}
-                    className={`rounded-md px-0 py-2 font-semibold relative ${
-                      (() => {
-                        const wd = getWorkDateForOverview(attendance, day.dateValue);
-                        return wd && wd.workQuantity > 0;
-                      })()
-                        ? 'bg-green-50 text-green-700 border border-green-300'
-                        : 'bg-gray-100 text-gray-400'
-                    }`}
+                    className={`rounded-md px-0 py-2 font-semibold relative ${(() => {
+                      const wd = getWorkDateForOverview(attendance, day.dateValue);
+                      return wd && wd.workQuantity > 0;
+                    })()
+                      ? 'bg-green-50 text-green-700 border border-green-300'
+                      : 'bg-gray-100 text-gray-400'
+                      }`}
                     title={(() => {
                       const wd = getWorkDateForOverview(attendance, day.dateValue);
-                      return wd && wd.workQuantity > 0 
+                      return wd && wd.workQuantity > 0
                         ? `Công: ${wd.workQuantity}, OT: ${wd.workOvertime}h`
                         : 'Chưa làm việc';
                     })()}
@@ -1357,8 +1134,8 @@ export default function AttendancePage() {
                       const wd = getWorkDateForOverview(attendance, day.dateValue);
                       return wd && wd.workQuantity > 0;
                     })() && (
-                      <div className="absolute top-0 right-0 w-2 h-2 bg-green-600 rounded-full"></div>
-                    )}
+                        <div className="absolute top-0 right-0 w-2 h-2 bg-green-600 rounded-full"></div>
+                      )}
                   </div>
                 ) : (
                   <span key={`empty-${rowIndex}-${colIndex}`} className="text-gray-300">
@@ -1658,13 +1435,12 @@ export default function AttendancePage() {
 
             {markToast && (
               <div
-                className={`rounded-lg px-4 py-3 text-sm font-semibold ${
-                  markToast.type === 'success'
-                    ? 'bg-green-50 text-green-700 border border-green-200'
-                    : markToast.type === 'info'
+                className={`rounded-lg px-4 py-3 text-sm font-semibold ${markToast.type === 'success'
+                  ? 'bg-green-50 text-green-700 border border-green-200'
+                  : markToast.type === 'info'
                     ? 'bg-blue-50 text-blue-700 border border-blue-200'
                     : 'bg-red-50 text-red-700 border border-red-200'
-                }`}
+                  }`}
               >
                 {markToast.message}
               </div>
@@ -1708,41 +1484,37 @@ export default function AttendancePage() {
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="flex flex-col sm:flex-row">
           <button
-            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${
-              activeTab === 'create'
-                ? 'bg-orange-600 text-white'
-                : 'bg-transparent text-gray-500 hover:bg-gray-50'
-            }`}
+            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'create'
+              ? 'bg-orange-600 text-white rounded-tl-xl'
+              : 'bg-transparent text-gray-500 hover:bg-gray-50'
+              }`}
             onClick={() => setActiveTab('create')}
           >
             Tạo bảng chấm công
           </button>
           <button
-            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${
-              activeTab === 'mark'
-                ? 'bg-orange-600 text-white'
-                : 'bg-transparent text-gray-500 hover:bg-gray-50'
-            }`}
+            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'mark'
+              ? 'bg-orange-600 text-white'
+              : 'bg-transparent text-gray-500 hover:bg-gray-50'
+              }`}
             onClick={() => setActiveTab('mark')}
           >
             Quản lý chấm công
           </button>
           <button
-            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${
-              activeTab === 'worker'
-                ? 'bg-orange-600 text-white'
-                : 'bg-transparent text-gray-500 hover:bg-gray-50'
-            }`}
+            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'worker'
+              ? 'bg-orange-600 text-white'
+              : 'bg-transparent text-gray-500 hover:bg-gray-50'
+              }`}
             onClick={() => setActiveTab('worker')}
           >
             Quản lý nhân viên
           </button>
           <button
-            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${
-              activeTab === 'overview'
-                ? 'bg-orange-600 text-white'
-                : 'bg-transparent text-gray-500 hover:bg-gray-50'
-            }`}
+            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'overview'
+              ? 'bg-orange-600 text-white rounded-tr-xl'
+              : 'bg-transparent text-gray-500 hover:bg-gray-50'
+              }`}
             onClick={() => setActiveTab('overview')}
           >
             Tổng quan
@@ -1799,11 +1571,10 @@ export default function AttendancePage() {
                             <button
                               key={`${day.dateValue}-${rowIndex}-${colIndex}`}
                               onClick={() => toggleCalendarDaySelection(day.dateValue)}
-                              className={`rounded-md px-0 py-2 font-semibold transition ${
-                                createForm.selectedDate === day.dateValue
-                                  ? 'bg-orange-600 text-white shadow-lg ring-2 ring-orange-300'
-                                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                              }`}
+                              className={`rounded-md px-0 py-2 font-semibold transition ${createForm.selectedDate === day.dateValue
+                                ? 'bg-orange-600 text-white shadow-lg ring-2 ring-orange-300'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                                }`}
                             >
                               {day.label}
                             </button>
@@ -1930,13 +1701,12 @@ export default function AttendancePage() {
 
               {createToast && (
                 <div
-                  className={`rounded-lg px-4 py-3 text-sm font-semibold ${
-                    createToast.type === 'success'
-                      ? 'bg-green-50 text-green-700 border border-green-200'
-                      : createToast.type === 'info'
+                  className={`rounded-lg px-4 py-3 text-sm font-semibold ${createToast.type === 'success'
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : createToast.type === 'info'
                       ? 'bg-blue-50 text-blue-700 border border-blue-200'
                       : 'bg-red-50 text-red-700 border border-red-200'
-                  }`}
+                    }`}
                 >
                   {createToast.message}
                 </div>
@@ -2000,9 +1770,8 @@ export default function AttendancePage() {
                           <tr
                             key={attendance.workerId}
                             onClick={() => loadWorkerDetail(attendance.workerId)}
-                            className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                              isSelected ? 'bg-orange-50' : ''
-                            }`}
+                            className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${isSelected ? 'bg-orange-50' : ''
+                              }`}
                           >
                             <td className="px-4 py-3 text-sm font-semibold text-gray-900">
                               {attendance.worker?.name || `Nhân viên #${attendance.workerId}`}
@@ -2221,13 +1990,12 @@ export default function AttendancePage() {
 
               {markToast && (
                 <div
-                  className={`rounded-lg px-4 py-3 text-sm font-semibold ${
-                    markToast.type === 'success'
-                      ? 'bg-green-50 text-green-700 border border-green-200'
-                      : markToast.type === 'info'
+                  className={`rounded-lg px-4 py-3 text-sm font-semibold ${markToast.type === 'success'
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : markToast.type === 'info'
                       ? 'bg-blue-50 text-blue-700 border border-blue-200'
                       : 'bg-red-50 text-red-700 border border-red-200'
-                  }`}
+                    }`}
                 >
                   {markToast.message}
                 </div>
@@ -2267,73 +2035,22 @@ export default function AttendancePage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-bold text-gray-700 block mb-2">Tên nhân viên</label>
-                  <input
-                    type="text"
-                    value={workerForm.name}
-                    onChange={(e) => setWorkerForm((prev) => ({ ...prev, name: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                    placeholder="Ví dụ: Nguyễn Văn A"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-gray-700 block mb-2">Tuổi</label>
-                  <input
-                    type="number"
-                    min="18"
-                    value={workerForm.age}
-                    onChange={(e) => setWorkerForm((prev) => ({ ...prev, age: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                    placeholder="30"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-gray-700 block mb-2">Số điện thoại</label>
-                  <input
-                    type="tel"
-                    value={workerForm.phoneNumber}
-                    onChange={(e) =>
-                      setWorkerForm((prev) => ({ ...prev, phoneNumber: e.target.value }))
-                    }
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                    placeholder="0901..."
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-gray-700 block mb-2">Lương cơ bản</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={workerForm.salary}
-                    onChange={(e) => setWorkerForm((prev) => ({ ...prev, salary: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                    placeholder="10000000"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-gray-700 block mb-2">User ID (tùy chọn)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={workerForm.userId}
-                    onChange={(e) => setWorkerForm((prev) => ({ ...prev, userId: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                    placeholder="Liên kết tài khoản người dùng"
-                  />
-                </div>
-              </div>
+              <DynamicForm
+                fields={workerFormFields}
+                values={workerForm}
+                onChange={(name, value) => setWorkerForm(prev => ({ ...prev, [name]: value }))}
+                columns={2}
+                isSubmitting={isSavingWorker}
+              />
 
               {workerToast && (
                 <div
-                  className={`rounded-lg px-4 py-3 text-sm font-semibold ${
-                    workerToast.type === 'success'
-                      ? 'bg-green-50 text-green-700 border border-green-200'
-                      : workerToast.type === 'info'
+                  className={`rounded-lg px-4 py-3 text-sm font-semibold ${workerToast.type === 'success'
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : workerToast.type === 'info'
                       ? 'bg-blue-50 text-blue-700 border border-blue-200'
                       : 'bg-red-50 text-red-700 border border-red-200'
-                  }`}
+                    }`}
                 >
                   {workerToast.message}
                 </div>
@@ -2357,8 +2074,8 @@ export default function AttendancePage() {
                   {isSavingWorker
                     ? 'Đang lưu...'
                     : editingWorker
-                    ? 'Cập nhật nhân viên'
-                    : 'Tạo nhân viên'}
+                      ? 'Cập nhật nhân viên'
+                      : 'Tạo nhân viên'}
                 </button>
               </div>
 
@@ -2380,265 +2097,192 @@ export default function AttendancePage() {
                   ) : filteredWorkersCrud.length === 0 ? (
                     <p className="text-sm text-gray-500 text-center py-4">Không tìm thấy nhân viên phù hợp.</p>
                   ) : (
-                    filteredWorkersCrud.map((worker) => (
-                      <div
-                        key={worker.id}
-                        className="rounded-lg border border-gray-200 bg-white p-4 hover:border-orange-300 transition"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <p className="text-sm font-black text-gray-900">{worker.name}</p>
-                              <span className="text-xs font-semibold text-orange-600">
-                                {formatCurrency(worker.salary)}
-                              </span>
+                    <DataTable
+                      data={filteredWorkersCrud}
+                      columns={[
+                        { key: 'id', header: '#', render: (_, index) => index + 1, className: 'w-10' },
+                        {
+                          key: 'name',
+                          header: 'Tên nhân viên',
+                          render: (w) => (
+                            <div>
+                              <div className="font-bold text-gray-900">{w.name}</div>
+                              <div className="text-xs text-gray-500">ID: {w.id}</div>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                              <p>SĐT: {worker.phoneNumber}</p>
-                              <p>Tuổi: {worker.age}</p>
-                              {worker.userId && <p>User ID: {worker.userId}</p>}
+                          )
+                        },
+                        { key: 'age', header: 'Tuổi' },
+                        { key: 'phoneNumber', header: 'Số điện thoại' },
+                        {
+                          key: 'salary',
+                          header: 'Lương cơ bản',
+                          render: (w) => <span className="font-bold text-orange-600">{formatCurrency(w.salary)}</span>
+                        },
+                        {
+                          key: 'actions',
+                          header: 'Thao tác',
+                          headerClassName: 'text-center',
+                          className: 'text-center',
+                          render: (w) => (
+                            <div className="flex justify-center gap-2">
+                              <button
+                                onClick={() => handleViewSalary(w)}
+                                className="rounded-lg bg-blue-50 p-2 text-blue-600 hover:bg-blue-100 transition-colors"
+                                title="Xem chi tiết lương"
+                              >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleEditWorker(w)}
+                                className="rounded-lg bg-gray-50 p-2 text-gray-600 hover:bg-gray-100 transition-colors"
+                              >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => setShowDeleteConfirm(w.id)}
+                                className="rounded-lg bg-red-50 p-2 text-red-600 hover:bg-red-100 transition-colors"
+                              >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleViewSalary(worker)}
-                              className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-                              disabled={isSavingWorker}
-                            >
-                              Xem lương
-                            </button>
-                            <button
-                              onClick={() => handleEditWorker(worker)}
-                              className="rounded-lg border border-orange-300 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 hover:bg-orange-100 disabled:opacity-50"
-                              disabled={isSavingWorker || editingWorker?.id === worker.id}
-                            >
-                              Sửa
-                            </button>
-                            <button
-                              onClick={() => setShowDeleteConfirm(worker.id)}
-                              className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                              disabled={isSavingWorker}
-                            >
-                              Xóa
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
+                          )
+                        }
+                      ]}
+                      emptyMessage="Không tìm thấy nhân viên nào"
+                    />
                   )}
                 </div>
               </div>
 
-              {viewingSalaryWorker && (
-                <div className="border-t border-gray-200 pt-6 mt-6">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-                    <div>
-                      <h2 className="text-xl font-black text-gray-900">
-                        Xem lương: {viewingSalaryWorker.name}
-                      </h2>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Lương cơ bản: {formatCurrency(viewingSalaryWorker.salary)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="month"
-                        value={salaryViewMonth}
-                        onChange={(e) => setSalaryViewMonth(e.target.value)}
-                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                      />
-                      <button
-                        onClick={() => setViewingSalaryWorker(null)}
-                        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                      >
-                        Đóng
-                      </button>
-                    </div>
+              <Modal
+                isOpen={viewingSalaryWorker !== null}
+                onClose={() => setViewingSalaryWorker(null)}
+                title={`Chi tiết lương - ${viewingSalaryWorker?.name}`}
+                size="lg"
+                footer={
+                  <button
+                    onClick={() => setViewingSalaryWorker(null)}
+                    className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700"
+                  >
+                    Đóng
+                  </button>
+                }
+              >
+                {isLoadingWorkerAttendance ? (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                    <div className="h-12 w-12 animate-spin rounded-full border-4 border-orange-100 border-t-orange-600"></div>
+                    <p className="text-sm font-semibold text-gray-500 animate-pulse">Đang tải dữ liệu chấm công...</p>
                   </div>
-
-                  {isLoadingWorkerAttendance ? (
-                    <div className="flex items-center justify-center py-8">
-                      <span className="text-sm text-gray-500">Đang tải dữ liệu chấm công...</span>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <div>
-                        <div className="rounded-lg border border-gray-200 p-4">
-                          <div className="mb-4">
-                            <p className="text-sm font-black text-gray-900">
-                              {formatMonthTitle(salaryViewMonth) || 'Chọn tháng'}
-                            </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 scale-in-center">
+                    <div className="space-y-4">
+                      <div className="rounded-xl border border-orange-100 bg-orange-50 p-4 shadow-sm">
+                        <h4 className="text-xs font-black uppercase tracking-wider text-orange-600 mb-3">Thông tin cơ bản</h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Họ và tên:</span>
+                            <span className="font-bold text-gray-900">{viewingSalaryWorker?.name}</span>
                           </div>
-
-                          <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-500 mb-2">
-                            {weekDayLabels.map((day) => (
-                              <span key={day}>{day}</span>
-                            ))}
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Số điện thoại:</span>
+                            <span className="font-bold text-gray-900">{viewingSalaryWorker?.phoneNumber || 'N/A'}</span>
                           </div>
-
-                          <div className="grid grid-cols-7 gap-2 text-center text-sm">
-                            {salaryViewCalendarRows.map((row, rowIndex) =>
-                              row.map((day, colIndex) =>
-                                day.inMonth ? (
-                                  <div
-                                    key={`${day.dateValue}-${rowIndex}-${colIndex}`}
-                                    className={`rounded-md px-0 py-2 font-semibold ${
-                                      isDayWorkedInSalaryView(day.dateValue)
-                                        ? 'bg-green-50 text-green-700'
-                                        : 'bg-gray-100 text-gray-400'
-                                    }`}
-                                    title={(() => {
-                                      const wd = getWorkDateInSalaryView(day.dateValue);
-                                      return wd && wd.workQuantity > 0 
-                                        ? `Công: ${wd.workQuantity}, OT: ${wd.workOvertime}h`
-                                        : 'Chưa làm việc';
-                                    })()}
-                                  >
-                                    {day.label}
-                                  </div>
-                                ) : (
-                                  <span key={`empty-${rowIndex}-${colIndex}`} className="text-gray-300">
-                                    &nbsp;
-                                  </span>
-                                )
-                              )
-                            )}
-                          </div>
-
-                          <div className="mt-4 flex items-center gap-4 text-xs">
-                            <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 rounded bg-green-50 border border-green-300"></div>
-                              <span className="text-gray-600">Có làm việc</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 rounded bg-gray-100 border border-gray-300"></div>
-                              <span className="text-gray-600">Chưa làm việc</span>
-                            </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Lương cơ bản:</span>
+                            <span className="font-bold text-gray-900">{formatCurrency(viewingSalaryWorker?.salary || 0)}</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                          <h3 className="text-sm font-black text-gray-900 mb-3">Thông tin lương tháng</h3>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Lương cơ bản:</span>
-                              <span className="font-semibold text-gray-900">
-                                {formatCurrency(viewingSalaryWorker.salary)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Số ngày trong tháng:</span>
-                              <span className="font-semibold text-gray-900">
-                                {getDaysInMonth(salaryViewMonth)} ngày
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Số ngày làm việc:</span>
-                              <span className="font-semibold text-green-600">
-                                {calculateDaysWorked()} ngày
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Tổng số công:</span>
-                              <span className="font-semibold text-gray-900">
-                                {calculateTotalWorkQuantity()}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Tổng giờ làm thêm:</span>
-                              <span className="font-semibold text-orange-600">
-                                {calculateTotalOvertime()} giờ
-                              </span>
-                            </div>
-                            <div className="border-t border-gray-300 pt-2 mt-2">
-                              <div className="flex justify-between">
-                                <span className="text-gray-900 font-bold">Lương thực nhận:</span>
-                                <span className="font-black text-lg text-orange-600">
-                                  {formatCurrency(
-                                    workerAttendanceView?.monthlySalary ?? (viewingSalaryWorker?.salary || 0)
-                                  )}
+                      <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                        <h4 className="text-xs font-black uppercase tracking-wider text-blue-600 mb-3">Tổng hợp tháng {overviewMonth}</h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Tổng ngày công:</span>
+                            <span className="font-bold text-gray-900">{calculateTotalWorkQuantity()}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Tổng giờ làm thêm:</span>
+                            <span className="font-semibold text-orange-600">{calculateTotalOvertime()} giờ</span>
+                          </div>
+                          <div className="border-t border-blue-200 pt-3 flex justify-between items-center">
+                            <span className="text-gray-900 font-bold">Lương thực nhận:</span>
+                            <span className="font-black text-xl text-orange-600">
+                              {formatCurrency(workerAttendanceView?.monthlySalary ?? (viewingSalaryWorker?.salary || 0))}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-black text-gray-900">Danh sách ngày làm việc</h4>
+                      <div className="max-h-64 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                        {workerAttendanceView && workerAttendanceView.daysOff && workerAttendanceView.daysOff.length > 0 ? (
+                          workerAttendanceView.daysOff
+                            .filter(wd => wd.workQuantity > 0)
+                            .map((workDate, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
+                              >
+                                <span className="text-xs font-semibold text-gray-700">
+                                  {formatDateLabel(normalizeDateString(workDate.workDate))}
                                 </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {workerAttendanceView && workerAttendanceView.daysOff && workerAttendanceView.daysOff.length > 0 && (
-                          <div className="rounded-lg border border-gray-200 bg-white p-4">
-                            <h3 className="text-sm font-black text-gray-900 mb-2">Danh sách ngày làm việc</h3>
-                            <div className="space-y-2 max-h-60 overflow-y-auto">
-                              {workerAttendanceView.daysOff
-                                .filter(wd => wd.workQuantity > 0)
-                                .map((workDate, index) => (
-                                <div
-                                  key={index}
-                                  className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
-                                >
-                                  <span className="text-xs font-semibold text-gray-700">
-                                    {formatDateLabel(normalizeDateString(workDate.workDate))}
-                                  </span>
-                                  <div className="flex items-center gap-3 text-xs">
-                                    <span className="text-green-600 font-semibold">
-                                      Công: {workDate.workQuantity}
-                                    </span>
-                                    {workDate.workOvertime > 0 && (
-                                      <span className="text-orange-600 font-semibold">
-                                        OT: {workDate.workOvertime}h
-                                      </span>
-                                    )}
-                                  </div>
+                                <div className="flex items-center gap-3 text-xs">
+                                  <span className="text-green-600 font-bold">Công: {workDate.workQuantity}</span>
+                                  {workDate.workOvertime > 0 && (
+                                    <span className="text-orange-600 font-bold">OT: {workDate.workOvertime}h</span>
+                                  )}
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {!workerAttendanceView && (
-                          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-                            Không thể tải dữ liệu chấm công. Vui lòng thử lại sau.
-                          </div>
-                        )}
-                        {workerAttendanceView && isDefaultAttendanceRecord() && (
-                          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-                            Chưa có dữ liệu chấm công cho tháng này. Lương thực nhận: 0 VNĐ.
+                              </div>
+                            ))
+                        ) : (
+                          <div className="text-center py-8 text-sm text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                            Chưa có dữ liệu chấm công cho tháng này
                           </div>
                         )}
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
-
-              {showDeleteConfirm !== null && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                  <div className="bg-white rounded-lg p-6 max-w-md w-full">
-                    <h3 className="text-lg font-black text-gray-900 mb-2">Xác nhận xóa</h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Bạn có chắc chắn muốn xóa nhân viên{' '}
-                      <span className="font-semibold">
-                        {workers.find((w) => w.id === showDeleteConfirm)?.name}
-                      </span>
-                      ? Hành động này không thể hoàn tác.
-                    </p>
-                    <div className="flex justify-end gap-3">
-                      <button
-                        onClick={() => setShowDeleteConfirm(null)}
-                        className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                      >
-                        Hủy
-                      </button>
-                      <button
-                        onClick={() => handleDeleteWorker(showDeleteConfirm)}
-                        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-                      >
-                        Xóa
-                      </button>
-                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </Modal>
+
+              <Modal
+                isOpen={showDeleteConfirm !== null}
+                onClose={() => setShowDeleteConfirm(null)}
+                title="Xác nhận xóa"
+                footer={
+                  <>
+                    <button
+                      onClick={() => setShowDeleteConfirm(null)}
+                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      onClick={() => showDeleteConfirm !== null && handleDeleteWorker(showDeleteConfirm)}
+                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                    >
+                      Xóa
+                    </button>
+                  </>
+                }
+              >
+                <p className="text-sm text-gray-600">
+                  Bạn có chắc chắn muốn xóa nhân viên{' '}
+                  <span className="font-semibold text-gray-900">
+                    {workers.find((w) => w.id === showDeleteConfirm)?.name}
+                  </span>
+                  ? Hành động này không thể hoàn tác.
+                </p>
+              </Modal>
             </div>
           ) : activeTab === 'overview' ? (
             <div className="space-y-6 p-4 sm:p-6">
@@ -2662,97 +2306,63 @@ export default function AttendancePage() {
                   <span className="text-sm text-gray-500">Đang tải dữ liệu...</span>
                 </div>
               ) : (
-                <div className="rounded-lg border border-gray-200 bg-white overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-bold text-gray-900 sticky left-0 bg-gray-50 z-10 border-r border-gray-200 min-w-[200px]">
-                          Nhân viên
-                        </th>
-                        {getOverviewDays(overviewMonth).map((dayInfo) => {
-                          return (
-                            <th
-                              key={dayInfo.dateValue}
-                              className="px-2 py-3 text-center font-semibold text-gray-700 border-r border-gray-200 min-w-[80px]"
-                              title={formatDateLabel(dayInfo.dateValue)}
-                            >
-                              {dayInfo.day}
-                            </th>
-                          );
-                        })}
-                        <th className="px-4 py-3 text-center font-bold text-gray-900 border-l border-gray-200">
-                          Tổng
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {workers.map((worker, workerIndex) => {
-                        const attendance = overviewAttendances.get(worker.id);
+                <DataTable
+                  data={workers}
+                  isLoading={isLoadingOverviewAll}
+                  columns={[
+                    {
+                      key: 'name',
+                      header: 'Nhân viên',
+                      headerClassName: 'sticky left-0 bg-gray-50 z-10 border-r border-gray-200 min-w-[200px]',
+                      className: 'sticky left-0 bg-inherit z-10 border-r border-gray-200 font-semibold',
+                      render: (w) => (
+                        <div>
+                          <div className="font-bold text-gray-900">{w.name}</div>
+                          <div className="text-xs text-gray-500">{formatCurrency(w.salary)}</div>
+                        </div>
+                      )
+                    },
+                    ...getOverviewDays(overviewMonth).map((dayInfo) => ({
+                      key: dayInfo.dateValue,
+                      header: String(dayInfo.day),
+                      headerClassName: 'text-center border-r border-gray-200 min-w-[60px]',
+                      className: 'text-center border-r border-gray-100 p-0',
+                      render: (w: Worker) => {
+                        const attendance = overviewAttendances.get(w.id);
+                        const workDate = getWorkDateForOverview(attendance || null, dayInfo.dateValue);
+                        const hasWork = workDate && workDate.workQuantity > 0;
+                        return hasWork ? (
+                          <div className="flex flex-col items-center gap-0.5 py-1 bg-green-50 h-full">
+                            <span className="text-[10px] font-black text-green-700">{workDate.workQuantity}</span>
+                            {workDate.workOvertime > 0 && (
+                              <span className="text-[9px] text-orange-600 font-bold">+{workDate.workOvertime}h</span>
+                            )}
+                          </div>
+                        ) : <span className="text-gray-300">-</span>;
+                      }
+                    })),
+                    {
+                      key: 'total',
+                      header: 'Tổng',
+                      headerClassName: 'text-center border-l border-gray-200 sticky right-0 bg-gray-50 z-10',
+                      className: 'text-center border-l border-gray-200 bg-gray-100 font-semibold sticky right-0 z-10',
+                      render: (w) => {
+                        const attendance = overviewAttendances.get(w.id);
                         const totalDays = attendance?.daysOff?.filter(wd => wd.workQuantity > 0).length || 0;
                         const totalWorkQuantity = attendance?.daysOff?.reduce((sum, wd) => sum + wd.workQuantity, 0) || 0;
                         const totalOvertime = attendance?.daysOff?.reduce((sum, wd) => sum + wd.workOvertime, 0) || 0;
-
                         return (
-                          <tr
-                            key={worker.id}
-                            className={`border-b border-gray-100 hover:bg-gray-50 ${
-                              workerIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                            }`}
-                          >
-                            <td className="px-4 py-3 font-semibold text-gray-900 sticky left-0 bg-inherit z-10 border-r border-gray-200 min-w-[200px]">
-                              <div>
-                                <div className="font-bold whitespace-nowrap">{worker.name}</div>
-                                <div className="text-xs text-gray-500">{formatCurrency(worker.salary)}</div>
-                              </div>
-                            </td>
-                            {getOverviewDays(overviewMonth).map((dayInfo) => {
-                              const workDate = getWorkDateForOverview(attendance || null, dayInfo.dateValue);
-                              const hasWork = workDate && workDate.workQuantity > 0;
-
-                              return (
-                                <td
-                                  key={dayInfo.dateValue}
-                                  className={`px-2 py-2 text-center border-r border-gray-100 ${
-                                    hasWork ? 'bg-green-50' : ''
-                                  }`}
-                                  title={
-                                    hasWork
-                                      ? `${formatDateLabel(dayInfo.dateValue)}: Công ${workDate.workQuantity}, OT ${workDate.workOvertime}h`
-                                      : formatDateLabel(dayInfo.dateValue)
-                                  }
-                                >
-                                  {hasWork ? (
-                                    <div className="flex flex-col items-center gap-1">
-                                      <span className="text-xs font-semibold text-green-700">
-                                        {workDate.workQuantity}
-                                      </span>
-                                      {workDate.workOvertime > 0 && (
-                                        <span className="text-xs text-orange-600 font-semibold">
-                                          +{workDate.workOvertime}h
-                                        </span>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <span className="text-gray-300">-</span>
-                                  )}
-                                </td>
-                              );
-                            })}
-                            <td className="px-4 py-3 text-center border-l border-gray-200 bg-gray-100 font-semibold">
-                              <div className="flex flex-col gap-1">
-                                <span className="text-xs text-gray-600">{totalDays} ngày</span>
-                                <span className="text-xs text-green-700">{totalWorkQuantity} công</span>
-                                {totalOvertime > 0 && (
-                                  <span className="text-xs text-orange-600">+{totalOvertime}h</span>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
+                          <div className="flex flex-col gap-0.5 text-[10px]">
+                            <span className="text-gray-600 font-bold">{totalDays}N</span>
+                            <span className="text-green-700 font-black">{totalWorkQuantity}C</span>
+                            {totalOvertime > 0 && <span className="text-orange-600">+{totalOvertime}h</span>}
+                          </div>
                         );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                      }
+                    }
+                  ]}
+                  emptyMessage="Không có dữ liệu nhân viên"
+                />
               )}
             </div>
           ) : null}
