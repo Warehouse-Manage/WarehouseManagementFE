@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
+import { notificationApi } from "@/api/notificationApi";
 
 export interface PushNotificationData {
   title: string;
@@ -27,14 +28,12 @@ export interface UserSubscription {
 
 class PushNotificationService {
   private vapidPublicKey: string;
-  private apiBaseUrl: string;
   private isSupported: boolean = false;
   private registration: ServiceWorkerRegistration | null = null;
   private initialized: boolean = false;
 
   constructor() {
     this.vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_KEY || '';
-    this.apiBaseUrl = process.env.NEXT_PUBLIC_API_HOST || '';
     // Don't check support in constructor - defer until client-side
   }
 
@@ -107,16 +106,16 @@ class PushNotificationService {
         scope: '/'
       });
       console.log('Service Worker registered successfully');
-      
+
       // Wait for service worker to be ready
       await navigator.serviceWorker.ready;
       console.log('Service Worker is ready');
-      
+
       return this.registration;
     } catch (error) {
       console.error('Service Worker registration failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       // More specific error handling
       if (errorMessage.includes('500')) {
         toast.error('Service worker file not found. Please check server configuration.');
@@ -125,7 +124,7 @@ class PushNotificationService {
       } else {
         toast.error(`Failed to register service worker: ${errorMessage}`);
       }
-      
+
       return null;
     }
   }
@@ -159,7 +158,7 @@ class PushNotificationService {
 
       // Send subscription to backend
       await this.sendSubscriptionToBackend(subscriptionData);
-      
+
       return subscriptionData;
     } catch (error) {
       console.error('Error subscribing to push notifications:', error);
@@ -203,18 +202,7 @@ class PushNotificationService {
   // Send subscription data to backend
   private async sendSubscriptionToBackend(subscription: UserSubscription): Promise<void> {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/api/notification/subscribe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(subscription)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
+      await notificationApi.subscribe(subscription);
       console.log('Subscription sent to backend successfully');
     } catch (error) {
       console.error('Error sending subscription to backend:', error);
@@ -226,7 +214,7 @@ class PushNotificationService {
   private detectPlatform(): 'ios' | 'android' | 'desktop' {
     if (typeof navigator === 'undefined') return 'desktop';
     const userAgent = navigator.userAgent.toLowerCase();
-    
+
     if (/iphone|ipad|ipod/.test(userAgent)) {
       return 'ios';
     } else if (/android/.test(userAgent)) {

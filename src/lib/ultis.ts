@@ -2,7 +2,7 @@ export function urlB64ToUint8Array(base64String: string): Uint8Array {
 	if (!base64String) {
 		throw new Error('Base64 string is required but was undefined or empty');
 	}
-	
+
 	const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
 	const base64 = (base64String + padding)
 		.replace(/\-/g, "+")
@@ -18,7 +18,7 @@ export function urlB64ToUint8Array(base64String: string): Uint8Array {
 // Cookie utilities with iOS compatibility
 export function getCookie(name: string): string | null {
 	if (typeof document === 'undefined') return null;
-	
+
 	try {
 		const value = `; ${document.cookie}`;
 		const parts = value.split(`; ${name}=`);
@@ -36,7 +36,7 @@ export function getCookie(name: string): string | null {
 
 export function setCookie(name: string, value: string, days: number = 30): void {
 	if (typeof document === 'undefined') return;
-	
+
 	try {
 		const expires = new Date();
 		expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
@@ -48,10 +48,48 @@ export function setCookie(name: string, value: string, days: number = 30): void 
 
 export function deleteCookie(name: string): void {
 	if (typeof document === 'undefined') return;
-	
+
 	try {
 		document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
 	} catch (error) {
 		console.warn('Error deleting cookie:', error);
 	}
 }
+
+export const printBlob = (blob: Blob): Promise<void> =>
+	new Promise((resolve) => {
+		if (!(blob instanceof Blob)) return resolve();
+
+		const url = URL.createObjectURL(blob);
+		const iframe = document.createElement("iframe");
+
+		const cleanup = () => {
+			if (document.body.contains(iframe)) {
+				document.body.removeChild(iframe);
+				URL.revokeObjectURL(url);
+			}
+			resolve();
+		};
+
+		iframe.style.display = "none";
+		iframe.src = url;
+		document.body.appendChild(iframe);
+
+		iframe.onload = () => {
+			const win = iframe.contentWindow;
+			if (!win) return cleanup();
+
+			win.focus();
+			win.print();
+
+			win.addEventListener("afterprint", cleanup, { once: true });
+
+			const fallbackTimer = setTimeout(cleanup, 3000);
+			win.addEventListener(
+				"focus",
+				() => clearTimeout(fallbackTimer),
+				{ once: true }
+			);
+		};
+	}
+	);

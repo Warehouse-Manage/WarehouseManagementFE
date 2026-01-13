@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { getCookie } from '@/lib/ultis';
+import { inventoryApi } from '@/api';
+import { Product } from '@/types';
+import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
 
-type Product = {
-  id: number;
-  name: string;
-  price: number;
-  quantity: number;
-};
+// Type Product moved to @/types/inventory.ts
 
 export default function ProductsPage() {
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
@@ -21,31 +19,27 @@ export default function ProductsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
+  const productFormFields: FormField[] = [
+    { name: 'name', label: 'Tên sản phẩm', type: 'text', required: true, placeholder: 'Nhập tên sản phẩm...' },
+    { name: 'price', label: 'Đơn giá', type: 'number', required: true, placeholder: 'Nhập giá...' },
+    { name: 'quantity', label: 'Số lượng ban đầu', type: 'number', required: true, placeholder: 'Nhập số lượng...' },
+  ];
+
   useEffect(() => {
     const r = getCookie('role');
     setRole(r);
   }, []);
 
-  const apiHost = process.env.NEXT_PUBLIC_API_HOST;
+  // apiHost removed, handled in inventoryApi
 
   const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
-  const formatNumber = (value: number | '') => (value === '' ? '' : value.toLocaleString());
-  const parseNumber = (input: string) => {
-    const cleaned = input.replace(/,/g, '');
-    const num = Number(cleaned);
-    return Number.isNaN(num) ? '' : num;
-  };
+  // formatNumber and parseNumber removed
 
   const loadProducts = async () => {
-    if (!apiHost) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/products`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || `HTTP ${res.status}`);
-      }
+      const data = await inventoryApi.getProducts();
       setProducts(data);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tải danh sách sản phẩm');
@@ -58,7 +52,7 @@ export default function ProductsPage() {
   useEffect(() => {
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiHost]);
+  }, []);
 
   // Show blank page if role is not 'Admin' or 'accountance'
   if (role !== 'Admin' && role !== 'accountance') {
@@ -66,7 +60,6 @@ export default function ProductsPage() {
   }
 
   const handleCreate = async () => {
-    if (!apiHost) return;
     if (!name || price === '' || quantity === '') {
       setError('Vui lòng nhập đầy đủ thông tin');
       return;
@@ -79,15 +72,12 @@ export default function ProductsPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/products`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, price: Number(price), quantity: Number(quantity), createdUserId: Number(userId) }),
+      await inventoryApi.createProduct({
+        name,
+        price: Number(price),
+        quantity: Number(quantity),
+        createdUserId: Number(userId)
       });
-      if (!res.ok) {
-        const msg = await res.json().catch(() => null);
-        throw new Error(msg?.message || `HTTP ${res.status}`);
-      }
       setName('');
       setPrice('');
       setQuantity('');
@@ -103,7 +93,10 @@ export default function ProductsPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-      <h1 className="text-2xl font-semibold">Sản phẩm</h1>
+        <div>
+          <h1 className="text-2xl font-black text-gray-900">Sản phẩm</h1>
+          <p className="text-sm text-gray-600 mt-1">Quản lý danh sách thành phẩm gạch và giá bán</p>
+        </div>
         <button
           onClick={() => {
             setName('');
@@ -112,103 +105,87 @@ export default function ProductsPage() {
             setError(null);
             setShowForm(true);
           }}
-          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+          className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 transition-colors shadow-sm"
         >
           + Thêm sản phẩm
         </button>
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Thêm sản phẩm</h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-        {error && <div className="text-red-600 text-sm">{error}</div>}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input
-            className="border rounded px-3 py-2"
-            placeholder="Tên"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            className="border rounded px-3 py-2"
-            placeholder="Giá"
-            inputMode="decimal"
-            value={formatNumber(price)}
-            onChange={(e) => setPrice(parseNumber(e.target.value))}
-          />
-          <input
-            className="border rounded px-3 py-2"
-            placeholder="Số lượng"
-            inputMode="decimal"
-            value={formatNumber(quantity)}
-            onChange={(e) => setQuantity(parseNumber(e.target.value))}
+      <Modal
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
+        title="Thêm sản phẩm mới"
+        size="lg"
+        footer={
+          <>
+            <button
+              onClick={() => setShowForm(false)}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={submitting}
+              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors"
+            >
+              {submitting ? 'Đang lưu...' : 'Lưu'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
+          <DynamicForm
+            fields={productFormFields}
+            values={{ name, price, quantity }}
+            onChange={(field, value) => {
+              if (field === 'name') setName(value as string);
+              if (field === 'price') setPrice(value as number);
+              if (field === 'quantity') setQuantity(value as number);
+            }}
+            columns={1}
           />
         </div>
-              <div className="flex gap-3">
-        <button
-          onClick={handleCreate}
-          disabled={submitting}
-          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-60"
-        >
-          {submitting ? 'Đang lưu...' : 'Lưu'}
-        </button>
-                <button
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-2 border rounded hover:bg-gray-50"
-                >
-                  Hủy
-                </button>
-              </div>
-            </div>
-          </div>
-      </div>
-      )}
+      </Modal>
 
-      <div className="border rounded-lg p-4 bg-white shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold">Danh sách</h2>
+      <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-gray-900">Danh sách sản phẩm</h2>
           <button
             onClick={loadProducts}
-            className="px-3 py-1 border rounded text-sm hover:bg-gray-50"
+            className="px-3 py-1 border rounded text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
           >
             Làm mới
           </button>
         </div>
-        {loading ? (
-          <div>Đang tải...</div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="min-w-full text-base">
-              <thead>
-                <tr className="bg-orange-50">
-                  <th className="px-4 py-3 text-left">Tên</th>
-                  <th className="px-4 py-3 text-right">Giá</th>
-                  <th className="px-4 py-3 text-right">Số lượng</th>
-                </tr>
-              </thead>
-              <tbody className="text-base">
-                {products.map((p) => (
-                  <tr key={p.id} className="border-b">
-                    <td className="px-4 py-3">{p.name}</td>
-                    <td className="px-4 py-3 text-right">{p.price.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right">{p.quantity.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!products.length && <div className="text-sm text-gray-500 py-3">Chưa có dữ liệu</div>}
-          </div>
-        )}
+        <DataTable
+          data={products}
+          isLoading={loading}
+          columns={[
+            {
+              key: 'name',
+              header: 'Tên sản phẩm',
+              className: 'font-bold text-gray-900',
+              render: (p) => <span>{p.name}</span>
+            },
+            {
+              key: 'price',
+              header: 'Đơn giá',
+              headerClassName: 'text-right',
+              className: 'text-right font-semibold text-orange-600',
+              render: (p) => <span>{p.price.toLocaleString()}đ</span>
+            },
+            {
+              key: 'quantity',
+              header: 'Số lượng tồn',
+              headerClassName: 'text-right',
+              className: 'text-right font-mono text-gray-900',
+              render: (p) => <span>{p.quantity.toLocaleString()}</span>
+            }
+          ]}
+          emptyMessage="Chưa có dữ liệu sản phẩm"
+        />
       </div>
     </div>
   );

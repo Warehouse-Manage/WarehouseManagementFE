@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import NavbarContainer from "./components/NavbarContainer";
 import { Inter, Noto_Sans } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
+import { Toaster } from "sonner";
+import NavbarContainer from "@/components/NavbarContainer";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -44,6 +45,7 @@ export default function RootLayout({
     <html lang="vi">
       <head>
         <link rel="apple-touch-icon" href="/icon512_rounded.png" />
+        <link rel="icon" href="/icon512_rounded.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Quản lý kho" />
@@ -51,8 +53,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${notoSans.variable} font-sans antialiased`}
       >
+        <Toaster richColors position="top-right" />
         <NavbarContainer />
-        <main className="mx-auto max-w-6xl px-2 sm:px-4 lg:px-6 py-4 sm:py-6">
+        <main className="mx-auto max-w-[1440px] w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           {children}
         </main>
         <Script

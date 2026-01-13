@@ -3,56 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
+import { statisticsApi } from '@/api/statisticsApi';
+import { StatisticsData } from '@/types';
 
 // Client-side guard: redirect role 'user' away from this page
 
-// Types for statistics data
-type StatisticsData = {
-  totalRequests: number;
-  approvedRequests: number;
-  pendingRequests: number;
-  rejectedRequests: number;
-  totalSpent: number;
-  averageRequestValue: number;
-  monthlySpending: Array<{
-    month: string;
-    amount: number;
-  }>;
-  topMaterials: Array<{
-    name: string;
-    quantity: number;
-    totalValue: number;
-  }>;
-  departmentSpending: Array<{
-    department: string;
-    amount: number;
-    percentage: number;
-  }>;
-};
-
-// API Response Types
-type MonthlySpendingResponse = {
-  month: string;
-  year: number;
-  amount: number;
-  requestCount: number;
-};
-
-type TopMaterialResponse = {
-  materialId: number;
-  materialName: string;
-  materialType: string;
-  totalQuantity: number;
-  totalValue: number;
-  requestCount: number;
-};
-
-type DepartmentSpendingResponse = {
-  department: string;
-  amount: number;
-  requestCount: number;
-  percentage: number;
-};
 
 export default function StatisticsPage() {
   const router = useRouter();
@@ -67,13 +22,13 @@ export default function StatisticsPage() {
     const role = getCookie('role');
     const userId = getCookie('userId');
     const userName = getCookie('userName');
-    
+
     // Redirect to login if userId or userName is missing
     if (!userId || !userName) {
       router.push('/login');
       return;
     }
-    
+
     // Redirect users with 'user' or 'approver' role away from this page
     if (role === 'user' || role === 'approver') {
       window.location.replace('/');
@@ -90,43 +45,15 @@ export default function StatisticsPage() {
       try {
         setLoading(true);
         setError(null);
-        
-        // Fetch statistics summary
-        const summaryResponse = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/statistics/summary`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        
-        if (!summaryResponse.ok) {
-          throw new Error(`HTTP ${summaryResponse.status} ${summaryResponse.statusText}`);
-        }
-        
-        const summary = await summaryResponse.json();
-        
-        // Fetch monthly spending
-        const monthlyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/statistics/monthly-spending`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        
-        const monthlySpending: MonthlySpendingResponse[] = monthlyResponse.ok ? await monthlyResponse.json() : [];
-        
-        // Fetch department spending
-        const deptResponse = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/statistics/department-spending`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        
-        const departmentSpending: DepartmentSpendingResponse[] = deptResponse.ok ? await deptResponse.json() : [];
-        
-        // Fetch top materials
-        const materialsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/statistics/top-materials?limit=10`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        
-        const topMaterials: TopMaterialResponse[] = materialsResponse.ok ? await materialsResponse.json() : [];
-        
+
+        // Fetch statistics data using consolidated API
+        const [summary, monthlySpending, departmentSpending, topMaterials] = await Promise.all([
+          statisticsApi.getSummary(),
+          statisticsApi.getMonthlySpending(),
+          statisticsApi.getDepartmentSpending(),
+          statisticsApi.getTopMaterials(10)
+        ]);
+
         setStatistics({
           totalRequests: summary.totalRequests,
           approvedRequests: summary.approvedRequests,
@@ -134,22 +61,22 @@ export default function StatisticsPage() {
           rejectedRequests: summary.rejectedRequests,
           totalSpent: summary.totalSpent,
           averageRequestValue: summary.averageRequestValue,
-          monthlySpending: monthlySpending.map((item: MonthlySpendingResponse) => ({
+          monthlySpending: monthlySpending.map((item) => ({
             month: `${item.year}-${item.month}`,
             amount: item.amount
           })),
-          topMaterials: topMaterials.map((item: TopMaterialResponse) => ({
+          topMaterials: topMaterials.map((item) => ({
             name: item.materialName,
             quantity: item.totalQuantity,
             totalValue: item.totalValue
           })),
-          departmentSpending: departmentSpending.map((item: DepartmentSpendingResponse) => ({
+          departmentSpending: departmentSpending.map((item) => ({
             department: item.department,
             amount: item.amount,
             percentage: item.percentage
           }))
         });
-        
+
       } catch (e) {
         console.error('Lỗi tải thống kê:', e);
         setError('Không thể tải dữ liệu thống kê.');
@@ -157,7 +84,7 @@ export default function StatisticsPage() {
         setLoading(false);
       }
     };
-    
+
     fetchStatistics();
   }, [selectedPeriod, canFetch]);
 
@@ -239,7 +166,7 @@ export default function StatisticsPage() {
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Thống kê tài chính</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Tổng quan chi tiêu và quản lý tài chính</p>
         </div>
-        
+
         {/* Bộ chọn khoảng thời gian */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
           <label className="text-sm font-bold text-gray-700">Khoảng thời gian:</label>
@@ -321,8 +248,8 @@ export default function StatisticsPage() {
             </div>
             <div className="ml-4 flex-1">
               <p className="text-sm font-bold text-gray-500">Tổng chi tiêu</p>
-              <p 
-                className="text-xl font-black text-orange-600 break-words cursor-help" 
+              <p
+                className="text-xl font-black text-orange-600 break-words cursor-help"
                 title={formatCurrencyFull(statistics.totalSpent)}
               >
                 {formatCurrency(statistics.totalSpent)}
@@ -344,10 +271,10 @@ export default function StatisticsPage() {
                   <span className="text-sm font-bold text-gray-700">{item.month}</span>
                   <div className="flex items-center space-x-3">
                     <div className="w-32 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-orange-500 h-2 rounded-full" 
-                        style={{ 
-                          width: `${Math.min(100, (item.amount / Math.max(...statistics.monthlySpending.map(m => m.amount))) * 100)}%` 
+                      <div
+                        className="bg-orange-500 h-2 rounded-full"
+                        style={{
+                          width: `${Math.min(100, (item.amount / Math.max(...statistics.monthlySpending.map(m => m.amount))) * 100)}%`
                         }}
                       ></div>
                     </div>
@@ -376,8 +303,8 @@ export default function StatisticsPage() {
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="w-24 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-500 h-2 rounded-full" 
+                      <div
+                        className="bg-blue-500 h-2 rounded-full"
                         style={{ width: `${dept.percentage}%` }}
                       ></div>
                     </div>
@@ -417,8 +344,8 @@ export default function StatisticsPage() {
         <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Giá trị trung bình</h3>
           <div className="text-center">
-            <div 
-              className="text-3xl font-bold text-green-600 mb-2 cursor-help" 
+            <div
+              className="text-3xl font-bold text-green-600 mb-2 cursor-help"
               title={formatCurrencyFull(statistics.averageRequestValue)}
             >
               {formatCurrency(statistics.averageRequestValue)}
@@ -435,8 +362,8 @@ export default function StatisticsPage() {
               <span className="text-sm text-gray-700">Đã duyệt</span>
               <div className="flex items-center space-x-2">
                 <div className="w-16 bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-green-500 h-2 rounded-full" 
+                  <div
+                    className="bg-green-500 h-2 rounded-full"
                     style={{ width: `${(statistics.approvedRequests / statistics.totalRequests) * 100}%` }}
                   ></div>
                 </div>
@@ -447,8 +374,8 @@ export default function StatisticsPage() {
               <span className="text-sm text-gray-700">Chờ duyệt</span>
               <div className="flex items-center space-x-2">
                 <div className="w-16 bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-yellow-500 h-2 rounded-full" 
+                  <div
+                    className="bg-yellow-500 h-2 rounded-full"
                     style={{ width: `${(statistics.pendingRequests / statistics.totalRequests) * 100}%` }}
                   ></div>
                 </div>
@@ -459,8 +386,8 @@ export default function StatisticsPage() {
               <span className="text-sm text-gray-700">Từ chối</span>
               <div className="flex items-center space-x-2">
                 <div className="w-16 bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-red-500 h-2 rounded-full" 
+                  <div
+                    className="bg-red-500 h-2 rounded-full"
                     style={{ width: `${(statistics.rejectedRequests / statistics.totalRequests) * 100}%` }}
                   ></div>
                 </div>

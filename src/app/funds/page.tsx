@@ -1,20 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCookie } from '@/lib/ultis';
+import { getCookie, printBlob } from '@/lib/ultis';
+import { financeApi, workerApi, userApi } from '@/api';
+import { Fund, Deliver, Worker, Customer, User } from '@/types';
+import { toast } from 'sonner';
+import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
+import { Printer, Edit, Trash2 } from 'lucide-react';
 
-type Fund = {
-  id: number;
-  date: string;
-  type: string;
-  description: string;
-  amount: number;
-  category: string;
-  objectId: number | null;
-  objectType: string;
-  objectName: string;
-  dateCreated: string;
-};
+// Type Fund moved to @/types/finance.ts
 
 export default function FundsPage() {
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
@@ -32,9 +26,57 @@ export default function FundsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filterType, setFilterType] = useState<string>('');
-  const apiHost = process.env.NEXT_PUBLIC_API_HOST;
+  // apiHost removed, handled in API modules
   const [suggestions, setSuggestions] = useState<{ id: number; name: string }[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  const fundFormFields: FormField[] = [
+    {
+      name: 'type',
+      label: 'Loại',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'Thu', label: 'Thu' },
+        { value: 'Chi', label: 'Chi' }
+      ]
+    },
+    { name: 'amount', label: 'Số tiền', type: 'number', required: true, placeholder: 'Ví dụ: 1000000' },
+    { name: 'description', label: 'Mô tả', type: 'text', required: true, placeholder: 'Lý do thu/chi...' },
+    {
+      name: 'category',
+      label: 'Danh mục',
+      type: 'select',
+      options: type === 'Chi' ? [
+        { value: 'Nguyên liệu', label: 'Nguyên liệu' },
+        { value: 'Vật tư', label: 'Vật tư' },
+        { value: 'Lương', label: 'Lương' },
+        { value: 'Chi tiêu', label: 'Chi tiêu' },
+        { value: 'Trả lãi ngân hàng', label: 'Trả lãi ngân hàng' },
+        { value: 'Trả nợ', label: 'Trả nợ' },
+      ] : type === 'Thu' ? [
+        { value: 'Tiền bán gạch', label: 'Tiền bán gạch' },
+        { value: 'Tiền vay ngân hàng', label: 'Tiền vay ngân hàng' },
+        { value: 'Tiền đặt cọc', label: 'Tiền đặt cọc' },
+      ] : []
+    },
+    {
+      name: 'objectType',
+      label: 'Đối tượng',
+      type: 'select',
+      options: type === 'Chi' ? [
+        { value: 'Nhân viên', label: 'Nhân viên' },
+        { value: 'Giám đốc', label: 'Giám đốc' },
+        { value: 'Vật tư', label: 'Vật tư' },
+        { value: 'Đối tác', label: 'Đối tác' },
+        { value: 'Giao hàng', label: 'Giao hàng' },
+      ] : type === 'Thu' ? [
+        { value: 'Khách hàng', label: 'Khách hàng' },
+        { value: 'Đối tác', label: 'Đối tác' },
+      ] : []
+    },
+    { name: 'objectName', label: 'Tên người thu/nhận', type: 'text', placeholder: 'Người nhận hoặc người nộp...' },
+  ];
 
   useEffect(() => {
     const r = getCookie('role');
@@ -42,12 +84,7 @@ export default function FundsPage() {
   }, []);
 
   const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
-  const formatNumber = (value: number | '') => (value === '' ? '' : value.toLocaleString());
-  const parseNumber = (input: string) => {
-    const cleaned = input.replace(/[.,\s]/g, '');
-    const num = Number(cleaned);
-    return Number.isNaN(num) ? '' : num;
-  };
+  // formatNumber and parseNumber removed as unused
 
   const formatDate = (value?: string) => {
     if (!value) return '';
@@ -57,51 +94,39 @@ export default function FundsPage() {
 
   // Load suggestions based on objectType
   const loadSuggestions = async (target: string) => {
-    if (!apiHost || !target) {
+    if (!target) {
       setSuggestions([]);
       return;
     }
     setLoadingSuggestions(true);
     try {
-      let url = '';
+      let data: (Deliver | Worker | Customer | User)[] = [];
       switch (target) {
         case 'Giao hàng':
-          url = `${apiHost}/api/delivers`;
+          data = await financeApi.getDelivers();
           break;
         case 'Nhân viên':
-          url = `${apiHost}/api/workers`;
+          data = await workerApi.getWorkers();
           break;
         case 'Khách hàng':
-          url = `${apiHost}/api/customers`;
+          data = await financeApi.getCustomers();
           break;
         case 'Vật tư':
-          // Approvers; best-effort to fetch users with role=approver if available
-          url = `${apiHost}/api/users?role=approver`;
+          data = await userApi.getUsers({ role: 'approver' });
           break;
-        case 'Đối tác':
-          // No specific endpoint; clear suggestions
-          setSuggestions([]);
-          setLoadingSuggestions(false);
-          return;
         default:
           setSuggestions([]);
           setLoadingSuggestions(false);
           return;
       }
-      const res = await fetch(url);
-      const json = await res.json();
-      if (!res.ok) {
-        const msg = (json as { message?: string })?.message;
-        throw new Error(msg || `HTTP ${res.status}`);
-      }
-      const data = json as { id?: number; name?: string; plateNumber?: string }[];
-      // Map suggestions
-      const mapped = data.map((item) => {
+
+      const mapped = data.map((item: Deliver | Worker | Customer | User) => {
         const id = item.id ?? 0;
-        if (target === 'Giao hàng') return { id, name: item.name || item.plateNumber || `Giao hàng #${id}` };
-        if (target === 'Nhân viên') return { id, name: item.name || `Nhân viên #${id}` };
-        if (target === 'Khách hàng') return { id, name: item.name || `Khách hàng #${id}` };
-        return { id, name: item.name ?? `Đối tượng #${id}` };
+        if (target === 'Giao hàng') {
+          const deliver = item as Deliver;
+          return { id, name: deliver.name || deliver.plateNumber || `Giao hàng #${id}` };
+        }
+        return { id, name: item.name || `${target} #${id}` };
       });
       setSuggestions(mapped);
     } catch (err) {
@@ -113,20 +138,13 @@ export default function FundsPage() {
   };
 
   const loadFunds = async () => {
-    if (!apiHost) return;
     setLoading(true);
     setError(null);
     try {
-      let url = `${apiHost}/api/funds`;
-      const params = new URLSearchParams();
-      if (filterType) params.append('type', filterType);
-      if (params.toString()) url += '?' + params.toString();
+      const params: Record<string, string> = {};
+      if (filterType) params.type = filterType;
 
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || `HTTP ${res.status}`);
-      }
+      const data = await financeApi.getFunds(params);
       setFunds(data);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tải danh sách sổ quỹ');
@@ -139,7 +157,7 @@ export default function FundsPage() {
   useEffect(() => {
     loadFunds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiHost, filterType]);
+  }, [filterType]);
 
   // Show blank page if role is not 'Admin' or 'accountance'
   if (role !== 'Admin' && role !== 'accountance') {
@@ -160,51 +178,21 @@ export default function FundsPage() {
   };
 
   // Category options based on type
-  const getCategoryOptions = () => {
-    if (type === 'Chi') {
-      return [
-        { value: '', label: '-- Chọn danh mục --' },
-        { value: 'Nguyên liệu', label: 'Nguyên liệu' },
-        { value: 'Vật tư', label: 'Vật tư' },
-        { value: 'Lương', label: 'Lương' },
-        { value: 'Chi tiêu', label: 'Chi tiêu' },
-        { value: 'Trả lãi ngân hàng', label: 'Trả lãi ngân hàng' },
-        { value: 'Trả nợ', label: 'Trả nợ' },
-      ];
-    } else if (type === 'Thu') {
-      return [
-        { value: '', label: '-- Chọn danh mục --' },
-        { value: 'Tiền bán gạch', label: 'Tiền bán gạch' },
-        { value: 'Tiền vay ngân hàng', label: 'Tiền vay ngân hàng' },
-        { value: 'Tiền đặt cọc', label: 'Tiền đặt cọc' },
-      ];
-    }
-    return [{ value: '', label: '-- Chọn loại trước --' }];
-  };
+  // getCategoryOptions removed as its logic is now in fundFormFields
 
   // Object type options based on type
-  const getObjectTypeOptions = () => {
-    if (type === 'Chi') {
-      return [
-        { value: '', label: '-- Chọn đối tượng --' },
-        { value: 'Nhân viên', label: 'Nhân viên' },
-        { value: 'Giám đốc', label: 'Giám đốc' },
-        { value: 'Vật tư', label: 'Vật tư' },
-        { value: 'Đối tác', label: 'Đối tác' },
-        { value: 'Giao hàng', label: 'Giao hàng' },
-      ];
-    } else if (type === 'Thu') {
-      return [
-        { value: '', label: '-- Chọn đối tượng --' },
-        { value: 'Khách hàng', label: 'Khách hàng' },
-        { value: 'Đối tác', label: 'Đối tác' },
-      ];
+  // getObjectTypeOptions removed as its logic is now in fundFormFields
+
+  const handlePrintRecord = async (id: number) => {
+    try {
+      const blob = await financeApi.printFund(id);
+      await printBlob(blob);
+    } catch (err) {
+      toast.error('Không thể tải bản in: ' + getErrorMessage(err));
     }
-    return [{ value: '', label: '-- Chọn loại trước --' }];
   };
 
   const handleCreate = async () => {
-    if (!apiHost) return;
     if (!type || !description || amount === '' || Number(amount) <= 0) {
       setError('Vui lòng nhập đầy đủ thông tin và số tiền phải lớn hơn 0');
       return;
@@ -217,24 +205,21 @@ export default function FundsPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/funds`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type,
-            description,
-            amount: Number(amount),
-            category: category || '',
-          objectId: objectId === '' ? null : Number(objectId),
-            objectType: objectType || '',
-            objectName: objectName || '',
-            createdUserId: Number(userId),
-          }),
+      const res = await financeApi.createFund({
+        type,
+        description,
+        amount: Number(amount),
+        category: category || '',
+        objectId: objectId === '' ? null : Number(objectId),
+        objectType: objectType || '',
+        objectName: objectName || '',
+        createdUserId: Number(userId),
       });
-      if (!res.ok) {
-        const msg = await res.json().catch(() => null);
-        throw new Error(msg?.message || `HTTP ${res.status}`);
+
+      if (res && res.id) {
+        await handlePrintRecord(res.id);
       }
+
       resetForm();
       setShowForm(false);
       await loadFunds();
@@ -246,7 +231,7 @@ export default function FundsPage() {
   };
 
   const handleUpdate = async () => {
-    if (!apiHost || !editingId) return;
+    if (!editingId) return;
     if (!type || !description || amount === '' || Number(amount) <= 0) {
       setError('Vui lòng nhập đầy đủ thông tin và số tiền phải lớn hơn 0');
       return;
@@ -254,23 +239,15 @@ export default function FundsPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${apiHost}/api/funds/${editingId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type,
-            description,
-            amount: Number(amount),
-            category: category || '',
-          objectId: objectId === '' ? null : Number(objectId),
-            objectType: objectType || '',
-            objectName: objectName || '',
-          }),
+      await financeApi.updateFund(editingId, {
+        type,
+        description,
+        amount: Number(amount),
+        category: category || '',
+        objectId: objectId === '' ? null : Number(objectId),
+        objectType: objectType || '',
+        objectName: objectName || '',
       });
-      if (!res.ok) {
-        const msg = await res.json().catch(() => null);
-        throw new Error(msg?.message || `HTTP ${res.status}`);
-      }
       resetForm();
       setShowForm(false);
       await loadFunds();
@@ -294,16 +271,9 @@ export default function FundsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!apiHost) return;
     if (!confirm('Bạn có chắc chắn muốn xóa bản ghi này?')) return;
     try {
-      const res = await fetch(`${apiHost}/api/funds/${id}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) {
-        const msg = await res.json().catch(() => null);
-        throw new Error(msg?.message || `HTTP ${res.status}`);
-      }
+      await financeApi.deleteFund(id);
       await loadFunds();
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể xóa bản ghi sổ quỹ');
@@ -377,209 +347,170 @@ export default function FundsPage() {
         </div>
       </div>
 
-      {/* Create/Edit Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">{editingId ? 'Sửa bản ghi' : 'Thêm bản ghi sổ quỹ'}</h2>
-              <button
-                onClick={resetForm}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              {error && <div className="text-red-600 text-sm">{error}</div>}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                <select
-                  className="border rounded px-3 py-2"
-                  value={type}
-                  onChange={(e) => {
-                    setType(e.target.value as 'Thu' | 'Chi');
-                    setCategory('');
-                    setObjectType('');
-                    setObjectName('');
-                    setObjectId('');
-                    setSuggestions([]);
-                  }}
-                  required
-                >
-                  <option value="">-- Chọn loại --</option>
-                  <option value="Thu">Thu</option>
-                  <option value="Chi">Chi</option>
-                </select>
-                <input
-                  className="border rounded px-3 py-2"
-                  placeholder="Số tiền"
-                  inputMode="decimal"
-                  value={formatNumber(amount)}
-                  onChange={(e) => setAmount(parseNumber(e.target.value))}
-                  required
-                />
-                <input
-                  className="border rounded px-3 py-2 md:col-span-2"
-                  placeholder="Mô tả"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  required
-                />
-                <select
-                  className="border rounded px-3 py-2"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  disabled={!type}
-                >
-                  {getCategoryOptions().map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  className="border rounded px-3 py-2"
-                  value={objectType}
-                  onChange={(e) => {
-                    setObjectType(e.target.value);
-                    if (!e.target.value) setObjectName('');
-                    setObjectId('');
-                    setSuggestions([]);
-                    loadSuggestions(e.target.value);
-                  }}
-                  disabled={!type}
-                >
-                  {getObjectTypeOptions().map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  className="border rounded px-3 py-2"
-                  placeholder="Tên người thu/nhận"
-                  value={objectName}
-                  onChange={(e) => setObjectName(e.target.value)}
-                  disabled={!objectType}
-                />
-                {objectType && (
-                  <div className="md:col-span-2 space-y-2">
-                    <div className="text-xs text-gray-500 flex items-center gap-2">
-                      <span>Gợi ý:</span>
-                      {loadingSuggestions && <span>Đang tải...</span>}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {suggestions.map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => {
-                            setObjectId(s.id);
-                            setObjectName(s.name);
-                          }}
-                          className="px-3 py-1 border rounded text-xs hover:bg-gray-100"
-                        >
-                          {s.name}
-                        </button>
-                      ))}
-                      {!loadingSuggestions && suggestions.length === 0 && (
-                        <span className="text-xs text-gray-400">Không có gợi ý</span>
-                      )}
-                    </div>
-                  </div>
+      <Modal
+        isOpen={showForm}
+        onClose={resetForm}
+        title={editingId ? 'Sửa bản ghi' : 'Thêm bản ghi sổ quỹ'}
+        size="lg"
+        footer={
+          <>
+            <button
+              onClick={resetForm}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={editingId ? handleUpdate : handleCreate}
+              disabled={submitting}
+              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors"
+            >
+              {submitting ? 'Đang lưu...' : editingId ? 'Cập nhật' : 'Lưu'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
+
+          <DynamicForm
+            fields={fundFormFields}
+            values={{
+              type,
+              description,
+              amount,
+              category,
+              objectType,
+              objectName
+            }}
+            onChange={(name, value) => {
+              if (name === 'type') {
+                setType(value as 'Thu' | 'Chi');
+                setCategory('');
+                setObjectType('');
+                setObjectName('');
+                setObjectId('');
+                setSuggestions([]);
+              } else if (name === 'amount') setAmount(value as number);
+              else if (name === 'description') setDescription(value as string);
+              else if (name === 'category') setCategory(value as string);
+              else if (name === 'objectType') {
+                setObjectType(value as string);
+                if (!value) setObjectName('');
+                setObjectId('');
+                setSuggestions([]);
+                loadSuggestions(value as string);
+              } else if (name === 'objectName') setObjectName(value as string);
+            }}
+            columns={2}
+          />
+
+          {objectType && (
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black uppercase tracking-wider text-blue-600">Gợi ý đối tượng</h3>
+                {loadingSuggestions && <span className="text-[10px] text-blue-400 italic">Đang tải...</span>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      setObjectId(s.id);
+                      setObjectName(s.name);
+                    }}
+                    className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                  >
+                    {s.name}
+                  </button>
+                ))}
+                {!loadingSuggestions && suggestions.length === 0 && (
+                  <span className="text-xs text-gray-400">Không tìm thấy gợi ý nào</span>
                 )}
               </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={editingId ? handleUpdate : handleCreate}
-                  disabled={submitting}
-                  className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-60"
-                >
-                  {submitting ? 'Đang lưu...' : editingId ? 'Cập nhật' : 'Lưu'}
-                </button>
-                <button
-                  onClick={resetForm}
-                  className="px-4 py-2 border rounded hover:bg-gray-50"
-                >
-                  Hủy
-                </button>
-              </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </Modal>
 
-      {/* List */}
-      <div className="border rounded-lg p-4 bg-white shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold">Danh sách</h2>
+      <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-gray-900">Danh sách thu chi</h2>
           <button
             onClick={loadFunds}
-            className="px-3 py-1 border rounded text-sm hover:bg-gray-50"
+            className="px-3 py-1 border rounded text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
           >
             Làm mới
           </button>
         </div>
-        {loading ? (
-          <div>Đang tải...</div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="min-w-full text-base">
-              <thead>
-                <tr className="bg-orange-50">
-                  <th className="px-4 py-3 text-left">Ngày</th>
-                  <th className="px-4 py-3 text-left">Loại</th>
-                  <th className="px-4 py-3 text-left">Mô tả</th>
-                  <th className="px-4 py-3 text-left">Danh mục</th>
-                  <th className="px-4 py-3 text-left">Đối tượng</th>
-                  <th className="px-4 py-3 text-left">Tên người</th>
-                  <th className="px-4 py-3 text-right">Số tiền</th>
-                  <th className="px-4 py-3 text-left">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {funds.map((f) => (
-                  <tr key={f.id} className="border-b">
-                    <td className="px-4 py-3">{formatDate(f.date)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        f.type === 'Thu' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {f.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">{f.description}</td>
-                    <td className="px-4 py-3">{f.category || '-'}</td>
-                    <td className="px-4 py-3">{f.objectType || '-'}</td>
-                    <td className="px-4 py-3">{f.objectName || '-'}</td>
-                    <td className={`px-4 py-3 text-right font-semibold ${
-                      f.type === 'Thu' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {f.type === 'Thu' ? '+' : '-'}{f.amount.toLocaleString()}đ
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEdit(f)}
-                          className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                        >
-                          Sửa
-                        </button>
-                        <button
-                          onClick={() => handleDelete(f.id)}
-                          className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!funds.length && <div className="text-sm text-gray-500 py-3">Chưa có dữ liệu</div>}
-          </div>
-        )}
+        <DataTable
+          data={funds}
+          isLoading={loading}
+          columns={[
+            {
+              key: 'date',
+              header: 'Ngày',
+              render: (f) => <span className="text-sm text-gray-600 font-medium">{formatDate(f.date)}</span>
+            },
+            {
+              key: 'type',
+              header: 'Loại',
+              render: (f) => (
+                <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-black uppercase tracking-wider ${f.type === 'Thu' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {f.type}
+                </span>
+              )
+            },
+            {
+              key: 'description',
+              header: 'Mô tả',
+              className: 'max-w-xs truncate font-medium text-gray-900',
+              render: (f) => <span title={f.description}>{f.description}</span>
+            },
+            { key: 'category', header: 'Danh mục', className: 'text-gray-600' },
+            {
+              key: 'object',
+              header: 'Đối tượng',
+              render: (f) => (
+                <div>
+                  <div className="font-semibold text-gray-900">{f.objectName || '-'}</div>
+                  <div className="text-[10px] text-gray-400 uppercase font-bold">{f.objectType || '-'}</div>
+                </div>
+              )
+            },
+            {
+              key: 'amount',
+              header: 'Số tiền',
+              headerClassName: 'text-right',
+              className: 'text-right',
+              render: (f) => (
+                <span className={`font-black text-lg ${f.type === 'Thu' ? 'text-green-600' : 'text-red-600'}`}>
+                  {f.type === 'Thu' ? '+' : '-'}{f.amount.toLocaleString()}đ
+                </span>
+              )
+            }
+          ]}
+          actions={(f) => [
+            {
+              label: 'In phiếu',
+              icon: <Printer className="h-4 w-4" />,
+              onClick: () => handlePrintRecord(f.id)
+            },
+            {
+              label: 'Sửa',
+              icon: <Edit className="h-4 w-4" />,
+              onClick: () => handleEdit(f)
+            },
+            {
+              label: 'Xóa',
+              icon: <Trash2 className="h-4 w-4" />,
+              onClick: () => handleDelete(f.id),
+              variant: 'danger'
+            }
+          ]}
+          emptyMessage="Chưa có dữ liệu sổ quỹ"
+        />
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { toast } from 'sonner';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
@@ -15,8 +16,8 @@ export default function Navbar() {
   const [role, setRole] = useState<string | null>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
-  
-  
+
+
   // Lấy userName và role từ cookie khi component mount
   useEffect(() => {
     const userName = getCookie('userName') || 'U';
@@ -40,13 +41,13 @@ export default function Navbar() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      
+
       // Check if click is on mobile menu button - if so, don't close
       const mobileMenuButton = (event.target as HTMLElement)?.closest('button[aria-label="Toggle mobile menu"]');
       if (mobileMenuButton) {
         return;
       }
-      
+
       if (userDropdownRef.current && !userDropdownRef.current.contains(target)) {
         setIsUserDropdownOpen(false);
       }
@@ -89,12 +90,12 @@ export default function Navbar() {
             document.cookie = 'userName=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
             document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
             document.cookie = 'userId=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-            
+
             // Redirect to login page
             window.location.href = '/login';
           } else {
             console.error('Lỗi đăng xuất');
-            alert('Có lỗi xảy ra khi đăng xuất');
+            toast.error('Có lỗi xảy ra khi đăng xuất');
           }
         } catch (error) {
           console.error('Lỗi kết nối:', error);
@@ -149,53 +150,53 @@ export default function Navbar() {
             >
               Chấm công
             </Link>
-             {(role === 'Admin' || role === 'accountance') && (
-               <>
-            <Link
-              href="/products"
-              aria-current={isProducts ? 'page' : undefined}
-              className={`${baseLink} ${linkSize} ${isProducts ? active : inactive}`}
-            >
-              Sản phẩm
-            </Link>
-                 <Link
-                   href="/nguyen-lieu"
-                   aria-current={isNguyenLieu ? 'page' : undefined}
-                   className={`${baseLink} ${linkSize} ${isNguyenLieu ? active : inactive}`}
-                 >
-                   Nguyên liệu
-                 </Link>
-            <Link
-              href="/customers"
-              aria-current={isCustomers ? 'page' : undefined}
-              className={`${baseLink} ${linkSize} ${isCustomers ? active : inactive}`}
-            >
-              Khách hàng
-            </Link>
-            <Link
-              href="/delivers"
-              aria-current={isDelivers ? 'page' : undefined}
-              className={`${baseLink} ${linkSize} ${isDelivers ? active : inactive}`}
-            >
-              Giao hàng
-            </Link>
-            <Link
-              href="/orders"
-              aria-current={isOrders ? 'page' : undefined}
-              className={`${baseLink} ${linkSize} ${isOrders ? active : inactive}`}
-            >
-              Đơn hàng
-            </Link>
-                 <Link
-                   href="/funds"
-                   aria-current={isFunds ? 'page' : undefined}
-                   className={`${baseLink} ${linkSize} ${isFunds ? active : inactive}`}
-                 >
-                   Sổ quỹ
-                 </Link>
-               </>
-             )}
-             {(role === 'Admin' || role === 'accountance') && (
+            {(role === 'Admin' || role === 'accountance') && (
+              <>
+                <Link
+                  href="/products"
+                  aria-current={isProducts ? 'page' : undefined}
+                  className={`${baseLink} ${linkSize} ${isProducts ? active : inactive}`}
+                >
+                  Sản phẩm
+                </Link>
+                <Link
+                  href="/nguyen-lieu"
+                  aria-current={isNguyenLieu ? 'page' : undefined}
+                  className={`${baseLink} ${linkSize} ${isNguyenLieu ? active : inactive}`}
+                >
+                  Nguyên liệu
+                </Link>
+                <Link
+                  href="/customers"
+                  aria-current={isCustomers ? 'page' : undefined}
+                  className={`${baseLink} ${linkSize} ${isCustomers ? active : inactive}`}
+                >
+                  Khách hàng
+                </Link>
+                <Link
+                  href="/delivers"
+                  aria-current={isDelivers ? 'page' : undefined}
+                  className={`${baseLink} ${linkSize} ${isDelivers ? active : inactive}`}
+                >
+                  Giao hàng
+                </Link>
+                <Link
+                  href="/orders"
+                  aria-current={isOrders ? 'page' : undefined}
+                  className={`${baseLink} ${linkSize} ${isOrders ? active : inactive}`}
+                >
+                  Đơn hàng
+                </Link>
+                <Link
+                  href="/funds"
+                  aria-current={isFunds ? 'page' : undefined}
+                  className={`${baseLink} ${linkSize} ${isFunds ? active : inactive}`}
+                >
+                  Sổ quỹ
+                </Link>
+              </>
+            )}
+            {(role === 'Admin' || role === 'accountance') && (
               <>
                 <Link
                   href="/san-xuat"
@@ -305,116 +306,106 @@ export default function Navbar() {
             <Link
               href="/"
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                isMaterials 
-                  ? 'bg-orange-100 text-orange-700' 
+              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isMaterials
+                  ? 'bg-orange-100 text-orange-700'
                   : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
+                }`}
             >
               Trang chủ
             </Link>
             <Link
               href="/vat-tu"
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                isVatTu 
-                  ? 'bg-orange-100 text-orange-700' 
+              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isVatTu
+                  ? 'bg-orange-100 text-orange-700'
                   : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
+                }`}
             >
               Vật tư
             </Link>
             <Link
               href="/attendance"
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                isAttendance 
-                  ? 'bg-orange-100 text-orange-700' 
+              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isAttendance
+                  ? 'bg-orange-100 text-orange-700'
                   : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
+                }`}
             >
               Chấm công
             </Link>
-             {(role === 'Admin' || role === 'accountance') && (
-               <>
-            <Link
-              href="/products"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                isProducts 
-                  ? 'bg-orange-100 text-orange-700' 
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
-            >
-              Sản phẩm
-            </Link>
-                 <Link
-                   href="/nguyen-lieu"
-                   onClick={() => setIsMobileMenuOpen(false)}
-                   className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                     isNguyenLieu 
-                       ? 'bg-orange-100 text-orange-700' 
-                       : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                   }`}
-                 >
-                   Nguyên liệu
-                 </Link>
-            <Link
-              href="/customers"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                isCustomers 
-                  ? 'bg-orange-100 text-orange-700' 
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
-            >
-              Khách hàng
-            </Link>
-            <Link
-              href="/delivers"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                isDelivers 
-                  ? 'bg-orange-100 text-orange-700' 
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
-            >
-              Giao hàng
-            </Link>
-            <Link
-              href="/orders"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                isOrders 
-                  ? 'bg-orange-100 text-orange-700' 
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
-            >
-              Đơn hàng
-            </Link>
-                 <Link
-                   href="/funds"
-                   onClick={() => setIsMobileMenuOpen(false)}
-                   className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                     isFunds 
-                       ? 'bg-orange-100 text-orange-700' 
-                       : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                   }`}
-                 >
-                   Sổ quỹ
-                 </Link>
-               </>
-             )}
-             {(role === 'Admin' || role === 'accountance') && (
+            {(role === 'Admin' || role === 'accountance') && (
+              <>
+                <Link
+                  href="/products"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isProducts
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                >
+                  Sản phẩm
+                </Link>
+                <Link
+                  href="/nguyen-lieu"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isNguyenLieu
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                >
+                  Nguyên liệu
+                </Link>
+                <Link
+                  href="/customers"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isCustomers
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                >
+                  Khách hàng
+                </Link>
+                <Link
+                  href="/delivers"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isDelivers
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                >
+                  Giao hàng
+                </Link>
+                <Link
+                  href="/orders"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isOrders
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                >
+                  Đơn hàng
+                </Link>
+                <Link
+                  href="/funds"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isFunds
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                >
+                  Sổ quỹ
+                </Link>
+              </>
+            )}
+            {(role === 'Admin' || role === 'accountance') && (
               <>
                 <Link
                   href="/san-xuat"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                    isProduction 
-                      ? 'bg-orange-100 text-orange-700' 
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isProduction
+                      ? 'bg-orange-100 text-orange-700'
                       : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
+                    }`}
                 >
                   Sản xuất
                 </Link>
