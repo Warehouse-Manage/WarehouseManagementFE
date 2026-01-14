@@ -56,40 +56,48 @@ export function deleteCookie(name: string): void {
 	}
 }
 
-export const printBlob = (blob: Blob): Promise<void> =>
-	new Promise((resolve) => {
-		if (!(blob instanceof Blob)) return resolve();
-
-		const url = URL.createObjectURL(blob);
-		const iframe = document.createElement("iframe");
-
-		const cleanup = () => {
-			if (document.body.contains(iframe)) {
-				document.body.removeChild(iframe);
-				URL.revokeObjectURL(url);
-			}
+export const printBlob = (blob: Blob): Promise<void> => {
+	return new Promise((resolve) => {
+		if (!(blob instanceof Blob)) {
 			resolve();
-		};
-
-		iframe.style.display = "none";
+			return;
+		}
+		const url = window.URL.createObjectURL(blob);
+		const iframe = document.createElement('iframe');
+		iframe.style.display = 'none';
 		iframe.src = url;
 		document.body.appendChild(iframe);
 
 		iframe.onload = () => {
-			const win = iframe.contentWindow;
-			if (!win) return cleanup();
+			setTimeout(() => {
+				const win = iframe.contentWindow;
+				if (win) {
+					win.focus();
+					win.print();
+					win.addEventListener('afterprint', () => {
+						if (document.body.contains(iframe)) {
+							document.body.removeChild(iframe);
+							window.URL.revokeObjectURL(url);
+						}
+						resolve();
+					}, { once: true });
 
-			win.focus();
-			win.print();
-
-			win.addEventListener("afterprint", cleanup, { once: true });
-
-			const fallbackTimer = setTimeout(cleanup, 3000);
-			win.addEventListener(
-				"focus",
-				() => clearTimeout(fallbackTimer),
-				{ once: true }
-			);
+					const fallback = setInterval(() => {
+						if (document.hasFocus()) {
+							clearInterval(fallback);
+							setTimeout(() => {
+								if (document.body.contains(iframe)) {
+									document.body.removeChild(iframe);
+									window.URL.revokeObjectURL(url);
+								}
+								resolve();
+							}, 1000);
+						}
+					}, 1000);
+				} else {
+					resolve();
+				}
+			}, 500);
 		};
-	}
-	);
+	});
+};
