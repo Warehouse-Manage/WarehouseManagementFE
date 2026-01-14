@@ -1492,24 +1492,28 @@ export default function AttendancePage() {
           >
             Tạo bảng chấm công
           </button>
-          <button
-            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'mark'
-              ? 'bg-orange-600 text-white'
-              : 'bg-transparent text-gray-500 hover:bg-gray-50'
-              }`}
-            onClick={() => setActiveTab('mark')}
-          >
-            Quản lý chấm công
-          </button>
-          <button
-            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'worker'
-              ? 'bg-orange-600 text-white'
-              : 'bg-transparent text-gray-500 hover:bg-gray-50'
-              }`}
-            onClick={() => setActiveTab('worker')}
-          >
-            Quản lý nhân viên
-          </button>
+          {userRole === 'Admin' && (
+            <>
+              <button
+                className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'mark'
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-transparent text-gray-500 hover:bg-gray-50'
+                  }`}
+                onClick={() => setActiveTab('mark')}
+              >
+                Quản lý chấm công
+              </button>
+              <button
+                className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'worker'
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-transparent text-gray-500 hover:bg-gray-50'
+                  }`}
+                onClick={() => setActiveTab('worker')}
+              >
+                Quản lý nhân viên
+              </button>
+            </>
+          )}
           <button
             className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'overview'
               ? 'bg-orange-600 text-white rounded-tr-xl'
@@ -1628,9 +1632,11 @@ export default function AttendancePage() {
                               <div className="flex-1">
                                 <div className="flex items-center justify-between">
                                   <p className="text-sm font-black text-gray-900">{worker.name}</p>
-                                  <span className="text-xs font-semibold text-orange-600">
-                                    {formatCurrency(worker.salary)}
-                                  </span>
+                                  {userRole === 'Admin' && (
+                                    <span className="text-xs font-semibold text-orange-600">
+                                      {formatCurrency(worker.salary)}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="mt-1 text-xs text-gray-500">
                                   <p>SĐT: {worker.phoneNumber}</p>
