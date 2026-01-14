@@ -48,13 +48,16 @@ export interface Order {
     id: number;
     customerId: number;
     deliverId: number;
+    totalPrice: number;
     sale: number;
+    remainingAmount: number;
     amountCustomerPayment: number;
     shipCost?: number;
     productOrders: ProductOrderDetail[];
     dateCreated: string;
     customer?: Customer;
     deliver?: Deliver;
+    customerName?: string;
 }
 
 export interface OrderFormData {

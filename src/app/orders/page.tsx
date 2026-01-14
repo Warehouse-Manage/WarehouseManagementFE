@@ -53,11 +53,6 @@ export default function OrdersPage() {
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN');
   };
 
-  const calculateOrderGoodsTotal = (order: Order) => {
-    if (!order.productOrders?.length) return 0;
-    return order.productOrders.reduce((sum, p) => sum + p.amount * p.price, 0);
-  };
-
   const loadOrders = async () => {
     setLoading(true);
     setError(null);
@@ -487,11 +482,11 @@ export default function OrdersPage() {
           isLoading={loading}
           columns={[
             {
-              key: 'customer',
+              key: 'customerName',
               header: 'Khách hàng',
               render: (o) => (
                 <div>
-                  <div className="font-bold text-gray-900">{o.customer?.name || `Khách #${o.customerId}`}</div>
+                  <div className="font-bold text-gray-900">{o.customerName || `Khách #${o.customerId}`}</div>
                   <div className="text-xs text-gray-500">ID: {o.id}</div>
                 </div>
               )
@@ -502,11 +497,11 @@ export default function OrdersPage() {
               render: (o) => <span className="text-sm text-gray-600">{formatDateTime(o.dateCreated)}</span>
             },
             {
-              key: 'totalGoods',
+              key: 'totalPrice',
               header: 'Tổng tiền hàng',
               headerClassName: 'text-right',
               className: 'text-right',
-              render: (o) => <span className="font-bold">{calculateOrderGoodsTotal(o).toLocaleString()}</span>
+              render: (o) => <span className="font-bold">{o.totalPrice.toLocaleString()}</span>
             },
             {
               key: 'sale',
@@ -523,19 +518,15 @@ export default function OrdersPage() {
               render: (o) => <span className="text-blue-600 font-bold">{o.amountCustomerPayment.toLocaleString()}</span>
             },
             {
-              key: 'status',
+              key: 'remainingAmount',
               header: 'Còn lại',
               headerClassName: 'text-right',
               className: 'text-right',
-              render: (o) => {
-                const total = calculateOrderGoodsTotal(o) - o.sale;
-                const remaining = total - o.amountCustomerPayment;
-                return (
-                  <span className={`font-black ${remaining > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                    {remaining.toLocaleString()}
-                  </span>
-                );
-              }
+              render: (o) => (
+                <span className={`font-black ${o.remainingAmount > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                  {o.remainingAmount.toLocaleString()}
+                </span>
+              )
             }
           ]}
           actions={(o) => [
@@ -552,7 +543,7 @@ export default function OrdersPage() {
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
             <div className="rounded-lg bg-gray-50 p-3 text-center">
               <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Tổng tiền hàng</p>
-              <p className="text-lg font-black text-gray-900">{orders.reduce((sum, o) => sum + calculateOrderGoodsTotal(o), 0).toLocaleString()}</p>
+              <p className="text-lg font-black text-gray-900">{orders.reduce((sum, o) => sum + o.totalPrice, 0).toLocaleString()}</p>
             </div>
             <div className="rounded-lg bg-red-50 p-3 text-center">
               <p className="text-xs text-red-600 font-bold uppercase tracking-wider">Tổng giảm giá</p>
