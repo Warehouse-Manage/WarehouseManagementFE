@@ -62,34 +62,21 @@ export const printBlob = (blob: Blob): Promise<void> => {
 			resolve();
 			return;
 		}
-
-		const url = URL.createObjectURL(blob);
+		const url = window.URL.createObjectURL(blob);
 		const iframe = document.createElement('iframe');
-
 		iframe.style.display = 'none';
 		iframe.src = url;
+		document.body.appendChild(iframe);
 
 		iframe.onload = () => {
 			const win = iframe.contentWindow;
-			if (!win) {
-				cleanup();
-				resolve();
-				return;
+			if (win) {
+				win.focus();
+				win.print();
 			}
 
-			win.focus();
-			win.print();
-			cleanup();
+			window.URL.revokeObjectURL(url);
 			resolve();
 		};
-
-		document.body.appendChild(iframe);
-
-		function cleanup(): void {
-			if (document.body.contains(iframe)) {
-				document.body.removeChild(iframe);
-			}
-			URL.revokeObjectURL(url);
-		}
 	});
 };
