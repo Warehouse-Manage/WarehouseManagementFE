@@ -62,42 +62,34 @@ export const printBlob = (blob: Blob): Promise<void> => {
 			resolve();
 			return;
 		}
-		const url = window.URL.createObjectURL(blob);
+
+		const url = URL.createObjectURL(blob);
 		const iframe = document.createElement('iframe');
+
 		iframe.style.display = 'none';
 		iframe.src = url;
-		document.body.appendChild(iframe);
 
 		iframe.onload = () => {
-			setTimeout(() => {
-				const win = iframe.contentWindow;
-				if (win) {
-					win.focus();
-					win.print();
-					win.addEventListener('afterprint', () => {
-						if (document.body.contains(iframe)) {
-							document.body.removeChild(iframe);
-							window.URL.revokeObjectURL(url);
-						}
-						resolve();
-					}, { once: true });
+			const win = iframe.contentWindow;
+			if (!win) {
+				cleanup();
+				resolve();
+				return;
+			}
 
-					const fallback = setInterval(() => {
-						if (document.hasFocus()) {
-							clearInterval(fallback);
-							setTimeout(() => {
-								if (document.body.contains(iframe)) {
-									document.body.removeChild(iframe);
-									window.URL.revokeObjectURL(url);
-								}
-								resolve();
-							}, 1000);
-						}
-					}, 1000);
-				} else {
-					resolve();
-				}
-			}, 500);
+			win.focus();
+			win.print();
+			cleanup();
+			resolve();
 		};
+
+		document.body.appendChild(iframe);
+
+		function cleanup(): void {
+			if (document.body.contains(iframe)) {
+				document.body.removeChild(iframe);
+			}
+			URL.revokeObjectURL(url);
+		}
 	});
 };

@@ -178,15 +178,6 @@ export default function OrdersPage() {
     setProductOrdersInput((prev) => [...prev, { productId: '', amount: '', price: '', sale: 0 }]);
   };
 
-  const handlePrintReceipt = async (id: number) => {
-    try {
-      const blob = await financeApi.printOrderReceipt(id);
-      await printBlob(blob);
-    } catch (err) {
-      toast.error('Không thể tải phiếu thu: ' + getErrorMessage(err));
-    }
-  };
-
   const handlePrintDeliveryNote = async (id: number) => {
     try {
       const blob = await financeApi.printOrderDeliveryNote(id);
@@ -194,11 +185,6 @@ export default function OrdersPage() {
     } catch (err) {
       toast.error('Không thể tải phiếu xuất kho: ' + getErrorMessage(err));
     }
-  };
-
-  const handlePrintAll = async (id: number) => {
-    await handlePrintReceipt(id);
-    await handlePrintDeliveryNote(id);
   };
 
   const handleCreate = async () => {
@@ -237,7 +223,6 @@ export default function OrdersPage() {
       });
 
       if (res && res.id) {
-        await handlePrintReceipt(res.id);
         await handlePrintDeliveryNote(res.id);
       }
 
@@ -533,7 +518,7 @@ export default function OrdersPage() {
             {
               label: 'In đơn hàng',
               icon: <Printer className="h-4 w-4" />,
-              onClick: () => handlePrintAll(o.id)
+              onClick: () => handlePrintDeliveryNote(o.id)
             }
           ]}
           emptyMessage="Chưa có dữ liệu đơn hàng"
