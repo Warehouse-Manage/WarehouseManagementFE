@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCookie, printBlob } from '@/lib/ultis';
+import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { financeApi, workerApi, userApi } from '@/api';
 import { Fund, Deliver, Worker, Customer, User } from '@/types';
 import { toast } from 'sonner';
@@ -185,8 +185,8 @@ export default function FundsPage() {
 
   const handlePrintRecord = async (id: number) => {
     try {
-      const blob = await financeApi.printFund(id);
-      await printBlob(blob);
+      const html = await financeApi.printFund(id);
+      await printHtmlContent(html);
     } catch (err) {
       toast.error('Không thể tải bản in: ' + getErrorMessage(err));
     }

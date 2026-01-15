@@ -1,6 +1,6 @@
 export const API_HOST = process.env.NEXT_PUBLIC_API_HOST;
 
-async function request<T>(url: string, options: RequestInit = {}, responseType: 'json' | 'blob' = 'json'): Promise<T> {
+async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     const headers = {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -31,16 +31,16 @@ async function request<T>(url: string, options: RequestInit = {}, responseType: 
         throw new Error(errorText || `HTTP ${response.status}`);
     }
 
-    if (responseType === 'blob') {
-        return response.blob() as unknown as T;
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+        return response.json();
     }
 
-    return response.json();
+    return response.text() as unknown as T;
 }
 
 export const api = {
     get: <T>(url: string, options?: RequestInit) => request<T>(url, { ...options, method: 'GET' }),
-    getBlob: <T>(url: string, options?: RequestInit) => request<T>(url, { ...options, method: 'GET' }, 'blob'),
     post: <T>(url: string, body: unknown, options?: RequestInit) => request<T>(url, { ...options, method: 'POST', body: JSON.stringify(body) }),
     put: <T>(url: string, body: unknown, options?: RequestInit) => request<T>(url, { ...options, method: 'PUT', body: JSON.stringify(body) }),
     patch: <T>(url: string, body: unknown, options?: RequestInit) => request<T>(url, { ...options, method: 'PATCH', body: JSON.stringify(body) }),

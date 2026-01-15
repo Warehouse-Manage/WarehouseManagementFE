@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCookie, printBlob } from '@/lib/ultis';
+import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { financeApi, inventoryApi } from '@/api';
 import { Order, Customer, Deliver, Product } from '@/types';
 import { Modal, DataTable } from '@/components/shared';
@@ -180,8 +180,8 @@ export default function OrdersPage() {
 
   const handlePrintDeliveryNote = async (id: number) => {
     try {
-      const blob = await financeApi.printOrderDeliveryNote(id);
-      await printBlob(blob);
+      const html = await financeApi.printOrderDeliveryNote(id);
+      await printHtmlContent(html);
     } catch (err) {
       toast.error('Không thể tải phiếu xuất kho: ' + getErrorMessage(err));
     }
@@ -223,7 +223,13 @@ export default function OrdersPage() {
       });
 
       if (res && res.id) {
-        await handlePrintDeliveryNote(res.id);
+        const receiptRes = financeApi.printOrderReceipt(res.id);
+        const receiptHtml = await receiptRes;
+        printHtmlContent(receiptHtml);
+
+        const deliveryRes = financeApi.printOrderDeliveryNote(res.id);
+        const deliveryHtml = await deliveryRes;
+        printHtmlContent(deliveryHtml);
       }
 
       resetForm();

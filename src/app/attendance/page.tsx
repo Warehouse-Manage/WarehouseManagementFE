@@ -1656,21 +1656,47 @@ export default function AttendancePage() {
                                 {createForm.selectedDate ? (
                                   <div className="flex flex-col gap-1">
                                     <div className="flex items-center gap-2">
-                                      <input
-                                        type="number"
-                                        step="0.5"
-                                        min="0"
-                                        max="2"
-                                        value={workDate?.workQuantity || 0}
-                                        onChange={(e) => {
-                                          const qty = parseFloat(e.target.value) || 0;
-                                          const ot = workDate?.workOvertime || 0;
-                                          toggleWorkerAttendance(worker.id, createForm.selectedDate, qty, ot);
-                                        }}
-                                        disabled={isSaving}
-                                        placeholder="Công"
-                                        className="w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none disabled:opacity-50"
-                                      />
+                                      <div className="flex items-center">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const qty = Math.max(0, (workDate?.workQuantity || 0) - 0.5);
+                                            const ot = workDate?.workOvertime || 0;
+                                            toggleWorkerAttendance(worker.id, createForm.selectedDate, qty, ot);
+                                          }}
+                                          className="flex h-8 w-8 items-center justify-center rounded-l bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 active:bg-gray-300"
+                                          disabled={isSaving}
+                                        >
+                                          -
+                                        </button>
+                                        <input
+                                          type="number"
+                                          step="0.5"
+                                          min="0"
+                                          max="2"
+                                          value={workDate?.workQuantity || 0}
+                                          onChange={(e) => {
+                                            const qty = parseFloat(e.target.value) || 0;
+                                            const ot = workDate?.workOvertime || 0;
+                                            toggleWorkerAttendance(worker.id, createForm.selectedDate, qty, ot);
+                                          }}
+                                          disabled={isSaving}
+                                          placeholder="Công"
+                                          className="h-8 w-12 border-y border-gray-300 text-center text-xs focus:border-orange-500 focus:outline-none disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const qty = Math.min(2, (workDate?.workQuantity || 0) + 0.5);
+                                            const ot = workDate?.workOvertime || 0;
+                                            toggleWorkerAttendance(worker.id, createForm.selectedDate, qty, ot);
+                                          }}
+                                          className="flex h-8 w-8 items-center justify-center rounded-r bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 active:bg-gray-300"
+                                          disabled={isSaving}
+                                        >
+                                          +
+                                        </button>
+                                      </div>
                                       <span className="text-xs text-gray-500">công</span>
                                       <input
                                         type="number"
@@ -1684,7 +1710,7 @@ export default function AttendancePage() {
                                         }}
                                         disabled={isSaving}
                                         placeholder="OT"
-                                        className="w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none disabled:opacity-50"
+                                        className="w-12 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none disabled:opacity-50"
                                       />
                                       <span className="text-xs text-gray-500">h</span>
                                     </div>
@@ -2320,11 +2346,13 @@ export default function AttendancePage() {
                       key: 'name',
                       header: 'Nhân viên',
                       headerClassName: 'sticky left-0 bg-gray-50 z-10 border-r border-gray-200 min-w-[200px]',
-                      className: 'sticky left-0 bg-inherit z-10 border-r border-gray-200 font-semibold',
+                      className: 'sticky left-0 bg-white z-10 border-r border-gray-200 font-semibold',
                       render: (w) => (
                         <div>
                           <div className="font-bold text-gray-900">{w.name}</div>
-                          <div className="text-xs text-gray-500">{formatCurrency(w.salary)}</div>
+                          {userRole === 'Admin' && (
+                            <div className="text-xs text-gray-500">{formatCurrency(w.salary)}</div>
+                          )}
                         </div>
                       )
                     },

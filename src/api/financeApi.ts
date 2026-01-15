@@ -48,12 +48,12 @@ export const financeApi = {
         return api.post<Order>('/api/orders', data);
     },
 
-    printOrderReceipt: async (id: number): Promise<Blob> => {
-        return api.getBlob<Blob>(`/api/orders/${id}/receipt`);
+    printOrderReceipt: async (id: number): Promise<string> => {
+        return api.get<string>(`/api/orders/${id}/receipt`);
     },
 
-    printOrderDeliveryNote: async (id: number): Promise<Blob> => {
-        return api.getBlob<Blob>(`/api/orders/${id}/delivery-note`);
+    printOrderDeliveryNote: async (id: number): Promise<string> => {
+        return api.get<string>(`/api/orders/${id}/delivery-note`);
     },
 
     // Funds
@@ -70,8 +70,8 @@ export const financeApi = {
         return api.post<Fund>('/api/funds', data);
     },
 
-    printFund: async (id: number): Promise<Blob> => {
-        return api.getBlob<Blob>(`/api/funds/${id}/print`);
+    printFund: async (id: number): Promise<string> => {
+        return api.get<string>(`/api/funds/${id}/print`);
     },
 
     updateFund: async (id: number, data: Partial<FundFormData>): Promise<Fund> => {

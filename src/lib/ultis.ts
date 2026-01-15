@@ -56,27 +56,28 @@ export function deleteCookie(name: string): void {
 	}
 }
 
-export const printBlob = (blob: Blob): Promise<void> => {
-	return new Promise((resolve) => {
-		if (!(blob instanceof Blob)) {
-			resolve();
-			return;
-		}
-		const url = window.URL.createObjectURL(blob);
-		const iframe = document.createElement('iframe');
-		iframe.style.display = 'none';
-		iframe.src = url;
-		document.body.appendChild(iframe);
+export const printHtmlContent = (html: string): void => {
+	const iframe = document.createElement('iframe');
+	iframe.style.position = 'fixed';
+	iframe.style.right = '0';
+	iframe.style.bottom = '0';
+	iframe.style.width = '0';
+	iframe.style.height = '0';
+	iframe.style.border = '0';
+	document.body.appendChild(iframe);
 
-		iframe.onload = () => {
-			const win = iframe.contentWindow;
-			if (win) {
-				win.focus();
-				win.print();
-			}
+	const win = iframe.contentWindow;
+	if (!win) return;
+	win.document.open();
+	win.document.write(html);
+	win.document.close();
 
-			window.URL.revokeObjectURL(url);
-			resolve();
-		};
-	});
+	iframe.onload = () => {
+		win.focus();
+		win.print();
+
+		setTimeout(() => {
+			document.body.removeChild(iframe);
+		}, 1000);
+	};
 };
