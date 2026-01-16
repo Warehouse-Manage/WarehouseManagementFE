@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MoreVertical } from 'lucide-react';
 
 export interface ActionItem {
-    label: string;
+    label?: string;
     icon: React.ReactNode;
     onClick: () => void;
     variant?: 'default' | 'danger';

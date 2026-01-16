@@ -143,17 +143,19 @@ export default function MaterialsPage() {
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           <Link
             href="/vat-tu/yeu-cau"
-            className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-white border border-gray-200 rounded-xl text-sm font-black text-gray-700 hover:bg-gray-50 transition-all shadow-sm active:scale-95"
+            className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-white border border-gray-200 rounded-xl text-xs sm:text-sm font-black text-gray-700 hover:bg-gray-50 transition-all shadow-sm active:scale-95"
           >
             <Activity className="h-4 w-4" />
-            Lịch sử yêu cầu
+            <span className="hidden sm:inline">Lịch sử yêu cầu</span>
+            <span className="sm:hidden">Lịch sử</span>
           </Link>
           <button
             onClick={() => router.push('/vat-tu/yeu-cau')}
-            className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-6 py-4 bg-orange-600 rounded-2xl text-white font-black hover:bg-orange-700 transition-all shadow-lg shadow-orange-200 active:scale-95"
+            className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-orange-600 rounded-xl text-white text-xs sm:text-sm font-black hover:bg-orange-700 transition-all shadow-lg shadow-orange-200 active:scale-95"
           >
-            <Plus className="h-5 w-5" />
-            Tạo yêu cầu mới
+            <Plus className="h-4 sm:h-5 w-4 sm:w-5" />
+            <span className="hidden sm:inline">Tạo yêu cầu mới</span>
+            <span className="sm:hidden">Thêm</span>
           </button>
         </div>
       </div>

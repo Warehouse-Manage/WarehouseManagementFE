@@ -1465,13 +1465,11 @@ export default function AttendancePage() {
 
   // Admin/Approver role view - full interface
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Chấm công cho nhân viên</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">
-            Tạo hoặc cập nhật bảng chấm công và đánh dấu ngày nghỉ cho từng nhân viên.
-          </p>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Chấm công</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 font-medium">Quản lý lương và thời gian làm việc của nhân viên</p>
         </div>
       </div>
 
@@ -1481,43 +1479,43 @@ export default function AttendancePage() {
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex flex-col sm:flex-row">
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="flex overflow-x-auto no-scrollbar scroll-smooth bg-gray-50/50 border-b border-gray-100">
           <button
-            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'create'
-              ? 'bg-orange-600 text-white rounded-tl-xl'
-              : 'bg-transparent text-gray-500 hover:bg-gray-50'
+            className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'create'
+              ? 'bg-white text-orange-600 border-b-2 border-orange-600'
+              : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'
               }`}
             onClick={() => setActiveTab('create')}
           >
-            Tạo bảng chấm công
+            Tạo chấm công
           </button>
           {userRole === 'Admin' && (
             <>
               <button
-                className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'mark'
-                  ? 'bg-orange-600 text-white'
-                  : 'bg-transparent text-gray-500 hover:bg-gray-50'
+                className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'mark'
+                  ? 'bg-white text-orange-600 border-b-2 border-orange-600'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'
                   }`}
                 onClick={() => setActiveTab('mark')}
               >
-                Quản lý chấm công
+                Quản lý
               </button>
               <button
-                className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'worker'
-                  ? 'bg-orange-600 text-white'
-                  : 'bg-transparent text-gray-500 hover:bg-gray-50'
+                className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'worker'
+                  ? 'bg-white text-orange-600 border-b-2 border-orange-600'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'
                   }`}
                 onClick={() => setActiveTab('worker')}
               >
-                Quản lý nhân viên
+                Nhân viên
               </button>
             </>
           )}
           <button
-            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'overview'
-              ? 'bg-orange-600 text-white rounded-tr-xl'
-              : 'bg-transparent text-gray-500 hover:bg-gray-50'
+            className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'overview'
+              ? 'bg-white text-orange-600 border-b-2 border-orange-600'
+              : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'
               }`}
             onClick={() => setActiveTab('overview')}
           >
@@ -1783,54 +1781,60 @@ export default function AttendancePage() {
               </div>
 
               {allAttendances.length > 0 && (
-                <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-orange-50 border-b border-gray-200">
-                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-900">Nhân viên</th>
-                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-900">Lương tháng</th>
-                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-900">Đã trả</th>
-                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-900">Còn lại</th>
-                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-900">Số ngày làm</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allAttendances.map((attendance) => {
-                        const remaining = attendance.monthlySalary - attendance.salaryPaid;
-                        const isSelected = selectedWorkerForDetail === attendance.workerId;
-                        return (
-                          <tr
-                            key={attendance.workerId}
-                            onClick={() => loadWorkerDetail(attendance.workerId)}
-                            className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${isSelected ? 'bg-orange-50' : ''
-                              }`}
-                          >
-                            <td className="px-4 py-3 text-sm font-semibold text-gray-900">
-                              {attendance.worker?.name || `Nhân viên #${attendance.workerId}`}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-green-600 font-semibold">
-                              {formatCurrency(attendance.monthlySalary)}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-blue-600 font-semibold">
-                              {formatCurrency(attendance.salaryPaid)}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-orange-600 font-semibold">
-                              {formatCurrency(remaining)}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700">
-                              {markForm.month ? (() => {
-                                const workDatesInPeriod = (attendance.daysOff || []).filter(wd => {
-                                  return isDateInSalaryPeriod(normalizeDateString(wd.workDate), markForm.month);
-                                });
-                                return `${workDatesInPeriod.length} ngày`;
-                              })() : `${attendance.daysOff?.length || 0} ngày`}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  data={allAttendances}
+                  columns={[
+                    {
+                      key: 'workerName',
+                      header: 'Nhân viên',
+                      isMain: true,
+                      render: (a) => (
+                        <div className="font-black text-gray-900 uppercase">
+                          {a.worker?.name || `Nhân viên #${a.workerId}`}
+                        </div>
+                      )
+                    },
+                    {
+                      key: 'monthlySalary',
+                      header: 'Lương tháng',
+                      isMain: true,
+                      className: 'text-right',
+                      headerClassName: 'text-right',
+                      render: (a) => <span className="text-green-600 font-black">{formatCurrency(a.monthlySalary)}</span>
+                    },
+                    {
+                      key: 'salaryPaid',
+                      header: 'Đã trả',
+                      mobileHidden: true,
+                      className: 'text-right',
+                      headerClassName: 'text-right',
+                      render: (a) => <span className="text-blue-600 font-bold">{formatCurrency(a.salaryPaid)}</span>
+                    },
+                    {
+                      key: 'remaining',
+                      header: 'Còn lại',
+                      className: 'text-right',
+                      headerClassName: 'text-right',
+                      render: (a) => (
+                        <span className="text-orange-600 font-black">{formatCurrency(a.monthlySalary - a.salaryPaid)}</span>
+                      )
+                    },
+                    {
+                      key: 'workDays',
+                      header: 'Số ngày làm',
+                      mobileHidden: true,
+                      className: 'text-center',
+                      headerClassName: 'text-center',
+                      render: (a) => markForm.month ? (() => {
+                        const workDatesInPeriod = (a.daysOff || []).filter(wd => {
+                          return isDateInSalaryPeriod(normalizeDateString(wd.workDate), markForm.month);
+                        });
+                        return `${workDatesInPeriod.length} ngày`;
+                      })() : `${a.daysOff?.length || 0} ngày`
+                    }
+                  ]}
+                  onRowClick={(a) => loadWorkerDetail(a.workerId)}
+                />
               )}
 
               {allAttendances.length === 0 && !isLoadingAllAttendances && markForm.month && (
@@ -2106,8 +2110,18 @@ export default function AttendancePage() {
                   {isSavingWorker
                     ? 'Đang lưu...'
                     : editingWorker
-                      ? 'Cập nhật nhân viên'
-                      : 'Tạo nhân viên'}
+                      ? (
+                        <>
+                          <span className="hidden sm:inline">Cập nhật nhân viên</span>
+                          <span className="sm:hidden">Cập nhật</span>
+                        </>
+                      )
+                      : (
+                        <>
+                          <span className="hidden sm:inline">Tạo nhân viên</span>
+                          <span className="sm:hidden">Thêm</span>
+                        </>
+                      )}
                 </button>
               </div>
 
@@ -2119,7 +2133,7 @@ export default function AttendancePage() {
                     placeholder="Tìm theo tên hoặc số điện thoại..."
                     value={workerSearchCrud}
                     onChange={(e) => setWorkerSearchCrud(e.target.value)}
-                    className="w-full sm:w-auto rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                    className="w-full sm:w-auto rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-orange-500 focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all"
                   />
                 </div>
 
@@ -2136,19 +2150,28 @@ export default function AttendancePage() {
                         {
                           key: 'name',
                           header: 'Tên nhân viên',
+                          isMain: true,
                           render: (w) => (
-                            <div>
-                              <div className="font-bold text-gray-900">{w.name}</div>
-                              <div className="text-xs text-gray-500">ID: {w.id}</div>
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 min-w-[40px] rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-black text-xs">
+                                {w.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-black text-gray-900 uppercase tracking-tight">{w.name}</div>
+                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">#{w.id}</div>
+                              </div>
                             </div>
                           )
                         },
-                        { key: 'age', header: 'Tuổi' },
-                        { key: 'phoneNumber', header: 'Số điện thoại' },
+                        { key: 'age', header: 'Tuổi', mobileHidden: true },
+                        { key: 'phoneNumber', header: 'Số điện thoại', mobileHidden: true },
                         {
                           key: 'salary',
                           header: 'Lương cơ bản',
-                          render: (w) => <span className="font-bold text-orange-600">{formatCurrency(w.salary)}</span>
+                          headerClassName: 'text-right',
+                          className: 'text-right',
+                          isMain: true,
+                          render: (w) => <span className="font-black text-orange-600 md:text-base">{formatCurrency(w.salary)}</span>
                         },
                         {
                           key: 'actions',
@@ -2318,18 +2341,18 @@ export default function AttendancePage() {
             </div>
           ) : activeTab === 'overview' ? (
             <div className="space-y-6 p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-black text-gray-900">Tổng quan chấm công tháng</h2>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Xem chi tiết chấm công của tất cả nhân viên trong tháng
+                  <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">Tổng quan chấm công</h2>
+                  <p className="text-[10px] sm:text-xs text-gray-500 mt-1 font-medium uppercase tracking-wider">
+                    Chi tiết tháng {overviewMonth}
                   </p>
                 </div>
                 <input
                   type="month"
                   value={overviewMonth}
                   onChange={(e) => setOverviewMonth(e.target.value)}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                  className="w-full sm:w-auto rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
                 />
               </div>
 
@@ -2341,12 +2364,13 @@ export default function AttendancePage() {
                 <DataTable
                   data={workers}
                   isLoading={isLoadingOverviewAll}
+                  disableCardView={true}
                   columns={[
                     {
                       key: 'name',
                       header: 'Nhân viên',
-                      headerClassName: 'sticky left-0 bg-gray-50 z-10 border-r border-gray-200 min-w-[200px]',
-                      className: 'sticky left-0 bg-white z-10 border-r border-gray-200 font-semibold',
+                      headerClassName: 'sticky left-0 bg-gray-50 z-10 border-r border-gray-200 min-w-[120px] text-[10px]',
+                      className: 'sticky left-0 bg-white z-10 border-r border-gray-200 font-bold text-xs sm:min-w-[150px]',
                       render: (w) => (
                         <div>
                           <div className="font-bold text-gray-900">{w.name}</div>
@@ -2359,8 +2383,8 @@ export default function AttendancePage() {
                     ...getOverviewDays(overviewMonth).map((dayInfo) => ({
                       key: dayInfo.dateValue,
                       header: String(dayInfo.day),
-                      headerClassName: 'text-center border-r border-gray-200 min-w-[60px]',
-                      className: 'text-center border-r border-gray-100 p-0',
+                      headerClassName: 'text-center border-r border-gray-200 min-w-[40px] text-[10px]',
+                      className: 'text-center border-r border-gray-100 p-0 min-w-[40px]',
                       render: (w: Worker) => {
                         const attendance = overviewAttendances.get(w.id);
                         const workDate = getWorkDateForOverview(attendance || null, dayInfo.dateValue);

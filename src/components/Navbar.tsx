@@ -110,8 +110,8 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-40 bg-white shadow-sm">
-      <div className="h-14 flex items-center justify-between px-4">
+    <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
+      <div className="h-14 flex items-center justify-between px-4 max-w-[1440px] mx-auto w-full">
         {/* Logo/Brand - left side */}
         <div className="flex items-center">
           <Link href="/" aria-label="Trang chủ">
@@ -301,14 +301,14 @@ export default function Navbar() {
 
       {/* Mobile Navigation Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-200 bg-white" ref={mobileMenuRef}>
-          <div className="px-2 pt-2 pb-3 space-y-1">
+        <div className="md:hidden border-t border-gray-100 bg-white/95 backdrop-blur-lg animate-in slide-in-from-top duration-300" ref={mobileMenuRef}>
+          <div className="px-3 pt-2 pb-6 space-y-1">
             <Link
               href="/"
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isMaterials
-                  ? 'bg-orange-100 text-orange-700'
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+              className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isMaterials
+                ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                : 'text-gray-700 hover:bg-gray-50'
                 }`}
             >
               Trang chủ
@@ -316,9 +316,9 @@ export default function Navbar() {
             <Link
               href="/vat-tu"
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isVatTu
-                  ? 'bg-orange-100 text-orange-700'
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+              className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isVatTu
+                ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                : 'text-gray-700 hover:bg-gray-50'
                 }`}
             >
               Vật tư
@@ -326,9 +326,9 @@ export default function Navbar() {
             <Link
               href="/attendance"
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isAttendance
-                  ? 'bg-orange-100 text-orange-700'
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+              className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isAttendance
+                ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                : 'text-gray-700 hover:bg-gray-50'
                 }`}
             >
               Chấm công
@@ -338,9 +338,9 @@ export default function Navbar() {
                 <Link
                   href="/products"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isProducts
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isProducts
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                    : 'text-gray-700 hover:bg-gray-50'
                     }`}
                 >
                   Sản phẩm
@@ -348,9 +348,9 @@ export default function Navbar() {
                 <Link
                   href="/nguyen-lieu"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isNguyenLieu
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isNguyenLieu
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                    : 'text-gray-700 hover:bg-gray-50'
                     }`}
                 >
                   Nguyên liệu
@@ -358,9 +358,9 @@ export default function Navbar() {
                 <Link
                   href="/customers"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isCustomers
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isCustomers
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                    : 'text-gray-700 hover:bg-gray-50'
                     }`}
                 >
                   Khách hàng
@@ -368,9 +368,9 @@ export default function Navbar() {
                 <Link
                   href="/delivers"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isDelivers
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isDelivers
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                    : 'text-gray-700 hover:bg-gray-50'
                     }`}
                 >
                   Giao hàng
@@ -378,9 +378,9 @@ export default function Navbar() {
                 <Link
                   href="/orders"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isOrders
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isOrders
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                    : 'text-gray-700 hover:bg-gray-50'
                     }`}
                 >
                   Đơn hàng
@@ -388,9 +388,9 @@ export default function Navbar() {
                 <Link
                   href="/funds"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isFunds
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isFunds
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                    : 'text-gray-700 hover:bg-gray-50'
                     }`}
                 >
                   Sổ quỹ
@@ -402,9 +402,9 @@ export default function Navbar() {
                 <Link
                   href="/san-xuat"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${isProduction
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isProduction
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                    : 'text-gray-700 hover:bg-gray-50'
                     }`}
                 >
                   Sản xuất

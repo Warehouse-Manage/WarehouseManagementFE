@@ -117,20 +117,21 @@ export default function NguyenLieuPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Nguyên liệu</h1>
-          <p className="text-sm text-gray-600 mt-1">Theo dõi tồn kho nguyên liệu và vật tư thô</p>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Nguyên liệu</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 font-medium">Theo dõi tồn kho nguyên liệu và vật tư thô</p>
         </div>
         <button
           onClick={() => {
             resetForm();
             setShowForm(true);
           }}
-          className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 transition-colors shadow-sm"
+          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl shadow-lg shadow-orange-200 hover:shadow-orange-300 font-bold active:scale-95 transition-all text-sm"
         >
-          + Thêm nguyên liệu
+          <span className="hidden sm:inline">+ Thêm nguyên liệu</span>
+          <span className="sm:hidden">+ Thêm</span>
         </button>
       </div>
 
