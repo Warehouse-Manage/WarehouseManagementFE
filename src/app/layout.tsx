@@ -137,6 +137,7 @@ export default function RootLayout({
               function showInstallButton() {
                 if (!installButton) {
                   installButton = document.createElement('button');
+                  installButton.textContent = '📱 Cài đặt ứng dụng';
                   installButton.style.cssText = \`
                     position: fixed;
                     top: 20px;
