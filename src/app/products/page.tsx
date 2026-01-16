@@ -91,11 +91,11 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Sản phẩm</h1>
-          <p className="text-sm text-gray-600 mt-1">Quản lý danh sách thành phẩm gạch và giá bán</p>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Sản phẩm</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 font-medium">Quản lý danh sách thành phẩm gạch và giá bán</p>
         </div>
         <button
           onClick={() => {
@@ -105,9 +105,10 @@ export default function ProductsPage() {
             setError(null);
             setShowForm(true);
           }}
-          className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 transition-colors shadow-sm"
+          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl shadow-lg shadow-orange-200 hover:shadow-orange-300 font-bold active:scale-95 transition-all text-sm"
         >
-          + Thêm sản phẩm
+          <span className="hidden sm:inline">+ Thêm sản phẩm</span>
+          <span className="sm:hidden">+ Thêm</span>
         </button>
       </div>
 
@@ -150,13 +151,17 @@ export default function ProductsPage() {
       </Modal>
 
       <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-gray-900">Danh sách sản phẩm</h2>
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h2 className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-wider">Danh sách sản phẩm</h2>
           <button
             onClick={loadProducts}
-            className="px-3 py-1 border rounded text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            disabled={loading}
+            className="p-2 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 active:bg-gray-100 transition-all flex items-center gap-2"
           >
-            Làm mới
+            <svg className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span className="hidden sm:inline">Làm mới</span>
           </button>
         </div>
         <DataTable
@@ -166,21 +171,30 @@ export default function ProductsPage() {
             {
               key: 'name',
               header: 'Tên sản phẩm',
-              className: 'font-bold text-gray-900',
-              render: (p) => <span>{p.name}</span>
+              isMain: true,
+              className: 'font-black text-gray-900',
+              render: (p) => (
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 min-w-[40px] rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-black text-xs">
+                    {p.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="uppercase tracking-tight">{p.name}</span>
+                </div>
+              )
             },
             {
               key: 'price',
               header: 'Đơn giá',
+              isMain: true,
               headerClassName: 'text-right',
-              className: 'text-right font-semibold text-orange-600',
+              className: 'text-right font-black text-orange-600 md:text-base',
               render: (p) => <span>{p.price.toLocaleString()}đ</span>
             },
             {
               key: 'quantity',
-              header: 'Số lượng tồn',
+              header: 'Tồn kho',
               headerClassName: 'text-right',
-              className: 'text-right font-mono text-gray-900',
+              className: 'text-right font-bold text-gray-500',
               render: (p) => <span>{p.quantity.toLocaleString()}</span>
             }
           ]}

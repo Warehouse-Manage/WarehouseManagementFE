@@ -322,14 +322,15 @@ export default function YeuCauPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-xl sm:text-2xl font-black text-gray-800">Đề nghị mua vật tư</h1>
         <button
           type="button"
           onClick={() => setShowCreateMaterial(true)}
-          className="inline-flex items-center rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 shadow-md transition-all"
+          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl shadow-lg shadow-orange-200 hover:shadow-orange-300 font-bold active:scale-95 transition-all text-sm flex items-center justify-center gap-2"
         >
-          + Thêm vật tư mới
+          <span className="hidden sm:inline">+ Thêm vật tư mới</span>
+          <span className="sm:hidden">+ Thêm</span>
         </button>
       </div>
 
@@ -499,7 +500,8 @@ export default function YeuCauPage() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Thêm dòng mới
+            <span className="hidden sm:inline">Thêm dòng mới</span>
+            <span className="sm:hidden">Dòng mới</span>
           </button>
           <div className="flex gap-3">
             <button

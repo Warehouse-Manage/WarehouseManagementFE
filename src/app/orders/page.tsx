@@ -243,14 +243,18 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Đơn hàng</h1>
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Đơn hàng</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 font-medium">Theo dõi và quản lý các đơn hàng xuất kho</p>
+        </div>
         <button
           onClick={handleOpenModal}
-          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl shadow-lg shadow-orange-200 hover:shadow-orange-300 font-bold active:scale-95 transition-all text-sm"
         >
-          + Tạo đơn hàng mới
+          <span className="hidden sm:inline">+ Tạo đơn hàng mới</span>
+          <span className="sm:hidden">+ Thêm</span>
         </button>
       </div>
 
@@ -458,13 +462,17 @@ export default function OrdersPage() {
       </Modal>
 
       <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-gray-900">Danh sách đơn hàng</h2>
+        <div className="flex items-center justify-between mb-2 sm:mb-4">
+          <h2 className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-wider">Danh sách đơn hàng</h2>
           <button
             onClick={loadOrders}
-            className="px-3 py-1 border rounded text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            disabled={loading}
+            className="p-2 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 active:bg-gray-100 transition-all flex items-center gap-2"
           >
-            Làm mới
+            <svg className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span className="hidden sm:inline">Làm mới</span>
           </button>
         </div>
 
@@ -475,48 +483,69 @@ export default function OrdersPage() {
             {
               key: 'customerName',
               header: 'Khách hàng',
+              isMain: true,
               render: (o) => (
-                <div>
-                  <div className="font-bold text-gray-900">{o.customerName || `Khách #${o.customerId}`}</div>
-                  <div className="text-xs text-gray-500">ID: {o.id}</div>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 min-w-[40px] rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-black text-xs">
+                    {(o.customerName || 'K').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="font-black text-gray-900 hover:text-orange-600 transition-colors uppercase tracking-tight">
+                      {o.customerName || `Khách #${o.customerId}`}
+                    </div>
+                    <div className="text-[10px] text-gray-400 font-bold tracking-widest">#{o.id}</div>
+                  </div>
                 </div>
               )
             },
             {
               key: 'dateCreated',
               header: 'Thời gian',
-              render: (o) => <span className="text-sm text-gray-600">{formatDateTime(o.dateCreated)}</span>
+              render: (o) => (
+                <div className="text-sm font-bold text-gray-700">
+                  {formatDateTime(o.dateCreated)}
+                </div>
+              )
             },
             {
               key: 'totalPrice',
-              header: 'Tổng tiền hàng',
+              header: 'Tổng tiền',
               headerClassName: 'text-right',
               className: 'text-right',
-              render: (o) => <span className="font-bold">{o.totalPrice.toLocaleString()}</span>
+              render: (o) => (
+                <span className="font-black text-gray-900 md:text-base">
+                  {o.totalPrice.toLocaleString()}đ
+                </span>
+              )
             },
             {
               key: 'sale',
               header: 'Giảm giá',
+              mobileHidden: true,
               headerClassName: 'text-right',
               className: 'text-right',
-              render: (o) => <span className="text-red-600 font-semibold">{o.sale.toLocaleString()}</span>
+              render: (o) => <span className="text-red-500 font-bold">{o.sale.toLocaleString()}đ</span>
             },
             {
               key: 'amountCustomerPayment',
-              header: 'Khách đã trả',
+              header: 'Khách trả',
+              mobileHidden: true,
               headerClassName: 'text-right',
               className: 'text-right',
-              render: (o) => <span className="text-blue-600 font-bold">{o.amountCustomerPayment.toLocaleString()}</span>
+              render: (o) => <span className="text-blue-600 font-bold">{o.amountCustomerPayment.toLocaleString()}đ</span>
             },
             {
               key: 'remainingAmount',
-              header: 'Còn lại',
+              header: 'Còn nợ',
               headerClassName: 'text-right',
               className: 'text-right',
               render: (o) => (
-                <span className={`font-black ${o.remainingAmount > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                  {o.remainingAmount.toLocaleString()}
-                </span>
+                <div className="flex flex-col items-end">
+                  <span className={`font-black md:text-base ${o.remainingAmount > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                    {o.remainingAmount.toLocaleString()}đ
+                  </span>
+                  {o.remainingAmount > 0 && <span className="text-[10px] font-bold text-orange-400 uppercase tracking-tighter md:hidden">Chưa thu</span>}
+                </div>
               )
             }
           ]}

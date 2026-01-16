@@ -291,33 +291,40 @@ export default function FundsPage() {
   const balance = totalThu - totalChi;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Sổ quỹ</h1>
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Sổ quỹ</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 font-medium">Theo dõi thu chi và quản lý dòng tiền</p>
+        </div>
         <button
           onClick={() => {
-            resetForm();
+            setEditingId(null);
+            setType('');
+            setAmount('');
+            setCategory('');
+            setDescription('');
             setShowForm(true);
           }}
-          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl shadow-lg shadow-orange-200 hover:shadow-orange-300 font-bold active:scale-95 transition-all text-sm"
         >
-          + Thêm bản ghi
+          <span className="hidden sm:inline">+ Thêm bản ghi</span>
+          <span className="sm:hidden">+ Thêm</span>
         </button>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="border rounded-lg p-4 bg-green-50">
-          <div className="text-sm text-gray-600">Tổng thu</div>
-          <div className="text-2xl font-bold text-green-600">{totalThu.toLocaleString()}đ</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
+        <div className="border border-green-100 rounded-2xl p-4 bg-green-50 shadow-sm shadow-green-100">
+          <div className="text-[10px] font-black uppercase text-green-600 tracking-wider mb-1">Tổng thu</div>
+          <div className="text-2xl font-black text-green-700">{totalThu.toLocaleString()}đ</div>
         </div>
-        <div className="border rounded-lg p-4 bg-red-50">
-          <div className="text-sm text-gray-600">Tổng chi</div>
-          <div className="text-2xl font-bold text-red-600">{totalChi.toLocaleString()}đ</div>
+        <div className="border border-red-100 rounded-2xl p-4 bg-red-50 shadow-sm shadow-red-100">
+          <div className="text-[10px] font-black uppercase text-red-600 tracking-wider mb-1">Tổng chi</div>
+          <div className="text-2xl font-black text-red-700">{totalChi.toLocaleString()}đ</div>
         </div>
-        <div className="border rounded-lg p-4 bg-blue-50">
-          <div className="text-sm text-gray-600">Số dư</div>
-          <div className={`text-2xl font-bold ${balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+        <div className="border border-blue-100 rounded-2xl p-4 bg-blue-50 shadow-sm shadow-blue-100">
+          <div className="text-[10px] font-black uppercase text-blue-600 tracking-wider mb-1">Số dư</div>
+          <div className={`text-2xl font-black ${balance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
             {balance.toLocaleString()}đ
           </div>
         </div>
@@ -434,14 +441,18 @@ export default function FundsPage() {
         </div>
       </Modal>
 
-      <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-gray-900">Danh sách thu chi</h2>
+      <div className="border rounded-2xl p-3 sm:p-5 bg-white shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h2 className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-wider">Lịch sử giao dịch</h2>
           <button
             onClick={loadFunds}
-            className="px-3 py-1 border rounded text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            disabled={loading}
+            className="p-2 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 active:bg-gray-100 transition-all flex items-center gap-2"
           >
-            Làm mới
+            <svg className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span className="hidden sm:inline">Làm mới</span>
           </button>
         </div>
         <DataTable
@@ -449,15 +460,10 @@ export default function FundsPage() {
           isLoading={loading}
           columns={[
             {
-              key: 'date',
-              header: 'Ngày',
-              render: (f) => <span className="text-sm text-gray-600 font-medium">{formatDate(f.date)}</span>
-            },
-            {
               key: 'type',
               header: 'Loại',
               render: (f) => (
-                <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-black uppercase tracking-wider ${f.type === 'Thu' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                <span className={`inline-flex items-center rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wider ${f.type === 'Thu' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                   {f.type}
                 </span>
               )
@@ -465,17 +471,36 @@ export default function FundsPage() {
             {
               key: 'description',
               header: 'Mô tả',
-              className: 'max-w-xs truncate font-medium text-gray-900',
-              render: (f) => <span title={f.description}>{f.description}</span>
+              isMain: true,
+              className: 'font-black text-gray-900',
+              render: (f) => (
+                <div>
+                  <div className="truncate max-w-[180px] md:max-w-xs" title={f.description}>{f.description}</div>
+                  <div className="md:hidden text-[10px] text-gray-400 font-bold uppercase tracking-tight mt-0.5">
+                    {formatDate(f.date)} • {f.category}
+                  </div>
+                </div>
+              )
             },
-            { key: 'category', header: 'Danh mục', className: 'text-gray-600' },
+            {
+              key: 'date',
+              header: 'Ngày',
+              mobileHidden: true,
+              render: (f) => <span className="text-sm text-gray-600 font-semibold">{formatDate(f.date)}</span>
+            },
+            { key: 'category', header: 'Danh mục', mobileHidden: true, className: 'text-gray-600 font-medium' },
             {
               key: 'object',
               header: 'Đối tượng',
               render: (f) => (
-                <div>
-                  <div className="font-semibold text-gray-900">{f.objectName || '-'}</div>
-                  <div className="text-[10px] text-gray-400 uppercase font-bold">{f.objectType || '-'}</div>
+                <div className="flex items-center gap-2">
+                  <div className={`h-8 w-8 rounded-full flex items-center justify-center text-[10px] font-black ${f.type === 'Thu' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                    {(f.objectName || 'O').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="font-bold text-gray-800 text-xs">{f.objectName || '-'}</div>
+                    <div className="text-[9px] text-gray-400 uppercase font-black tracking-tighter">{f.objectType || '-'}</div>
+                  </div>
                 </div>
               )
             },
@@ -484,8 +509,9 @@ export default function FundsPage() {
               header: 'Số tiền',
               headerClassName: 'text-right',
               className: 'text-right',
+              isMain: true,
               render: (f) => (
-                <span className={`font-black text-lg ${f.type === 'Thu' ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`font-black text-base md:text-lg ${f.type === 'Thu' ? 'text-green-600' : 'text-red-600'}`}>
                   {f.type === 'Thu' ? '+' : '-'}{f.amount.toLocaleString()}đ
                 </span>
               )
