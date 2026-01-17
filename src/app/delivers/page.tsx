@@ -5,6 +5,7 @@ import { getCookie } from '@/lib/ultis';
 import { financeApi } from '@/api';
 import { Deliver } from '@/types';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
+import { CreditCard } from 'lucide-react';
 
 // Type Deliver moved to @/types/finance.ts
 
@@ -274,25 +275,18 @@ export default function DeliversPage() {
                 return <span>{remaining.toLocaleString('vi-VN')}đ</span>;
               }
             },
-            {
-              key: 'actions',
-              header: 'Thao tác',
-              headerClassName: 'text-center',
-              className: 'text-center',
-              render: (d) => {
-                const remaining = (d.amountMoneyTotal || 0) - (d.amountMoneyPaid || 0);
-                return (
-                  <button
-                    onClick={() => handleOpenPaymentModal(d)}
-                    className="rounded-lg bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-600 hover:bg-orange-100 transition-colors disabled:opacity-30 disabled:grayscale"
-                    disabled={remaining <= 0}
-                  >
-                    Thanh toán
-                  </button>
-                );
-              }
-            }
           ]}
+          actions={(d) => {
+            const remaining = (d.amountMoneyTotal || 0) - (d.amountMoneyPaid || 0);
+            return [
+              {
+                label: 'Thanh toán',
+                icon: <CreditCard className="h-4 w-4" />,
+                onClick: () => handleOpenPaymentModal(d),
+                variant: 'default' as const
+              }
+            ].filter(() => remaining > 0);
+          }}
           emptyMessage="Chưa có dữ liệu người giao hàng"
         />
       </div>

@@ -1488,7 +1488,8 @@ export default function AttendancePage() {
               }`}
             onClick={() => setActiveTab('create')}
           >
-            Tạo chấm công
+            <span className="hidden sm:inline">Tạo chấm công</span>
+            <span className="sm:hidden">Chấm công</span>
           </button>
           {userRole === 'Admin' && (
             <>
@@ -1627,46 +1628,145 @@ export default function AttendancePage() {
                             className="w-full rounded-lg border border-gray-200 bg-white p-3 transition hover:border-orange-300"
                           >
                             <div className="flex items-start justify-between gap-3">
+                              {/* ================= LEFT: INFO ================= */}
                               <div className="flex-1">
-                                <div className="flex items-center justify-between">
-                                  <p className="text-sm font-black text-gray-900">{worker.name}</p>
+                                {/* Name + Salary */}
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                                  <p className="text-xs sm:text-sm font-black text-gray-900">
+                                    {worker.name}
+                                  </p>
+
                                   {userRole === 'Admin' && (
                                     <span className="text-xs font-semibold text-orange-600">
                                       {formatCurrency(worker.salary)}
                                     </span>
                                   )}
                                 </div>
-                                <div className="mt-1 text-xs text-gray-500">
+
+                                {/* Extra info */}
+                                <div className="mt-1 space-y-0.5 text-xs text-gray-500">
                                   <p>SĐT: {worker.phoneNumber}</p>
+
                                   {attendance && (
-                                    <p className="text-orange-600 font-semibold">
-                                      {workDatesCount} ngày làm việc trong tháng
+                                    <p className="font-semibold text-orange-600">
+                                      <span className="block sm:hidden">
+                                        {workDatesCount} ngày làm việc
+                                      </span>
+                                      <span className="hidden sm:block">
+                                        {workDatesCount} ngày làm việc trong tháng
+                                      </span>
                                     </p>
                                   )}
+
                                   {workDate && workDate.workQuantity > 0 && (
-                                    <p className="text-green-600 font-semibold">
+                                    <p className="font-semibold text-green-600">
                                       Công: {workDate.workQuantity} • OT: {workDate.workOvertime}h
                                     </p>
                                   )}
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {createForm.selectedDate ? (
-                                  <div className="flex flex-col gap-1">
+
+                                {/* ================= MOBILE ATTENDANCE ================= */}
+                                {createForm.selectedDate && (
+                                  <div className="mt-3 sm:hidden rounded-md border border-gray-200 bg-gray-50 p-2">
                                     <div className="flex items-center gap-2">
+                                      {/* Work quantity */}
                                       <div className="flex items-center">
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            const qty = Math.max(0, (workDate?.workQuantity || 0) - 0.5);
-                                            const ot = workDate?.workOvertime || 0;
-                                            toggleWorkerAttendance(worker.id, createForm.selectedDate, qty, ot);
+                                            const qty = Math.max(
+                                              0,
+                                              (workDate?.workQuantity || 0) - 0.5
+                                            );
+                                            toggleWorkerAttendance(
+                                              worker.id,
+                                              createForm.selectedDate,
+                                              qty,
+                                              workDate?.workOvertime || 0
+                                            );
                                           }}
-                                          className="flex h-8 w-8 items-center justify-center rounded-l bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 active:bg-gray-300"
                                           disabled={isSaving}
+                                          className="flex h-7 w-7 items-center justify-center rounded-l bg-gray-200 text-gray-700 active:bg-gray-300"
                                         >
                                           -
                                         </button>
+
+                                        <input
+                                          readOnly
+                                          value={workDate?.workQuantity || 0}
+                                          className="h-7 w-10 border-y border-gray-300 bg-white text-center text-xs"
+                                        />
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const qty = Math.min(
+                                              2,
+                                              (workDate?.workQuantity || 0) + 0.5
+                                            );
+                                            toggleWorkerAttendance(
+                                              worker.id,
+                                              createForm.selectedDate,
+                                              qty,
+                                              workDate?.workOvertime || 0
+                                            );
+                                          }}
+                                          disabled={isSaving}
+                                          className="flex h-7 w-7 items-center justify-center rounded-r bg-gray-200 text-gray-700 active:bg-gray-300"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+
+                                      <span className="text-xs text-gray-500">công</span>
+
+                                      {/* OT */}
+                                      <input
+                                        readOnly
+                                        value={workDate?.workOvertime || 0}
+                                        className="h-7 w-10 rounded border border-gray-300 text-center text-xs"
+                                      />
+                                      <span className="text-xs text-gray-500">h</span>
+                                    </div>
+
+                                    <p className="mt-1 text-[11px] text-gray-400">
+                                      {isSaving
+                                        ? 'Đang lưu...'
+                                        : workDate?.workQuantity
+                                          ? 'Đã chấm công'
+                                          : 'Chưa chấm'}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* ================= WEB ATTENDANCE ================= */}
+                              <div className="hidden sm:flex items-center gap-2">
+                                {createForm.selectedDate ? (
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2">
+                                      {/* Quantity */}
+                                      <div className="flex items-center">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const qty = Math.max(
+                                              0,
+                                              (workDate?.workQuantity || 0) - 0.5
+                                            );
+                                            toggleWorkerAttendance(
+                                              worker.id,
+                                              createForm.selectedDate,
+                                              qty,
+                                              workDate?.workOvertime || 0
+                                            );
+                                          }}
+                                          disabled={isSaving}
+                                          className="flex h-8 w-8 items-center justify-center rounded-l bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                        >
+                                          -
+                                        </button>
+
                                         <input
                                           type="number"
                                           step="0.5"
@@ -1675,45 +1775,67 @@ export default function AttendancePage() {
                                           value={workDate?.workQuantity || 0}
                                           onChange={(e) => {
                                             const qty = parseFloat(e.target.value) || 0;
-                                            const ot = workDate?.workOvertime || 0;
-                                            toggleWorkerAttendance(worker.id, createForm.selectedDate, qty, ot);
+                                            toggleWorkerAttendance(
+                                              worker.id,
+                                              createForm.selectedDate,
+                                              qty,
+                                              workDate?.workOvertime || 0
+                                            );
                                           }}
                                           disabled={isSaving}
-                                          placeholder="Công"
-                                          className="h-8 w-12 border-y border-gray-300 text-center text-xs focus:border-orange-500 focus:outline-none disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                          className="h-8 w-12 border-y border-gray-300 text-center text-xs focus:border-orange-500 focus:outline-none"
                                         />
+
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            const qty = Math.min(2, (workDate?.workQuantity || 0) + 0.5);
-                                            const ot = workDate?.workOvertime || 0;
-                                            toggleWorkerAttendance(worker.id, createForm.selectedDate, qty, ot);
+                                            const qty = Math.min(
+                                              2,
+                                              (workDate?.workQuantity || 0) + 0.5
+                                            );
+                                            toggleWorkerAttendance(
+                                              worker.id,
+                                              createForm.selectedDate,
+                                              qty,
+                                              workDate?.workOvertime || 0
+                                            );
                                           }}
-                                          className="flex h-8 w-8 items-center justify-center rounded-r bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 active:bg-gray-300"
                                           disabled={isSaving}
+                                          className="flex h-8 w-8 items-center justify-center rounded-r bg-gray-100 text-gray-600 hover:bg-gray-200"
                                         >
                                           +
                                         </button>
                                       </div>
+
                                       <span className="text-xs text-gray-500">công</span>
+
+                                      {/* OT */}
                                       <input
                                         type="number"
-                                        step="1"
                                         min="0"
                                         value={workDate?.workOvertime || 0}
                                         onChange={(e) => {
                                           const ot = parseFloat(e.target.value) || 0;
-                                          const qty = workDate?.workQuantity || 1;
-                                          toggleWorkerAttendance(worker.id, createForm.selectedDate, qty, ot);
+                                          toggleWorkerAttendance(
+                                            worker.id,
+                                            createForm.selectedDate,
+                                            workDate?.workQuantity || 0,
+                                            ot
+                                          );
                                         }}
                                         disabled={isSaving}
-                                        placeholder="OT"
-                                        className="w-12 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none disabled:opacity-50"
+                                        className="w-12 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none"
                                       />
+
                                       <span className="text-xs text-gray-500">h</span>
                                     </div>
+
                                     <span className="text-xs text-gray-400">
-                                      {isSaving ? 'Đang lưu...' : (workDate && workDate.workQuantity > 0) ? 'Đã chấm công' : 'Chưa chấm'}
+                                      {isSaving
+                                        ? 'Đang lưu...'
+                                        : workDate?.workQuantity
+                                          ? 'Đã chấm công'
+                                          : 'Chưa chấm'}
                                     </span>
                                   </div>
                                 ) : (
@@ -1722,6 +1844,7 @@ export default function AttendancePage() {
                               </div>
                             </div>
                           </div>
+
                         );
                       })
                     )}
@@ -2179,7 +2302,7 @@ export default function AttendancePage() {
                           headerClassName: 'text-center',
                           className: 'text-center',
                           render: (w) => (
-                            <div className="flex justify-center gap-2">
+                            <div className="flex gap-2">
                               <button
                                 onClick={() => handleViewSalary(w)}
                                 className="rounded-lg bg-blue-50 p-2 text-blue-600 hover:bg-blue-100 transition-colors"

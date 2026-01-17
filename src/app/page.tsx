@@ -135,8 +135,8 @@ export default function MaterialsPage() {
             <Package className="h-8 w-8" strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight text-center lg:text-left">Danh Mục Vật Tư</h1>
-            <p className="text-gray-500 font-medium text-center lg:text-left">Quản lý kho và yêu cầu vật tư hệ thống</p>
+            <h1 className="text-xl sm:text-3xl font-black text-gray-900 tracking-tight text-center lg:text-left">Danh Mục Vật Tư</h1>
+            <p className="text-gray-500 font-medium text-center lg:text-left hidden sm:block">Quản lý kho và yêu cầu vật tư hệ thống</p>
           </div>
         </div>
 
@@ -220,21 +220,19 @@ export default function MaterialsPage() {
                 render: (it) => it.name
               },
               {
-                key: 'unit',
+                key: 'type',
                 header: 'ĐVT',
-                className: 'text-center',
                 render: (it) => (
                   <span className="px-3 py-1 bg-gray-100 rounded-lg text-xs font-black text-gray-600 uppercase">
-                    {it.unit}
+                    {it.type}
                   </span>
                 )
               },
               {
                 key: 'amount',
                 header: 'Số lượng khả dụng',
-                className: 'text-center',
                 render: (it) => (
-                  <div className="flex flex-col items-center">
+                  <div className="flex flex-col">
                     <span className={`text-base font-black ${it.amount < 10 ? 'text-red-600' : 'text-green-600'}`}>
                       {it.amount.toLocaleString('vi-VN')}
                     </span>
@@ -247,15 +245,16 @@ export default function MaterialsPage() {
               {
                 key: 'actions',
                 header: 'Thao tác',
-                className: 'text-right',
                 render: (it) => (
                   <button
                     onClick={() => handleRequestUsage(it)}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-xl text-xs font-black hover:bg-orange-700 transition-all shadow-md shadow-orange-100 active:scale-95"
                   >
                     <Plus className="h-3 w-3" />
-                    Yêu câu sử dụng
+                    <span className="sm:hidden">Yêu cầu</span>
+                    <span className="hidden sm:inline">Yêu cầu sử dụng</span>
                   </button>
+
                 )
               }
             ]}

@@ -6,6 +6,7 @@ import { getCookie } from '@/lib/ultis';
 import { productionApi } from '@/api';
 import { BrickYardStatus, BrickYardAggregated } from '@/types';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
+import Select from "react-select";
 
 // Client-side guard: redirect role 'user' away from this page
 
@@ -210,14 +211,24 @@ export default function LoGachPage() {
 
   const Chart = ({ data }: { data: ChartDatum[] }) => {
     const maxValue = Math.max(1, ...data.map(d => d.value));
-    const barWidth = 28;
-    const gap = 16;
-    const height = 220;
-    const width = data.length * (barWidth + gap) + gap;
+    const barWidth = 32;
+    const gap = 20;
+    const height = 280;
+    const contentWidth = data.length * (barWidth + gap) + gap;
 
     return (
-      <div className="w-full overflow-x-auto">
-        <svg width={width} height={height + 40} className="text-gray-700">
+      <div className="w-full overflow-x-auto flex justify-center py-4">
+        <svg
+          viewBox={`0 0 ${contentWidth} ${height + 50}`}
+          width="100%"
+          height="auto"
+          className="text-gray-700 mx-auto"
+          style={{
+            maxWidth: data.length < 10 ? `${contentWidth}px` : '100%',
+            minHeight: '250px'
+          }}
+          preserveAspectRatio="xMidYMin meet"
+        >
           {data.map((d, i) => {
             const x = gap + i * (barWidth + gap);
             const barHeight = Math.round((d.value / maxValue) * height);
@@ -225,19 +236,17 @@ export default function LoGachPage() {
             return (
               <g key={i}>
                 <rect x={x} y={y} width={barWidth} height={barHeight} rx={4} className="fill-orange-500" />
-                <text x={x + barWidth / 2} y={height + 16} textAnchor="middle" fontSize={10} className="fill-current">
+                <text x={x + barWidth / 2} y={height + 20} textAnchor="middle" fontSize={11} className="fill-current font-medium">
                   {d.label}
                 </text>
-                <text x={x + barWidth / 2} y={y - 6} textAnchor="middle" fontSize={10} className="fill-current">
+                <text x={x + barWidth / 2} y={y - 8} textAnchor="middle" fontSize={11} className="fill-current font-bold">
                   {d.value}
                 </text>
               </g>
             );
           })}
-          {/* y-axis line */}
-          <line x1={gap / 2} y1={0} x2={gap / 2} y2={height} className="stroke-gray-300" />
           {/* x-axis line */}
-          <line x1={0} y1={height} x2={width} y2={height} className="stroke-gray-300" />
+          <line x1={0} y1={height} x2={contentWidth} y2={height} className="stroke-gray-300" strokeWidth={2} />
         </svg>
       </div>
     );
@@ -291,17 +300,22 @@ export default function LoGachPage() {
           {/* Filter Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Loại lọc</label>
-            <select
-              value={filter.type}
-              onChange={(e) => setFilter({ ...filter, type: e.target.value as FilterOptions['type'] })}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            >
-              <option value="today">Hôm nay</option>
-              <option value="day">Theo ngày</option>
-              <option value="month">Theo tháng</option>
-              <option value="year">Theo năm</option>
-              <option value="range">Khoảng thời gian</option>
-            </select>
+            <Select
+              classNames={{
+                control: ({ isFocused }) =>
+                  `border rounded-md ${isFocused
+                    ? 'border-orange-500 ring-1 ring-orange-500'
+                    : 'border-gray-300'
+                  }`,
+              }} options={typeOptions}
+              value={typeOptions.find(o => o.value === filter.type) || null}
+              onChange={(option) =>
+                setFilter({
+                  ...filter,
+                  type: option?.value as FilterOptions['type'],
+                })
+              }
+            />
           </div>
 
           {/* Day Filter */}
@@ -450,7 +464,6 @@ export default function LoGachPage() {
       </div>
 
       {/* Data Table */}
-      {/* Data Table */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-bold text-gray-900">Dữ liệu tình trạng lò gạch</h2>
@@ -528,3 +541,12 @@ export default function LoGachPage() {
     </div>
   );
 }
+
+const typeOptions = [
+  { value: 'today', label: 'Hôm nay' },
+  { value: 'day', label: 'Theo ngày' },
+  { value: 'month', label: 'Theo tháng' },
+  { value: 'year', label: 'Theo năm' },
+  { value: 'range', label: 'Khoảng thời gian' },
+];
+

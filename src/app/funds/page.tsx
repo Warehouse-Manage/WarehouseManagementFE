@@ -7,6 +7,7 @@ import { Fund, Deliver, Worker, Customer, User } from '@/types';
 import { toast } from 'sonner';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
 import { Printer, Edit, Trash2 } from 'lucide-react';
+import Select from 'react-select';
 
 // Type Fund moved to @/types/finance.ts
 
@@ -334,15 +335,12 @@ export default function FundsPage() {
       <div className="border rounded-lg p-4 bg-white shadow-sm">
         <h2 className="font-semibold mb-3">Lọc</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <select
-            className="border rounded px-3 py-2"
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-          >
-            <option value="">Tất cả loại</option>
-            <option value="Thu">Thu</option>
-            <option value="Chi">Chi</option>
-          </select>
+          <Select
+            options={filterOptions}
+            value={filterOptions.find(o => o.value === filterType) || filterOptions[0]}
+            onChange={(option) => setFilterType(option?.value || '')}
+          />
+
           <button
             onClick={() => {
               setFilterType('');
@@ -541,4 +539,11 @@ export default function FundsPage() {
     </div>
   );
 }
+
+const filterOptions = [
+  { value: '', label: 'Tất cả loại' },
+  { value: 'Thu', label: 'Thu' },
+  { value: 'Chi', label: 'Chi' },
+];
+
 

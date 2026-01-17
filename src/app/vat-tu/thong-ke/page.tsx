@@ -176,14 +176,21 @@ export default function ThongKePage() {
             <TrendingUp className="h-8 w-8" strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Thống Kê Tài Chính</h1>
-            <p className="text-gray-500 font-medium">Tổng quan chi tiêu và hiệu quả quản lý vật tư</p>
+            <h1 className="text-xl sm:text-3xl font-black text-gray-900 tracking-tight">
+              Thống Kê Tài Chính
+            </h1>
+            <p className="hidden sm:block text-gray-500 font-medium">
+              Tổng quan chi tiêu và hiệu quả quản lý vật tư
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-100 w-full lg:w-auto">
-          <span className="text-xs font-black text-gray-400 uppercase tracking-widest pl-3">Khoảng thời gian:</span>
-          <div className="flex gap-1 flex-1 lg:flex-none">
+          <span className="hidden sm:block text-xs font-black text-gray-400 uppercase tracking-widest pl-3">
+            Khoảng thời gian:
+          </span>
+
+          <div className="flex gap-1 flex-1 lg:flex-none justify-center">
             {['tuần', 'tháng', 'quý', 'năm'].map((p) => (
               <button
                 key={p}
@@ -199,7 +206,6 @@ export default function ThongKePage() {
           </div>
         </div>
       </div>
-
 
       {/* Thẻ tóm tắt */}
       <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
