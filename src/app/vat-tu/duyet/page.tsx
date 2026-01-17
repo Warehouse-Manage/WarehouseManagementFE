@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Request, RequestItem, ApiRequest, ApiRequestItem, ApiShortItem } from '@/types';
 import { materialApi } from '@/api/materialApi';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
+import { CheckCircle, XCircle, Eye } from 'lucide-react';
 
 export default function DuyetPage() {
   const router = useRouter();
@@ -93,7 +94,6 @@ export default function DuyetPage() {
   }, [userId, userName]);
 
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
-  const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [editingRequest, setEditingRequest] = useState<Request | null>(null);
   const [editedItems, setEditedItems] = useState<RequestItem[]>([]);
@@ -183,7 +183,6 @@ export default function DuyetPage() {
   };
 
   const handleReject = async (requestId: number) => {
-    setActionLoading(requestId);
     try {
       const rejectionData = {
         approverId: userId ? parseInt(userId) : 1, // Use actual user ID from cookie
@@ -200,8 +199,9 @@ export default function DuyetPage() {
       ));
 
       toast.success('Đã từ chối yêu cầu!');
-    } finally {
-      setActionLoading(null);
+    } catch (error) {
+      console.error('Lỗi khi từ chối yêu cầu:', error);
+      toast.error('Có lỗi xảy ra, vui lòng thử lại!');
     }
   };
 
@@ -297,41 +297,32 @@ export default function DuyetPage() {
               </span>
             ) : <span className="text-gray-400">---</span>
           },
-          {
-            key: 'actions',
-            header: 'Thao tác',
-            headerClassName: 'text-right',
-            className: 'text-right',
-            render: (r) => (
-              <div className="flex justify-end gap-2">
-                {r.status === 'pending' && (
-                  <>
-                    <button
-                      onClick={() => handleApprove(r.id)}
-                      disabled={actionLoading === r.id}
-                      className="inline-flex items-center justify-center rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700 disabled:opacity-50"
-                    >
-                      Duyệt
-                    </button>
-                    <button
-                      onClick={() => handleReject(r.id)}
-                      disabled={actionLoading === r.id}
-                      className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
-                    >
-                      Từ chối
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => setSelectedRequest(r)}
-                  className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
-                >
-                  Chi tiết
-                </button>
-              </div>
-            )
-          }
         ]}
+        actions={(r) => [
+          {
+            label: 'Duyệt',
+            icon: <CheckCircle className="h-4 w-4" />,
+            onClick: () => handleApprove(r.id),
+            variant: 'default' as const
+          },
+          {
+            label: 'Từ chối',
+            icon: <XCircle className="h-4 w-4" />,
+            onClick: () => handleReject(r.id),
+            variant: 'danger' as const
+          },
+          {
+            label: 'Chi tiết',
+            icon: <Eye className="h-4 w-4" />,
+            onClick: () => setSelectedRequest(r),
+            variant: 'default' as const
+          }
+        ].filter(action => {
+          if (action.label === 'Duyệt' || action.label === 'Từ chối') {
+            return r.status === 'pending';
+          }
+          return true;
+        })}
         emptyMessage="Không có yêu cầu mua vật tư nào"
       />
 

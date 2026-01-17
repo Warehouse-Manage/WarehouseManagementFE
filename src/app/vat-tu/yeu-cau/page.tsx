@@ -375,14 +375,13 @@ export default function YeuCauPage() {
               key: 'name',
               header: 'Tên vật tư',
               render: (it) => (
-                <div className="relative min-w-[200px]">
+                <>
                   <input
                     type="text"
                     value={it.name}
                     onChange={e => handleNameInputChange(it.id, e.target.value)}
                     placeholder="Nhập tên để tìm..."
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none"
-                  />
+                    className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none" />
                   {openSearchFor === it.id && (
                     <div className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-xl border border-gray-200 bg-white shadow-2xl">
                       {(searchResultsByItem[it.id]?.length > 0) ? (
@@ -415,7 +414,7 @@ export default function YeuCauPage() {
                       )}
                     </div>
                   )}
-                </div>
+                </>
               )
             },
             {
@@ -465,7 +464,7 @@ export default function YeuCauPage() {
               header: '',
               className: 'w-24 text-right',
               render: (it) => (
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-start sm:justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => handleOpenMaterialSelector(it.id)}
@@ -491,7 +490,7 @@ export default function YeuCauPage() {
             }
           ]}
         />
-        <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+        <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center sm:justify-between items-center">
           <button
             type="button"
             onClick={handleAddItem}
@@ -501,7 +500,7 @@ export default function YeuCauPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             <span className="hidden sm:inline">Thêm dòng mới</span>
-            <span className="sm:hidden">Dòng mới</span>
+            <span className="sm:hidden">Thêm</span>
           </button>
           <div className="flex gap-3">
             <button
@@ -516,7 +515,17 @@ export default function YeuCauPage() {
               disabled={submitting}
               className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-8 py-2.5 text-sm font-black text-white shadow-lg hover:bg-orange-700 disabled:opacity-50 transition-all font-inter"
             >
-              {submitting ? "Đang xử lý..." : "Gửi yêu cầu"}
+              {submitting ? (
+                <>
+                  <span className="sm:hidden">Đang...</span>
+                  <span className="hidden sm:inline">Đang xử lý...</span>
+                </>
+              ) : (
+                <>
+                  <span className="sm:hidden">Gửi</span>
+                  <span className="hidden sm:inline">Gửi yêu cầu</span>
+                </>
+              )}
             </button>
           </div>
         </div>
