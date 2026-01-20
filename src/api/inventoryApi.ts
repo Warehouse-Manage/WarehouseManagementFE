@@ -1,5 +1,7 @@
 import { api } from './api';
 import {
+    PackageProduct,
+    PackageProductFormData,
     Product,
     ProductFormData,
     RawMaterial,
@@ -14,6 +16,19 @@ export const inventoryApi = {
 
     createProduct: async (data: ProductFormData): Promise<Product> => {
         return api.post<Product>('/api/products', data);
+    },
+
+    // Package Products
+    getPackageProducts: async (): Promise<PackageProduct[]> => {
+        return api.get<PackageProduct[]>('/api/products/package');
+    },
+
+    getPackageProduct: async (id: number): Promise<PackageProduct> => {
+        return api.get<PackageProduct>(`/api/products/package/${id}`);
+    },
+
+    createOrUpdatePackageProduct: async (data: PackageProductFormData): Promise<PackageProduct> => {
+        return api.post<PackageProduct>('/api/products/package', data);
     },
 
     // Raw Materials
