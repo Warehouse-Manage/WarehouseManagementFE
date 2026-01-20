@@ -284,6 +284,19 @@ export default function AttendancePage() {
   const [overviewAttendances, setOverviewAttendances] = useState<Map<number, Attendance>>(new Map());
   const [isLoadingOverviewAll, setIsLoadingOverviewAll] = useState(false);
 
+  // Mobile Overview (Admin/Approver): single horizontal scrollbar (on header) that drives body/footer via transform
+  const overviewHeaderScrollRef = useRef<HTMLDivElement | null>(null);
+  const [overviewMobileScrollLeft, setOverviewMobileScrollLeft] = useState(0);
+  const overviewMobileScrollRafRef = useRef<number | null>(null);
+
+  const handleOverviewHeaderScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const left = e.currentTarget.scrollLeft;
+    if (overviewMobileScrollRafRef.current) cancelAnimationFrame(overviewMobileScrollRafRef.current);
+    overviewMobileScrollRafRef.current = requestAnimationFrame(() => {
+      setOverviewMobileScrollLeft(left);
+    });
+  }, []);
+
   useEffect(() => {
     const userId = getCookie('userId');
     const userName = getCookie('userName');
@@ -2484,66 +2497,194 @@ export default function AttendancePage() {
                   <span className="text-sm text-gray-500">Đang tải dữ liệu...</span>
                 </div>
               ) : (
-                <DataTable
-                  data={workers}
-                  isLoading={isLoadingOverviewAll}
-                  disableCardView={true}
-                  columns={[
-                    {
-                      key: 'name',
-                      header: 'Nhân viên',
-                      headerClassName: 'sticky left-0 bg-gray-50 z-10 border-r border-gray-200 min-w-[120px] text-[10px]',
-                      className: 'sticky left-0 bg-white z-10 border-r border-gray-200 font-bold text-xs sm:min-w-[150px]',
-                      render: (w) => (
-                        <div>
-                          <div className="font-bold text-gray-900">{w.name}</div>
-                          {userRole === 'Admin' && (
-                            <div className="text-xs text-gray-500">{formatCurrency(w.salary)}</div>
-                          )}
+                <>
+                  {/* Mobile: Workers (horizontal) - Days (vertical) - Total (horizontal, sticky bottom) */}
+                  <div className="sm:hidden rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                    <div className="relative">
+                      {/* Sticky Header: Worker names */}
+                      <div className="sticky top-0 z-20 bg-white border-b border-gray-100">
+                        <div className="flex">
+                          <div className="w-24 shrink-0 px-2 py-2 text-[10px] font-black uppercase tracking-wider text-gray-500 bg-white">
+                            Ngày
+                          </div>
+                          <div
+                            ref={overviewHeaderScrollRef}
+                            onScroll={handleOverviewHeaderScroll}
+                            className="flex-1 overflow-x-auto no-scrollbar"
+                          >
+                            <div className="flex min-w-max">
+                              {workers.map((w) => (
+                                <div
+                                  key={`h-${w.id}`}
+                                  className="w-24 shrink-0 px-2 py-2 border-l border-gray-100"
+                                  title={w.name}
+                                >
+                                  <div className="text-[10px] font-black text-gray-900 truncate">{w.name}</div>
+                                  {userRole === 'Admin' && (
+                                    <div className="text-[10px] text-gray-400 truncate">{formatCurrency(w.salary)}</div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                      )
-                    },
-                    ...getOverviewDays(overviewMonth).map((dayInfo) => ({
-                      key: dayInfo.dateValue,
-                      header: String(dayInfo.day),
-                      headerClassName: 'text-center border-r border-gray-200 min-w-[40px] text-[10px]',
-                      className: 'text-center border-r border-gray-100 p-0 min-w-[40px]',
-                      render: (w: Worker) => {
-                        const attendance = overviewAttendances.get(w.id);
-                        const workDate = getWorkDateForOverview(attendance || null, dayInfo.dateValue);
-                        const hasWork = workDate && workDate.workQuantity > 0;
-                        return hasWork ? (
-                          <div className="flex flex-col items-center gap-0.5 py-1 bg-green-50 h-full">
-                            <span className="text-[10px] font-black text-green-700">{workDate.workQuantity}</span>
-                            {workDate.workOvertime > 0 && (
-                              <span className="text-[9px] text-orange-600 font-bold">+{workDate.workOvertime}h</span>
-                            )}
+                      </div>
+
+                      {/* Scrollable body: days */}
+                      <div className="max-h-[65vh] overflow-y-auto">
+                        <div className="flex">
+                          <div className="w-24 shrink-0 border-r border-gray-100 bg-white">
+                            {getOverviewDays(overviewMonth).map((d) => (
+                              <div
+                                key={`d-${d.dateValue}`}
+                                className="h-10 px-2 flex flex-col justify-center border-b border-gray-50"
+                              >
+                                <div className="text-[11px] font-bold text-gray-900">{String(d.day).padStart(2, '0')}</div>
+                                <div className="text-[10px] text-gray-400">{d.month}</div>
+                              </div>
+                            ))}
                           </div>
-                        ) : <span className="text-gray-300">-</span>;
-                      }
-                    })),
-                    {
-                      key: 'total',
-                      header: 'Tổng',
-                      headerClassName: 'text-center border-l border-gray-200 sticky right-0 bg-gray-50 z-10',
-                      className: 'text-center border-l border-gray-200 bg-gray-100 font-semibold sticky right-0 z-10',
-                      render: (w) => {
-                        const attendance = overviewAttendances.get(w.id);
-                        const totalDays = attendance?.daysOff?.filter(wd => wd.workQuantity > 0).length || 0;
-                        const totalWorkQuantity = attendance?.daysOff?.reduce((sum, wd) => sum + wd.workQuantity, 0) || 0;
-                        const totalOvertime = attendance?.daysOff?.reduce((sum, wd) => sum + wd.workOvertime, 0) || 0;
-                        return (
-                          <div className="flex flex-col gap-0.5 text-[10px]">
-                            <span className="text-gray-600 font-bold">{totalDays}N</span>
-                            <span className="text-green-700 font-black">{totalWorkQuantity}C</span>
-                            {totalOvertime > 0 && <span className="text-orange-600">+{totalOvertime}h</span>}
+
+                          {/* No horizontal scroll here: follow header scroll via transform */}
+                          <div className="flex-1 overflow-hidden">
+                            <div
+                              className="min-w-max will-change-transform"
+                              style={{ transform: `translateX(-${overviewMobileScrollLeft}px)` }}
+                            >
+                              {getOverviewDays(overviewMonth).map((d) => (
+                                <div key={`r-${d.dateValue}`} className="flex h-10 border-b border-gray-50">
+                                  {workers.map((w) => {
+                                    const attendance = overviewAttendances.get(w.id);
+                                    const wd = getWorkDateForOverview(attendance || null, d.dateValue);
+                                    const hasWork = !!wd && wd.workQuantity > 0;
+                                    return (
+                                      <div
+                                        key={`c-${d.dateValue}-${w.id}`}
+                                        className={`w-24 shrink-0 px-2 flex items-center justify-center border-l border-gray-50 ${hasWork ? 'bg-green-50' : 'bg-white'}`}
+                                        title={hasWork ? `Công: ${wd?.workQuantity} • OT: ${wd?.workOvertime || 0}h` : 'Chưa làm'}
+                                      >
+                                        {hasWork ? (
+                                          <div className="flex items-baseline gap-1">
+                                            <span className="text-[11px] font-black text-green-700">{wd?.workQuantity}</span>
+                                            {!!wd?.workOvertime && wd.workOvertime > 0 && (
+                                              <span className="text-[10px] font-bold text-orange-600">+{wd.workOvertime}h</span>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <span className="text-[11px] text-gray-300">-</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        );
-                      }
-                    }
-                  ]}
-                  emptyMessage="Không có dữ liệu nhân viên"
-                />
+                        </div>
+                      </div>
+
+                      {/* Sticky Footer: totals per worker */}
+                      <div className="sticky bottom-0 z-20 bg-white border-t border-gray-100">
+                        <div className="flex">
+                          <div className="w-24 shrink-0 px-2 py-2 text-[10px] font-black uppercase tracking-wider text-gray-500 bg-white">
+                            Tổng
+                          </div>
+                          {/* No horizontal scroll here: follow header scroll via transform */}
+                          <div className="flex-1 overflow-hidden">
+                            <div
+                              className="flex min-w-max will-change-transform"
+                              style={{ transform: `translateX(-${overviewMobileScrollLeft}px)` }}
+                            >
+                              {workers.map((w) => {
+                                const attendance = overviewAttendances.get(w.id);
+                                const totalWorkQuantity = attendance?.daysOff?.reduce((sum, wd) => sum + wd.workQuantity, 0) || 0;
+                                const totalOvertime = attendance?.daysOff?.reduce((sum, wd) => sum + wd.workOvertime, 0) || 0;
+                                return (
+                                  <div
+                                    key={`t-${w.id}`}
+                                    className="w-24 shrink-0 px-2 py-2 border-l border-gray-100 bg-gray-50"
+                                    title={`Tổng công: ${totalWorkQuantity} • Tổng OT: ${totalOvertime}h`}
+                                  >
+                                    <div className="text-[11px] font-black text-green-700">{totalWorkQuantity}C</div>
+                                    {totalOvertime > 0 ? (
+                                      <div className="text-[10px] font-bold text-orange-600">+{totalOvertime}h</div>
+                                    ) : (
+                                      <div className="text-[10px] text-gray-300">—</div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop/Tablet: current table */}
+                  <div className="hidden sm:block">
+                    <DataTable
+                      data={workers}
+                      isLoading={isLoadingOverviewAll}
+                      disableCardView={true}
+                      columns={[
+                        {
+                          key: 'name',
+                          header: 'Nhân viên',
+                          headerClassName: 'sticky left-0 bg-gray-50 z-10 border-r border-gray-200 min-w-[120px] text-[10px]',
+                          className: 'sticky left-0 bg-white z-10 border-r border-gray-200 font-bold text-xs sm:min-w-[150px]',
+                          render: (w) => (
+                            <div>
+                              <div className="font-bold text-gray-900">{w.name}</div>
+                              {userRole === 'Admin' && (
+                                <div className="text-xs text-gray-500">{formatCurrency(w.salary)}</div>
+                              )}
+                            </div>
+                          )
+                        },
+                        ...getOverviewDays(overviewMonth).map((dayInfo) => ({
+                          key: dayInfo.dateValue,
+                          header: String(dayInfo.day),
+                          headerClassName: 'text-center border-r border-gray-200 min-w-[40px] text-[10px]',
+                          className: 'text-center border-r border-gray-100 p-0 min-w-[40px]',
+                          render: (w: Worker) => {
+                            const attendance = overviewAttendances.get(w.id);
+                            const workDate = getWorkDateForOverview(attendance || null, dayInfo.dateValue);
+                            const hasWork = workDate && workDate.workQuantity > 0;
+                            return hasWork ? (
+                              <div className="flex flex-col items-center gap-0.5 py-1 bg-green-50 h-full">
+                                <span className="text-[10px] font-black text-green-700">{workDate.workQuantity}</span>
+                                {workDate.workOvertime > 0 && (
+                                  <span className="text-[9px] text-orange-600 font-bold">+{workDate.workOvertime}h</span>
+                                )}
+                              </div>
+                            ) : <span className="text-gray-300">-</span>;
+                          }
+                        })),
+                        {
+                          key: 'total',
+                          header: 'Tổng',
+                          headerClassName: 'text-center border-l border-gray-200 sticky right-0 bg-gray-50 z-10',
+                          className: 'text-center border-l border-gray-200 bg-gray-100 font-semibold sticky right-0 z-10',
+                          render: (w) => {
+                            const attendance = overviewAttendances.get(w.id);
+                            const totalDays = attendance?.daysOff?.filter(wd => wd.workQuantity > 0).length || 0;
+                            const totalWorkQuantity = attendance?.daysOff?.reduce((sum, wd) => sum + wd.workQuantity, 0) || 0;
+                            const totalOvertime = attendance?.daysOff?.reduce((sum, wd) => sum + wd.workOvertime, 0) || 0;
+                            return (
+                              <div className="flex flex-col gap-0.5 text-[10px]">
+                                <span className="text-gray-600 font-bold">{totalDays}N</span>
+                                <span className="text-green-700 font-black">{totalWorkQuantity}C</span>
+                                {totalOvertime > 0 && <span className="text-orange-600">+{totalOvertime}h</span>}
+                              </div>
+                            );
+                          }
+                        }
+                      ]}
+                      emptyMessage="Không có dữ liệu nhân viên"
+                    />
+                  </div>
+                </>
               )}
             </div>
           ) : null}
