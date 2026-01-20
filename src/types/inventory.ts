@@ -3,6 +3,16 @@ export interface Product {
     name: string;
     price: number;
     quantity: number;
+    quantityProduct?: number; // gạch lẻ
+    quantityPackage?: number; // gạch kiện
+}
+
+export interface PackageProduct {
+    id: number;
+    name: string;
+    productId: number;
+    quantity: number;
+    quantityProduct: number;
 }
 
 export interface ProductFormData {
@@ -10,6 +20,14 @@ export interface ProductFormData {
     price: number;
     quantity: number;
     createdUserId: number;
+}
+
+export interface PackageProductFormData {
+    id?: number;
+    name: string;
+    productId: number;
+    quantity: number;
+    quantityProduct: number;
 }
 
 export interface RawMaterial {
