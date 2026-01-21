@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { financeApi, inventoryApi } from '@/api';
-import { Order, Customer, Deliver, Product } from '@/types';
+import { Order, Customer, Deliver, Product, PackageProduct } from '@/types';
 import { Modal, DataTable } from '@/components/shared';
 import { toast } from 'sonner';
 import { Printer } from 'lucide-react';
@@ -19,9 +19,11 @@ export default function OrdersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [delivers, setDelivers] = useState<Deliver[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [packageProducts, setPackageProducts] = useState<PackageProduct[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [loadingDelivers, setLoadingDelivers] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingPackageProducts, setLoadingPackageProducts] = useState(false);
   const [customerId, setCustomerId] = useState<number | ''>('');
   const [deliverId, setDeliverId] = useState<number | ''>('');
   const [sale, setSale] = useState<number | ''>(0);
@@ -29,8 +31,15 @@ export default function OrdersPage() {
   const [shipCost, setShipCost] = useState<number | ''>(0);
   const [shipcod, setShipcod] = useState<number | ''>(0);
   const [productOrdersInput, setProductOrdersInput] = useState<
-    { productId: number | ''; amount: number | ''; price: number | ''; sale: number | '' }[]
-  >([{ productId: '', amount: '', price: '', sale: 0 }]);
+    {
+      productId: number | '';
+      packageProductId: number | '';
+      selectionKey: string; // 'p:ID' | 'k:ID'
+      amount: number | '';
+      price: number | '';
+      sale: number | '';
+    }[]
+  >([{ productId: '', packageProductId: '', selectionKey: '', amount: '', price: '', sale: 0 }]);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
@@ -103,11 +112,24 @@ export default function OrdersPage() {
     }
   };
 
+  const loadPackageProducts = async () => {
+    setLoadingPackageProducts(true);
+    try {
+      const data = await inventoryApi.getPackageProducts();
+      setPackageProducts(data);
+    } catch (err: unknown) {
+      console.error('Failed to load package products:', err);
+    } finally {
+      setLoadingPackageProducts(false);
+    }
+  };
+
   useEffect(() => {
     loadOrders();
     loadCustomers();
     loadDelivers();
     loadProducts();
+    loadPackageProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -119,7 +141,15 @@ export default function OrdersPage() {
     });
   };
 
-  const calculateProductTotal = (productOrder: { productId: number | ''; amount: number | ''; price: number | ''; sale: number | '' }) => {
+  const updateProductOrderKey = (index: number, selectionKey: string) => {
+    setProductOrdersInput((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], selectionKey };
+      return next;
+    });
+  };
+
+  const calculateProductTotal = (productOrder: { selectionKey: string; amount: number | ''; price: number | ''; sale: number | '' }) => {
     const amount = Number(productOrder.amount || 0);
     const price = Number(productOrder.price || 0);
     const sale = Number(productOrder.sale || 0);
@@ -128,7 +158,7 @@ export default function OrdersPage() {
 
   const calculateGrandTotal = () => {
     return productOrdersInput.reduce((sum, p) => {
-      if (p.productId !== '' && p.amount !== '' && p.price !== '') {
+      if (p.selectionKey && p.amount !== '' && p.price !== '') {
         return sum + calculateProductTotal(p);
       }
       return sum;
@@ -160,7 +190,7 @@ export default function OrdersPage() {
     setAmountCustomerPayment(0);
     setShipCost(0);
     setShipcod(0);
-    setProductOrdersInput([{ productId: '', amount: '', price: '', sale: 0 }]);
+    setProductOrdersInput([{ productId: '', packageProductId: '', selectionKey: '', amount: '', price: '', sale: 0 }]);
     setError(null);
   };
 
@@ -175,7 +205,10 @@ export default function OrdersPage() {
   };
 
   const addProductOrderRow = () => {
-    setProductOrdersInput((prev) => [...prev, { productId: '', amount: '', price: '', sale: 0 }]);
+    setProductOrdersInput((prev) => [
+      ...prev,
+      { productId: '', packageProductId: '', selectionKey: '', amount: '', price: '', sale: 0 }
+    ]);
   };
 
   const handlePrintDeliveryNote = async (id: number) => {
@@ -198,13 +231,19 @@ export default function OrdersPage() {
       return;
     }
     const productsToOrder = productOrdersInput
-      .filter((p) => p.productId !== '' && p.amount !== '' && p.price !== '')
-      .map((p) => ({
-        productId: Number(p.productId),
-        amount: Number(p.amount),
-        price: Number(p.price),
-        sale: Number(p.sale || 0),
-      }));
+      .filter((p) => p.selectionKey !== '' && p.amount !== '' && p.price !== '')
+      .map((p) => {
+        const isPackage = p.selectionKey.startsWith('k:');
+        return {
+          // Luôn gửi productId thật để backend không nhận 0
+          productId: Number(p.productId),
+          // Nếu là kiện thì thêm packageProductId, nếu không thì bỏ trống
+          packageProductId: isPackage ? Number(p.packageProductId) : undefined,
+          amount: Number(p.amount),
+          price: Number(p.price),
+          sale: Number(p.sale || 0),
+        };
+      });
     if (!productsToOrder.length) {
       setError('Cần ít nhất một sản phẩm');
       return;
@@ -222,15 +261,61 @@ export default function OrdersPage() {
         createdUserId: Number(userId),
       });
 
-      if (res && res.id) {
-        const receiptRes = financeApi.printOrderReceipt(res.id);
-        const receiptHtml = await receiptRes;
-        printHtmlContent(receiptHtml);
+      const now = new Date();
+      const customer = customers.find((c) => c.id === Number(customerId));
+      const deliver = delivers.find((d) => d.id === Number(deliverId));
 
-        const deliveryRes = financeApi.printOrderDeliveryNote(res.id);
-        const deliveryHtml = await deliveryRes;
-        printHtmlContent(deliveryHtml);
-      }
+      const receiptModel = {
+        Tieu_De: 'PHIẾU THU (ĐƠN HÀNG)',
+        Nhan_Doi_Tac: 'Người nộp tiền',
+        Ngay_Thang_Nam: now.toLocaleString('vi-VN'),
+        Doi_Tac: customer?.name || 'Khách hàng',
+        Dia_Chi: customer?.address || '',
+        Ly_Do: `Thanh toán cho đơn hàng #${res.id}`,
+        Gia_Tri_Phieu: Number(amountCustomerPayment || 0).toLocaleString('vi-VN'),
+        Ngay: now.getDate().toString().padStart(2, '0'),
+        Thang: (now.getMonth() + 1).toString().padStart(2, '0'),
+        Nam: now.getFullYear().toString(),
+        Nhan_Ky_Ten: 'NGƯỜI NỘP TIỀN'
+      };
+
+        const deliveryItems = productsToOrder.map((po, idx) => {
+          const pkg = po.packageProductId
+            ? packageProducts.find((k) => k.id === po.packageProductId)
+            : undefined;
+          const baseProduct = po.productId
+            ? products.find((p) => p.id === po.productId)
+            : undefined;
+          const isPackage = !!po.packageProductId;
+          return {
+            STT: idx + 1,
+            // Nếu là kiện: luôn hiển thị tên kiện (không fallback sang tên sản phẩm)
+            Ten_Hang_Hoa: isPackage ? (pkg?.name || 'Kiện') : (baseProduct?.name || 'Sản phẩm'),
+            So_Luong: po.amount,
+            ProductId: po.productId && po.productId > 0 ? po.productId : null,
+            PackageProductId: po.packageProductId ?? null,
+            QuantityProduct: pkg?.quantityProduct ?? null,
+            Ten_San_Pham_Goc: baseProduct?.name || 'Sản phẩm',
+          };
+        });
+
+      const deliveryModel = {
+        Ngay_Thang_Nam: now.toLocaleString('vi-VN'),
+        Khach_Hang: customer?.name || 'Khách hàng',
+        Bien_So_Xe: deliver?.plateNumber || '...',
+        Doi_Tac_Giao_Hang: deliver?.name || '...',
+        SDT_Giao_Hang: deliver?.phoneNumber || '...',
+        Tong_So_Luong: productsToOrder.reduce((s, po) => s + po.amount, 0).toString(),
+        Items: deliveryItems
+      };
+
+      const [receiptHtml, deliveryHtml] = await Promise.all([
+        financeApi.printOrderReceiptModel(receiptModel),
+        financeApi.printOrderDeliveryNoteModel(deliveryModel)
+      ]);
+
+      if (receiptHtml) printHtmlContent(receiptHtml);
+      if (deliveryHtml) printHtmlContent(deliveryHtml);
 
       resetForm();
       setShowModal(false);
@@ -384,23 +469,66 @@ export default function OrdersPage() {
                         <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Sản phẩm</label>
                         <select
                           className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
-                          value={p.productId}
+                          value={p.selectionKey}
                           onChange={(e) => {
-                            const selectedProductId = e.target.value === '' ? '' : Number(e.target.value);
-                            const selectedProduct = products.find(pr => pr.id === selectedProductId);
-                            updateProductOrderField(idx, 'productId', selectedProductId);
-                            if (selectedProduct) {
-                              updateProductOrderField(idx, 'price', selectedProduct.price);
+                            const key = e.target.value;
+                            updateProductOrderKey(idx, key);
+
+                            if (!key) {
+                              updateProductOrderField(idx, 'productId', '');
+                              updateProductOrderField(idx, 'packageProductId', '');
+                              return;
+                            }
+
+                            if (key.startsWith('p:')) {
+                              const selectedProductId = Number(key.slice(2));
+                              const selectedProduct = products.find((pr) => pr.id === selectedProductId);
+                              updateProductOrderField(idx, 'productId', selectedProductId);
+                              updateProductOrderField(idx, 'packageProductId', '');
+                              if (selectedProduct) {
+                                updateProductOrderField(idx, 'price', selectedProduct.price);
+                              }
+                              return;
+                            }
+
+                            if (key.startsWith('k:')) {
+                              const selectedPackageId = Number(key.slice(2));
+                              const selectedPackage = packageProducts.find((pk) => pk.id === selectedPackageId);
+                              if (!selectedPackage) return;
+                              const baseProduct = products.find((pr) => pr.id === selectedPackage.productId);
+                              updateProductOrderField(idx, 'packageProductId', selectedPackageId);
+                              updateProductOrderField(idx, 'productId', selectedPackage.productId);
+                              if (baseProduct) {
+                                updateProductOrderField(
+                                  idx,
+                                  'price',
+                                  baseProduct.price * selectedPackage.quantityProduct
+                                );
+                              }
                             }
                           }}
-                          disabled={loadingProducts}
+                          disabled={loadingProducts || loadingPackageProducts}
                         >
                           <option value="">-- Chọn --</option>
-                          {products.map((pr) => (
-                            <option key={pr.id} value={pr.id}>
-                              {pr.name} ({pr.price.toLocaleString()}đ)
-                            </option>
-                          ))}
+                          <optgroup label="Sản phẩm">
+                            {products.map((pr) => (
+                              <option key={`p-${pr.id}`} value={`p:${pr.id}`}>
+                                {pr.name} ({pr.price.toLocaleString()}đ)
+                              </option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Kiện">
+                            {packageProducts.map((pk) => {
+                              const baseProduct = products.find((pr) => pr.id === pk.productId);
+                              const label = `${pk.name} - ${baseProduct?.name || `#${pk.productId}`} (${pk.quantityProduct} viên/kiện)`;
+                              const packagePrice = baseProduct ? baseProduct.price * pk.quantityProduct : 0;
+                              return (
+                                <option key={`k-${pk.id}`} value={`k:${pk.id}`}>
+                                  {label} ({packagePrice.toLocaleString()}đ/kiện)
+                                </option>
+                              );
+                            })}
+                          </optgroup>
                         </select>
                       </div>
                       <div>

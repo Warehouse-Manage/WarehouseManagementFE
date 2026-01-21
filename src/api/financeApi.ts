@@ -9,7 +9,9 @@ import {
     Order,
     OrderFormData,
     Fund,
-    FundFormData
+    FundFormData,
+    OrderReceiptPrintModel,
+    OrderDeliveryNotePrintModel
 } from '@/types';
 
 export const financeApi = {
@@ -54,6 +56,14 @@ export const financeApi = {
 
     printOrderDeliveryNote: async (id: number): Promise<string> => {
         return api.get<string>(`/api/orders/${id}/delivery-note`);
+    },
+
+    printOrderReceiptModel: async (data: OrderReceiptPrintModel): Promise<string> => {
+        return api.post<string>(`/api/orders/receipt`, data);
+    },
+
+    printOrderDeliveryNoteModel: async (data: OrderDeliveryNotePrintModel): Promise<string> => {
+        return api.post<string>(`/api/orders/delivery-note`, data);
     },
 
     // Funds
