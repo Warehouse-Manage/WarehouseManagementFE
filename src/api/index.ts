@@ -8,4 +8,5 @@ export * from './workerApi';
 export * from './attendanceApi';
 export * from './productionApi';
 export * from './inventoryApi';
+export * from './inventoryReceiptApi';
 export * from './financeApi';

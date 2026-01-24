@@ -45,3 +45,23 @@ export interface RawMaterialFormData {
     description: string;
     createdUserId: number;
 }
+
+export interface InventoryReceipt {
+    id: number;
+    productId?: number;
+    packageProductId?: number;
+    quantity: number;
+    createdByUser: {
+        id: number;
+        userName: string;
+    };
+    createdDate: string;
+}
+
+export interface InventoryReceiptFormData {
+    id?: number; // Nếu có id thì là update, không có thì là create
+    productId?: number;
+    packageProductId?: number;
+    quantity: number;
+    createdBy: number;
+}
