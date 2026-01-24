@@ -12,10 +12,14 @@ export default function Navbar() {
   const pathname = usePathname();
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isKeToanMenuOpen, setIsKeToanMenuOpen] = useState(false);
+  const [keToanMenuPosition, setKeToanMenuPosition] = useState({ top: 0, left: 0 });
   const [userInitial, setUserInitial] = useState('U');
   const [role, setRole] = useState<string | null>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const keToanMenuRef = useRef<HTMLDivElement>(null);
+  const keToanMenuButtonRef = useRef<HTMLButtonElement>(null);
 
 
   // Lấy userName và role từ cookie khi component mount
@@ -25,6 +29,17 @@ export default function Navbar() {
     const r = getCookie('role');
     setRole(r);
   }, []);
+
+  // Tính toán vị trí dropdown khi mở
+  useEffect(() => {
+    if (isKeToanMenuOpen && keToanMenuButtonRef.current) {
+      const rect = keToanMenuButtonRef.current.getBoundingClientRect();
+      setKeToanMenuPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
+      });
+    }
+  }, [isKeToanMenuOpen]);
 
   const isMaterials = pathname === '/' || pathname === '/';
   const isVatTu = pathname?.startsWith('/vat-tu');
@@ -36,15 +51,23 @@ export default function Navbar() {
   const isDelivers = pathname?.startsWith('/delivers');
   const isOrders = pathname?.startsWith('/orders');
   const isFunds = pathname?.startsWith('/funds');
+  const isDoiTac = pathname?.startsWith('/doi-tac');
+  const isNhapHang = pathname?.startsWith('/nhap-hang');
 
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
+      const targetElement = event.target as HTMLElement;
 
       // Check if click is on mobile menu button - if so, don't close
-      const mobileMenuButton = (event.target as HTMLElement)?.closest('button[aria-label="Toggle mobile menu"]');
+      const mobileMenuButton = targetElement?.closest('button[aria-label="Toggle mobile menu"]');
       if (mobileMenuButton) {
+        return;
+      }
+
+      // Check if click is on kế toán dropdown button or menu
+      if (keToanMenuButtonRef.current?.contains(target) || keToanMenuRef.current?.contains(target)) {
         return;
       }
 
@@ -54,18 +77,22 @@ export default function Navbar() {
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
         setIsMobileMenuOpen(false);
       }
+      if (isKeToanMenuOpen && keToanMenuRef.current && !keToanMenuRef.current.contains(target) && 
+          keToanMenuButtonRef.current && !keToanMenuButtonRef.current.contains(target)) {
+        setIsKeToanMenuOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [isKeToanMenuOpen]);
 
-  const baseLink = 'transition-colors px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-200 rounded-none';
-  const linkSize = 'text-sm md:text-base';
-  const active = 'bg-orange-600 text-white font-black';
-  const inactive = 'bg-gray-400 text-white hover:bg-gray-500 font-bold';
+  const baseLink = 'transition-colors px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-200 rounded-md';
+  const linkSize = 'text-sm';
+  const active = 'bg-orange-600 text-white font-semibold';
+  const inactive = 'text-gray-700 hover:bg-gray-100 font-medium';
 
   const handleUserAction = async (action: string) => {
     setIsUserDropdownOpen(false);
@@ -127,88 +154,145 @@ export default function Navbar() {
         </div>
 
         {/* Desktop Navigation - hidden on mobile */}
-        <div className="hidden md:flex flex-1 justify-center">
-          <div className="inline-flex items-center overflow-hidden rounded-lg">
+        <div className="hidden md:flex flex-1 justify-center items-center gap-1 max-w-4xl overflow-x-auto scrollbar-hide">
+          <div className="flex items-center gap-1">
+            {/* Main tabs - always visible */}
             <Link
               href="/"
               aria-current={isMaterials ? 'page' : undefined}
-              className={`${baseLink} ${linkSize} ${isMaterials ? active : inactive}`}
+              className={`${baseLink} ${linkSize} whitespace-nowrap ${isMaterials ? active : inactive}`}
             >
               Trang chủ
             </Link>
             <Link
               href="/vat-tu"
               aria-current={isVatTu ? 'page' : undefined}
-              className={`${baseLink} ${linkSize} ${isVatTu ? active : inactive}`}
+              className={`${baseLink} ${linkSize} whitespace-nowrap ${isVatTu ? active : inactive}`}
             >
               Vật tư
             </Link>
             <Link
               href="/attendance"
               aria-current={isAttendance ? 'page' : undefined}
-              className={`${baseLink} ${linkSize} ${isAttendance ? active : inactive}`}
+              className={`${baseLink} ${linkSize} whitespace-nowrap ${isAttendance ? active : inactive}`}
             >
               Chấm công
             </Link>
-            {(role === 'Admin' || role === 'accountance') && (
-              <>
-                <Link
-                  href="/products"
-                  aria-current={isProducts ? 'page' : undefined}
-                  className={`${baseLink} ${linkSize} ${isProducts ? active : inactive}`}
-                >
-                  Sản phẩm
-                </Link>
-                <Link
-                  href="/nguyen-lieu"
-                  aria-current={isNguyenLieu ? 'page' : undefined}
-                  className={`${baseLink} ${linkSize} ${isNguyenLieu ? active : inactive}`}
-                >
-                  Nguyên liệu
-                </Link>
-                <Link
-                  href="/customers"
-                  aria-current={isCustomers ? 'page' : undefined}
-                  className={`${baseLink} ${linkSize} ${isCustomers ? active : inactive}`}
-                >
-                  Khách hàng
-                </Link>
-                <Link
-                  href="/delivers"
-                  aria-current={isDelivers ? 'page' : undefined}
-                  className={`${baseLink} ${linkSize} ${isDelivers ? active : inactive}`}
-                >
-                  Giao hàng
-                </Link>
-                <Link
-                  href="/orders"
-                  aria-current={isOrders ? 'page' : undefined}
-                  className={`${baseLink} ${linkSize} ${isOrders ? active : inactive}`}
-                >
-                  Đơn hàng
-                </Link>
-                <Link
-                  href="/funds"
-                  aria-current={isFunds ? 'page' : undefined}
-                  className={`${baseLink} ${linkSize} ${isFunds ? active : inactive}`}
-                >
-                  Sổ quỹ
-                </Link>
-              </>
-            )}
+            
+            {/* Admin/Accountance tabs */}
             {(role === 'Admin' || role === 'accountance') && (
               <>
                 <Link
                   href="/san-xuat"
                   aria-current={isProduction ? 'page' : undefined}
-                  className={`${baseLink} ${linkSize} ${isProduction ? active : inactive}`}
+                  className={`${baseLink} ${linkSize} whitespace-nowrap ${isProduction ? active : inactive}`}
                 >
                   Sản xuất
                 </Link>
+                
+                {/* Kế toán dropdown */}
+                <div className="relative">
+                  <button
+                    ref={keToanMenuButtonRef}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsKeToanMenuOpen((prev) => !prev);
+                    }}
+                    className={`${baseLink} ${linkSize} whitespace-nowrap flex items-center gap-1 ${
+                      (isProducts || isNguyenLieu || isCustomers || isDelivers || isOrders || isFunds || isDoiTac || isNhapHang)
+                        ? active
+                        : inactive
+                    }`}
+                  >
+                    Kế toán
+                    <svg 
+                      className={`h-4 w-4 transition-transform ${isKeToanMenuOpen ? 'rotate-180' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
               </>
             )}
           </div>
         </div>
+
+        {/* Kế toán dropdown menu - render outside overflow container */}
+        {isKeToanMenuOpen && (
+          <div 
+            ref={keToanMenuRef}
+            className="fixed w-52 bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 z-[100] py-1"
+            style={{ 
+              top: `${keToanMenuPosition.top}px`,
+              left: `${keToanMenuPosition.left}px`
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <Link
+              href="/products"
+              onClick={() => setIsKeToanMenuOpen(false)}
+              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isProducts ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              Sản phẩm
+            </Link>
+            <Link
+              href="/nguyen-lieu"
+              onClick={() => setIsKeToanMenuOpen(false)}
+              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isNguyenLieu ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              Nguyên liệu
+            </Link>
+            <Link
+              href="/customers"
+              onClick={() => setIsKeToanMenuOpen(false)}
+              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isCustomers ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              Khách hàng
+            </Link>
+            <Link
+              href="/delivers"
+              onClick={() => setIsKeToanMenuOpen(false)}
+              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isDelivers ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              Giao hàng
+            </Link>
+            <Link
+              href="/orders"
+              onClick={() => setIsKeToanMenuOpen(false)}
+              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isOrders ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              Đơn hàng
+            </Link>
+            <Link
+              href="/funds"
+              onClick={() => setIsKeToanMenuOpen(false)}
+              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isFunds ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              Sổ quỹ
+            </Link>
+            <div className="border-t border-gray-100 my-1"></div>
+            <Link
+              href="/doi-tac"
+              onClick={() => setIsKeToanMenuOpen(false)}
+              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isDoiTac ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              Đối tác
+            </Link>
+            <Link
+              href="/nhap-hang"
+              onClick={() => setIsKeToanMenuOpen(false)}
+              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isNhapHang ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              Nhập hàng
+            </Link>
+          </div>
+        )}
 
         {/* Right side - User avatar and mobile menu button */}
         <div className="flex items-center space-x-2">
@@ -394,6 +478,26 @@ export default function Navbar() {
                     }`}
                 >
                   Sổ quỹ
+                </Link>
+                <Link
+                  href="/doi-tac"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isDoiTac
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                    : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                >
+                  Đối tác
+                </Link>
+                <Link
+                  href="/nhap-hang"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isNhapHang
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                    : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                >
+                  Nhập hàng
                 </Link>
               </>
             )}

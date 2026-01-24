@@ -462,6 +462,12 @@ export default function OrdersPage() {
             <div className="space-y-4 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
               {productOrdersInput.map((p, idx) => {
                 const total = calculateProductTotal(p);
+                // Tính giá/viên để hiển thị: nếu là kiện thì chia cho quantityProduct, nếu là sản phẩm thì dùng trực tiếp
+                const isPackage = p.selectionKey.startsWith('k:');
+                const selectedPackage = isPackage ? packageProducts.find((pk) => pk.id === Number(p.packageProductId)) : undefined;
+                const displayPrice = isPackage && selectedPackage && selectedPackage.quantityProduct > 0
+                  ? Number(p.price || 0) / selectedPackage.quantityProduct
+                  : Number(p.price || 0);
                 return (
                   <div key={idx} className="relative rounded-xl border border-gray-200 bg-gray-50 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -542,13 +548,22 @@ export default function OrdersPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Giá</label>
+                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Giá sản phẩm</label>
                         <input
                           className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
                           placeholder="0"
                           inputMode="decimal"
-                          value={formatNumber(p.price)}
-                          onChange={(e) => updateProductOrderField(idx, 'price', parseNumber(e.target.value))}
+                          value={formatNumber(displayPrice)}
+                          onChange={(e) => {
+                            const newPricePerUnit = parseNumber(e.target.value);
+                            if (newPricePerUnit === '') return;
+                            // Nếu là kiện thì nhân lại với quantityProduct, nếu là sản phẩm thì dùng trực tiếp
+                            if (isPackage && selectedPackage && selectedPackage.quantityProduct > 0) {
+                              updateProductOrderField(idx, 'price', Number(newPricePerUnit) * selectedPackage.quantityProduct);
+                            } else {
+                              updateProductOrderField(idx, 'price', Number(newPricePerUnit));
+                            }
+                          }}
                         />
                       </div>
                       <div>
