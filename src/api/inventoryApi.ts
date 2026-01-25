@@ -38,5 +38,19 @@ export const inventoryApi = {
 
     createRawMaterial: async (data: RawMaterialFormData): Promise<RawMaterial> => {
         return api.post<RawMaterial>('/api/nguyenlieu', data);
+    },
+
+    // Nhập nguyên liệu với thông tin tài chính
+    importRawMaterial: async (data: {
+        rawMaterialId: number;
+        quantity: number;
+        unitPrice: number;
+        discount: number;
+        totalAmount: number;
+        paidAmount: number;
+        partnerId: number;
+        createdUserId: number;
+    }): Promise<{ rawMaterial: RawMaterial; partner: unknown; fund?: unknown }> => {
+        return api.post('/api/nguyenlieu/import', data);
     }
 };
