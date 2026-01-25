@@ -67,3 +67,36 @@ export interface InventoryReceiptFormData {
     quantity: number;
     createdBy: number;
 }
+
+export interface RawMaterialImport {
+    id: number;
+    rawMaterialId: number;
+    quantity: number;
+    unitPrice: number;
+    discount: number;
+    totalAmount: number;
+    paidAmount: number;
+    partnerId: number;
+    createdUserId: number;
+    dateCreated: string;
+    rawMaterial?: RawMaterial;
+    partner?: {
+        id: number;
+        name: string;
+    };
+    createdUser?: {
+        id: number;
+        userName: string;
+    };
+}
+
+export interface RawMaterialImportFormData {
+    id?: number; // Nếu có id thì là update, không có thì là create
+    rawMaterialId: number;
+    quantity: number;
+    unitPrice: number;
+    discount: number;
+    totalAmount: number;
+    paidAmount: number;
+    partnerId: number;
+}

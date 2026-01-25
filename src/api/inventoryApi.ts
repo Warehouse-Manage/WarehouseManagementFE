@@ -5,7 +5,9 @@ import {
     Product,
     ProductFormData,
     RawMaterial,
-    RawMaterialFormData
+    RawMaterialFormData,
+    RawMaterialImport,
+    RawMaterialImportFormData
 } from '@/types';
 
 export const inventoryApi = {
@@ -52,5 +54,18 @@ export const inventoryApi = {
         createdUserId: number;
     }): Promise<{ rawMaterial: RawMaterial; partner: unknown; fund?: unknown }> => {
         return api.post('/api/nguyenlieu/import', data);
+    },
+
+    // Raw Material Import
+    getRawMaterialImports: async (): Promise<RawMaterialImport[]> => {
+        return api.get<RawMaterialImport[]>('/api/rawmaterialimport');
+    },
+
+    getRawMaterialImportById: async (id: number): Promise<RawMaterialImport> => {
+        return api.get<RawMaterialImport>(`/api/rawmaterialimport/${id}`);
+    },
+
+    updateRawMaterialImport: async (id: number, data: RawMaterialImportFormData): Promise<RawMaterialImport> => {
+        return api.put<RawMaterialImport>(`/api/rawmaterialimport/${id}`, data);
     }
 };
