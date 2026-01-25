@@ -35,10 +35,41 @@ export default function Navbar() {
     if (isKeToanMenuOpen && keToanMenuButtonRef.current) {
       const rect = keToanMenuButtonRef.current.getBoundingClientRect();
       setKeToanMenuPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
+        top: rect.bottom + 4,
+        left: rect.left,
       });
     }
+  }, [isKeToanMenuOpen]);
+
+  // Cập nhật vị trí khi resize hoặc scroll
+  useEffect(() => {
+    if (!isKeToanMenuOpen) return;
+    
+    const updatePosition = () => {
+      if (keToanMenuButtonRef.current) {
+        const rect = keToanMenuButtonRef.current.getBoundingClientRect();
+        setKeToanMenuPosition({
+          top: rect.bottom + 4,
+          left: rect.left,
+        });
+      }
+    };
+
+    const handleResize = () => {
+      updatePosition();
+    };
+
+    const handleScroll = () => {
+      updatePosition();
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll, true);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
   }, [isKeToanMenuOpen]);
 
   const isMaterials = pathname === '/' || pathname === '/';
