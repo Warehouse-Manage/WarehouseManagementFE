@@ -19,6 +19,7 @@ interface NhapHangItem {
 }
 
 export default function NhapHangPage() {
+  const [role, setRole] = useState<string | null>(() => getCookie('role'));
   const [items, setItems] = useState<NhapHangItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +34,11 @@ export default function NhapHangPage() {
     selectionKey: '',
     soLuong: '',
   });
+
+  useEffect(() => {
+    const r = getCookie('role');
+    setRole(r);
+  }, []);
 
   // Tạo options cho dropdown từ products và packageProducts
   const getProductOptions = () => {
@@ -274,6 +280,11 @@ export default function NhapHangPage() {
     const d = new Date(value);
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN');
   };
+
+  // Show blank page if role is not 'Admin' or 'accountance'
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
+  }
 
   const columns = [
     {

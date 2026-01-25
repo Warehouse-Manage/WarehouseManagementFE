@@ -128,3 +128,30 @@ export interface FundFormData {
     objectName: string;
     createdUserId: number;
 }
+
+export interface Partner {
+    id: number;
+    name: string;
+    phoneNumber: string;
+    address?: string;
+    amountMoneyTotal: number;
+    amountMoneyPaid: number;
+    dateCreated?: string;
+}
+
+export interface PartnerFormData {
+    name: string;
+    phoneNumber: string;
+    address?: string;
+    createdUserId: number;
+}
+
+export interface PartnerPaymentFormData {
+    amount: number;
+    createdUserId: number;
+}
+
+export interface PartnerPaymentResponse {
+    partner: Partner;
+    fund: Fund;
+}
