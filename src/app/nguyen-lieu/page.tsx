@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { getCookie } from '@/lib/ultis';
-import { inventoryApi } from '@/api';
-import { RawMaterial } from '@/types';
+import { inventoryApi, partnerApi } from '@/api';
+import { RawMaterial, Partner } from '@/types';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
 
 // Type NguyenLieu moved to @/types/inventory.ts as RawMaterial
@@ -17,6 +17,8 @@ export default function NguyenLieuPage() {
   const [unit, setUnit] = useState('');
   const [quantity, setQuantity] = useState<number | ''>('');
   const [description, setDescription] = useState('');
+  const [partnerId, setPartnerId] = useState<number | ''>('');
+  const [partners, setPartners] = useState<Partner[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
@@ -38,12 +40,33 @@ export default function NguyenLieuPage() {
       ]
     },
     { name: 'quantity', label: 'Số lượng', type: 'number', required: true, placeholder: 'Nhập số lượng...' },
+    {
+      name: 'partnerId',
+      label: 'Đối tác',
+      type: 'select',
+      required: false,
+      options: partners.map(p => ({ value: p.id, label: p.name })),
+      placeholder: 'Chọn đối tác (không bắt buộc)'
+    },
     { name: 'description', label: 'Mô tả', type: 'textarea', placeholder: 'Nhập mô tả (không bắt buộc)...' },
   ];
 
   useEffect(() => {
     const r = getCookie('role');
     setRole(r);
+  }, []);
+
+  const loadPartners = async () => {
+    try {
+      const data = await partnerApi.getPartners();
+      setPartners(data);
+    } catch (err: unknown) {
+      console.error('Không thể tải danh sách đối tác:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadPartners();
   }, []);
 
   // apiHost removed, handled in inventoryApi
@@ -94,11 +117,13 @@ export default function NguyenLieuPage() {
         quantity: Number(quantity),
         description: description || '',
         createdUserId: Number(userId),
+        partnerId: partnerId ? Number(partnerId) : undefined,
       });
       setName('');
       setUnit('');
       setQuantity('');
       setDescription('');
+      setPartnerId('');
       setShowForm(false);
       await loadNguyenLieu();
     } catch (err: unknown) {
@@ -113,6 +138,7 @@ export default function NguyenLieuPage() {
     setUnit('');
     setQuantity('');
     setDescription('');
+    setPartnerId('');
     setError(null);
   };
 
@@ -168,12 +194,13 @@ export default function NguyenLieuPage() {
           {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
           <DynamicForm
             fields={nguyenLieuFormFields}
-            values={{ name, unit, quantity, description }}
+            values={{ name, unit, quantity, description, partnerId }}
             onChange={(field, value) => {
               if (field === 'name') setName(value as string);
               if (field === 'unit') setUnit(value as string);
               if (field === 'quantity') setQuantity(value as number);
               if (field === 'description') setDescription(value as string);
+              if (field === 'partnerId') setPartnerId(value === '' ? '' : Number(value));
             }}
             columns={2}
           />

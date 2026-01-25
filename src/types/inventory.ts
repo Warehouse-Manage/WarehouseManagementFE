@@ -36,6 +36,7 @@ export interface RawMaterial {
     unit: string;
     quantity: number;
     description?: string;
+    partnerId?: number;
 }
 
 export interface RawMaterialFormData {
@@ -44,6 +45,7 @@ export interface RawMaterialFormData {
     quantity: number;
     description: string;
     createdUserId: number;
+    partnerId?: number;
 }
 
 export interface InventoryReceipt {
