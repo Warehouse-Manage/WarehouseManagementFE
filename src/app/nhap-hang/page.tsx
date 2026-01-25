@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
 import { inventoryApi, inventoryReceiptApi, partnerApi, financeApi } from '@/api';
-import { Product, PackageProduct, RawMaterial, Partner } from '@/types';
+import { Product, PackageProduct, RawMaterial, Partner, RawMaterialImport } from '@/types';
 import { toast } from 'sonner';
 
 interface NhapHangItem {
@@ -19,7 +19,10 @@ interface NhapHangItem {
 }
 
 export default function NhapHangPage() {
+  const [activeTab, setActiveTab] = useState<'sanpham' | 'nguyenlieu'>('sanpham');
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
+  
+  // State cho tab Sản phẩm
   const [items, setItems] = useState<NhapHangItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,8 +38,11 @@ export default function NhapHangPage() {
     soLuong: '',
   });
 
-  // State cho form nhập nguyên liệu
+  // State cho tab Nguyên liệu
+  const [rawMaterialImports, setRawMaterialImports] = useState<RawMaterialImport[]>([]);
+  const [loadingRawMaterialImports, setLoadingRawMaterialImports] = useState(false);
   const [showNguyenLieuModal, setShowNguyenLieuModal] = useState(false);
+  const [editingRawMaterialImport, setEditingRawMaterialImport] = useState<RawMaterialImport | null>(null);
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [nguyenLieuFormData, setNguyenLieuFormData] = useState({
@@ -105,6 +111,13 @@ export default function NhapHangPage() {
     loadAll();
   }, []);
 
+  // Load rawMaterialImports khi vào tab nguyên liệu
+  useEffect(() => {
+    if (activeTab === 'nguyenlieu') {
+      loadRawMaterialImports();
+    }
+  }, [activeTab]);
+
   // Load items sau khi products và packageProducts đã load xong
   useEffect(() => {
     if (products.length > 0 || packageProducts.length > 0) {
@@ -152,6 +165,21 @@ export default function NhapHangPage() {
       setPartners(data);
     } catch (err: unknown) {
       console.error('Failed to load partners:', err);
+    }
+  };
+
+  const loadRawMaterialImports = async () => {
+    setLoadingRawMaterialImports(true);
+    setError(null);
+    try {
+      const data = await inventoryApi.getRawMaterialImports();
+      setRawMaterialImports(data);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(errorMessage || 'Không thể tải danh sách nhập nguyên liệu');
+      console.error(err);
+    } finally {
+      setLoadingRawMaterialImports(false);
     }
   };
 
@@ -351,56 +379,73 @@ export default function NhapHangPage() {
 
     setSubmittingNguyenLieu(true);
     try {
-      const result = await inventoryApi.importRawMaterial({
-        rawMaterialId: Number(nguyenLieuFormData.rawMaterialId),
-        quantity,
-        unitPrice,
-        discount,
-        totalAmount,
-        paidAmount,
-        partnerId: Number(nguyenLieuFormData.partnerId),
-        createdUserId: Number(userId),
-      });
+      // Nếu đang edit, gọi API update
+      if (editingRawMaterialImport) {
+        await inventoryApi.updateRawMaterialImport(editingRawMaterialImport.id, {
+          id: editingRawMaterialImport.id,
+          rawMaterialId: Number(nguyenLieuFormData.rawMaterialId),
+          quantity,
+          unitPrice,
+          discount,
+          totalAmount,
+          paidAmount,
+          partnerId: Number(nguyenLieuFormData.partnerId),
+        });
+        toast.success('Cập nhật nhập nguyên liệu thành công');
+      } else {
+        // Tạo mới
+        const result = await inventoryApi.importRawMaterial({
+          rawMaterialId: Number(nguyenLieuFormData.rawMaterialId),
+          quantity,
+          unitPrice,
+          discount,
+          totalAmount,
+          paidAmount,
+          partnerId: Number(nguyenLieuFormData.partnerId),
+          createdUserId: Number(userId),
+        });
 
-      // Nếu đã trả > 0, tạo bản ghi sổ quỹ và in phiếu chi
-      if (paidAmount > 0) {
-        try {
-          const partner = partners.find(p => p.id === Number(nguyenLieuFormData.partnerId));
-          if (!partner) {
-            throw new Error('Không tìm thấy thông tin đối tác');
+        // Nếu đã trả > 0, tạo bản ghi sổ quỹ và in phiếu chi
+        if (paidAmount > 0) {
+          try {
+            const partner = partners.find(p => p.id === Number(nguyenLieuFormData.partnerId));
+            if (!partner) {
+              throw new Error('Không tìm thấy thông tin đối tác');
+            }
+
+            let fundId: number;
+            
+            // Nếu backend đã tạo fund, dùng fund đó
+            if (result.fund && (result.fund as { id: number }).id) {
+              fundId = (result.fund as { id: number }).id;
+            } else {
+              // Nếu chưa có, tạo mới bản ghi sổ quỹ
+              const fund = await financeApi.createFund({
+                type: 'Chi',
+                description: `Thanh toán cho đối tác ${partner.name}`,
+                amount: paidAmount,
+                category: 'Nguyên liệu',
+                objectId: Number(nguyenLieuFormData.partnerId),
+                objectType: 'Đối tác',
+                objectName: partner.name,
+                createdUserId: Number(userId),
+              });
+              fundId = fund.id;
+            }
+
+            // In phiếu chi
+            const receiptHtml = await financeApi.printFund(fundId);
+            await printHtmlContent(receiptHtml);
+          } catch (printErr) {
+            console.error('Không thể tạo bản ghi sổ quỹ hoặc in phiếu chi:', printErr);
+            // Không throw error để không làm gián đoạn flow
           }
-
-          let fundId: number;
-          
-          // Nếu backend đã tạo fund, dùng fund đó
-          if (result.fund && (result.fund as { id: number }).id) {
-            fundId = (result.fund as { id: number }).id;
-          } else {
-            // Nếu chưa có, tạo mới bản ghi sổ quỹ
-            const fund = await financeApi.createFund({
-              type: 'Chi',
-              description: `Thanh toán cho đối tác ${partner.name}`,
-              amount: paidAmount,
-              category: 'Nguyên liệu',
-              objectId: Number(nguyenLieuFormData.partnerId),
-              objectType: 'Đối tác',
-              objectName: partner.name,
-              createdUserId: Number(userId),
-            });
-            fundId = fund.id;
-          }
-
-          // In phiếu chi
-          const receiptHtml = await financeApi.printFund(fundId);
-          await printHtmlContent(receiptHtml);
-        } catch (printErr) {
-          console.error('Không thể tạo bản ghi sổ quỹ hoặc in phiếu chi:', printErr);
-          // Không throw error để không làm gián đoạn flow
         }
+        toast.success('Nhập nguyên liệu thành công');
       }
 
-      toast.success('Nhập nguyên liệu thành công');
       setShowNguyenLieuModal(false);
+      setEditingRawMaterialImport(null);
       setNguyenLieuFormData({
         rawMaterialId: '',
         quantity: '',
@@ -409,16 +454,60 @@ export default function NhapHangPage() {
         paidAmount: '',
         partnerId: '',
       });
+      
+      // Reload danh sách
+      await loadRawMaterialImports();
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      toast.error(errorMessage || 'Có lỗi xảy ra khi nhập nguyên liệu');
+      toast.error(errorMessage || `Có lỗi xảy ra khi ${editingRawMaterialImport ? 'cập nhật' : 'nhập'} nguyên liệu`);
       console.error(err);
     } finally {
       setSubmittingNguyenLieu(false);
     }
   };
 
-  const nguyenLieuFormFields: FormField[] = [
+  const handleEditRawMaterialImport = async (item: RawMaterialImport) => {
+    try {
+      // Load chi tiết với navigation properties
+      const detail = await inventoryApi.getRawMaterialImportById(item.id);
+      setEditingRawMaterialImport(detail);
+      setNguyenLieuFormData({
+        rawMaterialId: detail.rawMaterialId.toString(),
+        quantity: detail.quantity.toString(),
+        unitPrice: detail.unitPrice.toString(),
+        discount: detail.discount.toString(),
+        paidAmount: detail.paidAmount.toString(),
+        partnerId: detail.partnerId.toString(),
+      });
+      setShowNguyenLieuModal(true);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      toast.error(errorMessage || 'Không thể tải thông tin nhập nguyên liệu');
+      console.error(err);
+    }
+  };
+
+  const handleCloseNguyenLieuModal = () => {
+    setShowNguyenLieuModal(false);
+    setEditingRawMaterialImport(null);
+    setNguyenLieuFormData({
+      rawMaterialId: '',
+      quantity: '',
+      unitPrice: '',
+      discount: '',
+      paidAmount: '',
+      partnerId: '',
+    });
+  };
+
+  // Lấy đơn vị của nguyên liệu được chọn
+  const selectedUnit = useMemo(() => {
+    if (!nguyenLieuFormData.rawMaterialId) return '';
+    const selectedMaterial = rawMaterials.find(rm => rm.id === Number(nguyenLieuFormData.rawMaterialId));
+    return selectedMaterial?.unit || '';
+  }, [nguyenLieuFormData.rawMaterialId, rawMaterials]);
+
+  const nguyenLieuFormFields: FormField[] = useMemo(() => [
     {
       name: 'rawMaterialId',
       label: 'Nguyên liệu',
@@ -429,7 +518,7 @@ export default function NhapHangPage() {
     },
     {
       name: 'quantity',
-      label: 'Số lượng',
+      label: selectedUnit ? `Số lượng (${selectedUnit})` : 'Số lượng (đơn vị)',
       type: 'number',
       required: true,
       placeholder: 'Nhập số lượng...',
@@ -437,7 +526,7 @@ export default function NhapHangPage() {
     },
     {
       name: 'unitPrice',
-      label: 'Giá thành',
+      label: selectedUnit ? `Giá thành (/${selectedUnit})` : 'Giá thành (/đơn vị)',
       type: 'number',
       required: true,
       placeholder: 'Nhập giá thành...',
@@ -467,7 +556,7 @@ export default function NhapHangPage() {
       placeholder: 'Nhập số tiền đã trả...',
       min: 0
     },
-  ];
+  ], [selectedUnit, rawMaterials, partners]);
 
   // Show blank page if role is not 'Admin' or 'accountance'
   if (role !== 'Admin' && role !== 'accountance') {
@@ -500,28 +589,91 @@ export default function NhapHangPage() {
     },
   ];
 
+  const rawMaterialImportColumns = [
+    {
+      key: 'rawMaterial',
+      header: 'Nguyên liệu',
+      isMain: true,
+      render: (item: RawMaterialImport) => (
+        <span className="font-semibold">{item.rawMaterial?.name || 'N/A'}</span>
+      ),
+    },
+    {
+      key: 'quantity',
+      header: 'Số lượng',
+      render: (item: RawMaterialImport) => (
+        <span className="font-semibold">
+          {item.quantity.toLocaleString('vi-VN')} {item.rawMaterial?.unit || ''}
+        </span>
+      ),
+    },
+    {
+      key: 'unitPrice',
+      header: 'Đơn giá',
+      render: (item: RawMaterialImport) => (
+        <span>{item.unitPrice.toLocaleString('vi-VN')} đ</span>
+      ),
+      mobileHidden: true,
+    },
+    {
+      key: 'totalAmount',
+      header: 'Tổng tiền',
+      render: (item: RawMaterialImport) => (
+        <span className="font-semibold text-blue-600">
+          {item.totalAmount.toLocaleString('vi-VN')} đ
+        </span>
+      ),
+    },
+    {
+      key: 'partner',
+      header: 'Đối tác',
+      render: (item: RawMaterialImport) => (
+        <span>{item.partner?.name || 'N/A'}</span>
+      ),
+      mobileHidden: true,
+    },
+    {
+      key: 'createdUser',
+      header: 'Người tạo',
+      render: (item: RawMaterialImport) => (
+        <span>{item.createdUser?.userName || 'N/A'}</span>
+      ),
+      mobileHidden: true,
+    },
+    {
+      key: 'dateCreated',
+      header: 'Ngày tạo',
+      render: (item: RawMaterialImport) => formatDateTime(item.dateCreated),
+      mobileHidden: true,
+    },
+  ];
+
   return (
     <div className="container mx-auto p-4 sm:p-6">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Nhập hàng</h1>
-        <div className="flex gap-2">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">Nhập hàng</h1>
+        
+        {/* Tabs */}
+        <div className="flex gap-2 border-b border-gray-200">
           <button
-            onClick={() => setShowNguyenLieuModal(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            onClick={() => setActiveTab('sanpham')}
+            className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+              activeTab === 'sanpham'
+                ? 'text-orange-600 border-orange-600'
+                : 'text-gray-600 border-transparent hover:text-orange-600'
+            }`}
           >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Nhập nguyên liệu
+            Sản phẩm
           </button>
           <button
-            onClick={() => setShowModal(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            onClick={() => setActiveTab('nguyenlieu')}
+            className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+              activeTab === 'nguyenlieu'
+                ? 'text-orange-600 border-orange-600'
+                : 'text-gray-600 border-transparent hover:text-orange-600'
+            }`}
           >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Thêm nhập hàng
+            Nguyên liệu
           </button>
         </div>
       </div>
@@ -532,23 +684,86 @@ export default function NhapHangPage() {
         </div>
       )}
 
-      <DataTable
-        data={items}
-        columns={columns}
-        isLoading={loading}
-        emptyMessage="Chưa có dữ liệu nhập hàng"
-        actions={(item) => [
-          {
-            label: 'Sửa',
-            icon: (
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+      {/* Tab Sản phẩm */}
+      {activeTab === 'sanpham' && (
+        <>
+          <div className="mb-4 flex justify-end">
+            <button
+              onClick={() => setShowModal(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-            ),
-            onClick: () => handleEdit(item),
-          },
-        ]}
-      />
+              Thêm nhập hàng
+            </button>
+          </div>
+
+          <DataTable
+            data={items}
+            columns={columns}
+            isLoading={loading}
+            emptyMessage="Chưa có dữ liệu nhập hàng"
+            actions={(item) => [
+              {
+                label: 'Sửa',
+                icon: (
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                ),
+                onClick: () => handleEdit(item),
+              },
+            ]}
+          />
+        </>
+      )}
+
+      {/* Tab Nguyên liệu */}
+      {activeTab === 'nguyenlieu' && (
+        <>
+          <div className="mb-4 flex justify-end">
+            <button
+              onClick={() => {
+                setEditingRawMaterialImport(null);
+                setNguyenLieuFormData({
+                  rawMaterialId: '',
+                  quantity: '',
+                  unitPrice: '',
+                  discount: '',
+                  paidAmount: '',
+                  partnerId: '',
+                });
+                setShowNguyenLieuModal(true);
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Nhập nguyên liệu
+            </button>
+          </div>
+
+          <DataTable
+            data={rawMaterialImports}
+            columns={rawMaterialImportColumns}
+            isLoading={loadingRawMaterialImports}
+            emptyMessage="Chưa có dữ liệu nhập nguyên liệu"
+            actions={(item) => [
+              {
+                label: 'Sửa',
+                icon: (
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                ),
+                onClick: () => handleEditRawMaterialImport(item),
+              },
+            ]}
+          />
+        </>
+      )}
 
       <Modal
         isOpen={showModal}
@@ -586,33 +801,13 @@ export default function NhapHangPage() {
       {/* Modal nhập nguyên liệu */}
       <Modal
         isOpen={showNguyenLieuModal}
-        onClose={() => {
-          setShowNguyenLieuModal(false);
-          setNguyenLieuFormData({
-            rawMaterialId: '',
-            quantity: '',
-            unitPrice: '',
-            discount: '',
-            paidAmount: '',
-            partnerId: '',
-          });
-        }}
-        title="Nhập nguyên liệu"
+        onClose={handleCloseNguyenLieuModal}
+        title={editingRawMaterialImport ? 'Sửa nhập nguyên liệu' : 'Nhập nguyên liệu'}
         size="lg"
         footer={
           <>
             <button
-              onClick={() => {
-                setShowNguyenLieuModal(false);
-                setNguyenLieuFormData({
-                  rawMaterialId: '',
-                  quantity: '',
-                  unitPrice: '',
-                  discount: '',
-                  paidAmount: '',
-                  partnerId: '',
-                });
-              }}
+              onClick={handleCloseNguyenLieuModal}
               className="rounded-lg border-2 border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
             >
               Hủy
@@ -622,7 +817,7 @@ export default function NhapHangPage() {
               disabled={submittingNguyenLieu}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submittingNguyenLieu ? 'Đang lưu...' : 'Lưu'}
+              {submittingNguyenLieu ? 'Đang lưu...' : editingRawMaterialImport ? 'Cập nhật' : 'Lưu'}
             </button>
           </>
         }
