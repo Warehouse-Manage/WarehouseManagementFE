@@ -15,6 +15,9 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   // apiHost removed, handled in API modules
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [delivers, setDelivers] = useState<Deliver[]>([]);
@@ -62,12 +65,13 @@ export default function OrdersPage() {
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN');
   };
 
-  const loadOrders = async () => {
+  const loadOrders = async (page: number = currentPage, size: number = pageSize) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await financeApi.getOrders();
-      setOrders(data);
+      const result = await financeApi.getOrdersFilter(page, size);
+      setOrders(result.data);
+      setTotalCount(result.totalCount);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tải danh sách đơn hàng');
       console.error(err);
@@ -125,7 +129,7 @@ export default function OrdersPage() {
   };
 
   useEffect(() => {
-    loadOrders();
+    loadOrders(1);
     loadCustomers();
     loadDelivers();
     loadProducts();
@@ -265,10 +269,20 @@ export default function OrdersPage() {
       const customer = customers.find((c) => c.id === Number(customerId));
       const deliver = delivers.find((d) => d.id === Number(deliverId));
 
+      // Format DD/MM/YYYY HH:MM
+      const formatDateTime = (date: Date): string => {
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+      };
+
       const receiptModel = {
         Tieu_De: 'PHIẾU THU (ĐƠN HÀNG)',
         Nhan_Doi_Tac: 'Người nộp tiền',
-        Ngay_Thang_Nam: now.toLocaleString('vi-VN'),
+        Ngay_Thang_Nam: formatDateTime(now),
         Doi_Tac: customer?.name || 'Khách hàng',
         Dia_Chi: customer?.address || '',
         Ly_Do: `Thanh toán cho đơn hàng #${res.id}`,
@@ -300,7 +314,7 @@ export default function OrdersPage() {
         });
 
       const deliveryModel = {
-        Ngay_Thang_Nam: now.toLocaleString('vi-VN'),
+        Ngay_Thang_Nam: formatDateTime(now),
         Khach_Hang: customer?.name || 'Khách hàng',
         Bien_So_Xe: deliver?.plateNumber || '...',
         Doi_Tac_Giao_Hang: deliver?.name || '...',
@@ -319,7 +333,7 @@ export default function OrdersPage() {
 
       resetForm();
       setShowModal(false);
-      await loadOrders();
+      await loadOrders(currentPage);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tạo đơn hàng');
     } finally {
@@ -608,7 +622,7 @@ export default function OrdersPage() {
         <div className="flex items-center justify-between mb-2 sm:mb-4">
           <h2 className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-wider">Danh sách đơn hàng</h2>
           <button
-            onClick={loadOrders}
+            onClick={() => loadOrders(currentPage)}
             disabled={loading}
             className="p-2 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 active:bg-gray-100 transition-all flex items-center gap-2"
           >
@@ -622,6 +636,19 @@ export default function OrdersPage() {
         <DataTable
           data={orders}
           isLoading={loading}
+          enablePagination={true}
+          totalCount={totalCount}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            loadOrders(page);
+          }}
+          onPageSizeChange={(newPageSize) => {
+            setPageSize(newPageSize);
+            setCurrentPage(1);
+            loadOrders(1, newPageSize);
+          }}
           columns={[
             {
               key: 'customerName',
@@ -702,22 +729,6 @@ export default function OrdersPage() {
           emptyMessage="Chưa có dữ liệu đơn hàng"
         />
 
-        {orders.length > 0 && !loading && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
-            <div className="rounded-lg bg-gray-50 p-3 text-center">
-              <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Tổng tiền hàng</p>
-              <p className="text-lg font-black text-gray-900">{orders.reduce((sum, o) => sum + o.totalPrice, 0).toLocaleString()}</p>
-            </div>
-            <div className="rounded-lg bg-red-50 p-3 text-center">
-              <p className="text-xs text-red-600 font-bold uppercase tracking-wider">Tổng giảm giá</p>
-              <p className="text-lg font-black text-red-600">{orders.reduce((sum, o) => sum + o.sale, 0).toLocaleString()}</p>
-            </div>
-            <div className="rounded-lg bg-blue-50 p-3 text-center">
-              <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Tổng khách trả</p>
-              <p className="text-lg font-black text-blue-600">{orders.reduce((sum, o) => sum + o.amountCustomerPayment, 0).toLocaleString()}</p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -20,6 +20,10 @@ export const inventoryApi = {
         return api.post<Product>('/api/products', data);
     },
 
+    deleteProduct: async (id: number): Promise<void> => {
+        return api.delete<void>(`/api/products/${id}`);
+    },
+
     // Package Products
     getPackageProducts: async (): Promise<PackageProduct[]> => {
         return api.get<PackageProduct[]>('/api/products/package');
@@ -31,6 +35,10 @@ export const inventoryApi = {
 
     createOrUpdatePackageProduct: async (data: PackageProductFormData): Promise<PackageProduct> => {
         return api.post<PackageProduct>('/api/products/package', data);
+    },
+
+    deletePackageProduct: async (id: number): Promise<void> => {
+        return api.delete<void>(`/api/products/package/${id}`);
     },
 
     // Raw Materials
@@ -59,6 +67,19 @@ export const inventoryApi = {
     // Raw Material Import
     getRawMaterialImports: async (): Promise<RawMaterialImport[]> => {
         return api.get<RawMaterialImport[]>('/api/rawmaterialimport');
+    },
+
+    getRawMaterialImportsFilter: async (page: number = 1, pageSize: number = 10, params?: Record<string, string | number>): Promise<{ data: RawMaterialImport[]; totalCount: number }> => {
+        let url = `/api/rawmaterialimport/filter?page=${page}&pageSize=${pageSize}`;
+        if (params) {
+            const query = new URLSearchParams(params as Record<string, string>).toString();
+            if (query) url += `&${query}`;
+        }
+        const response = await api.get<{ data: RawMaterialImport[]; totalCount: number }>(url);
+        return {
+            data: response.data || [],
+            totalCount: response.totalCount || 0
+        };
     },
 
     getRawMaterialImportById: async (id: number): Promise<RawMaterialImport> => {

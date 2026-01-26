@@ -27,6 +27,9 @@ export default function FundsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [filterType, setFilterType] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   // apiHost removed, handled in API modules
   const [suggestions, setSuggestions] = useState<{ id: number; name: string }[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -138,15 +141,16 @@ export default function FundsPage() {
     }
   };
 
-  const loadFunds = async () => {
+  const loadFunds = async (page: number = currentPage, size: number = pageSize) => {
     setLoading(true);
     setError(null);
     try {
       const params: Record<string, string> = {};
       if (filterType) params.type = filterType;
 
-      const data = await financeApi.getFunds(params);
-      setFunds(data);
+      const result = await financeApi.getFundsFilter(page, size, params);
+      setFunds(result.data);
+      setTotalCount(result.totalCount);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tải danh sách sổ quỹ');
       console.error(err);
@@ -156,7 +160,8 @@ export default function FundsPage() {
   };
 
   useEffect(() => {
-    loadFunds();
+    setCurrentPage(1);
+    loadFunds(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType]);
 
@@ -223,7 +228,7 @@ export default function FundsPage() {
 
       resetForm();
       setShowForm(false);
-      await loadFunds();
+      await loadFunds(currentPage);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tạo bản ghi sổ quỹ');
     } finally {
@@ -251,7 +256,7 @@ export default function FundsPage() {
       });
       resetForm();
       setShowForm(false);
-      await loadFunds();
+      await loadFunds(currentPage);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể cập nhật bản ghi sổ quỹ');
     } finally {
@@ -275,12 +280,13 @@ export default function FundsPage() {
     if (!confirm('Bạn có chắc chắn muốn xóa bản ghi này?')) return;
     try {
       await financeApi.deleteFund(id);
-      await loadFunds();
+      await loadFunds(currentPage);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể xóa bản ghi sổ quỹ');
     }
   };
 
+  // Note: Tổng thu/chi chỉ tính trên trang hiện tại, không phải toàn bộ dữ liệu
   const calculateTotal = (type: string) => {
     return funds
       .filter(f => f.type === type)
@@ -443,7 +449,7 @@ export default function FundsPage() {
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <h2 className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-wider">Lịch sử giao dịch</h2>
           <button
-            onClick={loadFunds}
+            onClick={() => loadFunds(currentPage, pageSize)}
             disabled={loading}
             className="p-2 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 active:bg-gray-100 transition-all flex items-center gap-2"
           >
@@ -456,6 +462,19 @@ export default function FundsPage() {
         <DataTable
           data={funds}
           isLoading={loading}
+          enablePagination={true}
+          totalCount={totalCount}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            loadFunds(page);
+          }}
+          onPageSizeChange={(newPageSize) => {
+            setPageSize(newPageSize);
+            setCurrentPage(1);
+            loadFunds(1, newPageSize);
+          }}
           columns={[
             {
               key: 'type',
