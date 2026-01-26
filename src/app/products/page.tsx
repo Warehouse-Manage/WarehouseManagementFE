@@ -5,6 +5,8 @@ import { getCookie } from '@/lib/ultis';
 import { inventoryApi } from '@/api';
 import { Product } from '@/types';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
+import { Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Type Product moved to @/types/inventory.ts
 
@@ -206,6 +208,28 @@ export default function ProductsPage() {
       setError(getErrorMessage(err) || 'Không thể lưu kiện');
     } finally {
       setSubmittingPackage(false);
+    }
+  };
+
+  const handleDeleteProduct = async (id: number) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) return;
+    try {
+      await inventoryApi.deleteProduct(id);
+      toast.success('Xóa sản phẩm thành công');
+      await loadProducts();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || 'Không thể xóa sản phẩm');
+    }
+  };
+
+  const handleDeletePackage = async (id: number) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa kiện này?')) return;
+    try {
+      await inventoryApi.deletePackageProduct(id);
+      toast.success('Xóa kiện thành công');
+      await loadPackageProducts();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || 'Không thể xóa kiện');
     }
   };
 
@@ -488,6 +512,14 @@ export default function ProductsPage() {
                     }
                   }
                 ]}
+                actions={(p) => [
+                  {
+                    label: 'Xóa',
+                    icon: <Trash2 className="h-4 w-4" />,
+                    onClick: () => handleDeleteProduct(p.id),
+                    variant: 'danger'
+                  }
+                ]}
                 emptyMessage="Chưa có dữ liệu sản phẩm"
               />
             ) : (
@@ -525,20 +557,22 @@ export default function ProductsPage() {
                       </span>
                     )
                   },
+                ]}
+                actions={(k: PackageRow) => [
                   {
-                    key: 'actions',
-                    header: 'Thao tác',
-                    render: (k: PackageRow) => (
-                      <button
-                        onClick={() => openEditPackageModal(k.id)}
-                        className="inline-flex items-center justify-center rounded-lg bg-gray-50 p-2 text-gray-600 hover:bg-gray-100 transition-colors"
-                        title="Sửa kiện"
-                      >
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                    )
+                    label: 'Sửa',
+                    icon: (
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    ),
+                    onClick: () => openEditPackageModal(k.id)
+                  },
+                  {
+                    label: 'Xóa',
+                    icon: <Trash2 className="h-4 w-4" />,
+                    onClick: () => handleDeletePackage(k.id),
+                    variant: 'danger'
                   }
                 ]}
                 emptyMessage="Chưa có dữ liệu kiện"

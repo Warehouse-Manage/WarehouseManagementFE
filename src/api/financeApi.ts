@@ -46,6 +46,19 @@ export const financeApi = {
         return api.get<Order[]>('/api/orders');
     },
 
+    getOrdersFilter: async (page: number = 1, pageSize: number = 10, params?: Record<string, string | number>): Promise<{ data: Order[]; totalCount: number }> => {
+        let url = `/api/orders/filter?page=${page}&pageSize=${pageSize}`;
+        if (params) {
+            const query = new URLSearchParams(params as Record<string, string>).toString();
+            if (query) url += `&${query}`;
+        }
+        const response = await api.get<{ data: Order[]; totalCount: number }>(url);
+        return {
+            data: response.data || [],
+            totalCount: response.totalCount || 0
+        };
+    },
+
     createOrder: async (data: OrderFormData): Promise<Order> => {
         return api.post<Order>('/api/orders', data);
     },
@@ -74,6 +87,19 @@ export const financeApi = {
             if (query) url += `?${query}`;
         }
         return api.get<Fund[]>(url);
+    },
+
+    getFundsFilter: async (page: number = 1, pageSize: number = 10, params?: Record<string, string | number>): Promise<{ data: Fund[]; totalCount: number }> => {
+        let url = `/api/funds/filter?page=${page}&pageSize=${pageSize}`;
+        if (params) {
+            const query = new URLSearchParams(params as Record<string, string>).toString();
+            if (query) url += `&${query}`;
+        }
+        const response = await api.get<{ data: Fund[]; totalCount: number }>(url);
+        return {
+            data: response.data || [],
+            totalCount: response.totalCount || 0
+        };
     },
 
     createFund: async (data: FundFormData): Promise<Fund> => {

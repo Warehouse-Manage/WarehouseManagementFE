@@ -37,10 +37,16 @@ export default function NhapHangPage() {
     selectionKey: '',
     soLuong: '',
   });
+  const [currentPageInventoryReceipt, setCurrentPageInventoryReceipt] = useState(1);
+  const [totalCountInventoryReceipt, setTotalCountInventoryReceipt] = useState(0);
+  const [pageSizeInventoryReceipt, setPageSizeInventoryReceipt] = useState(10);
 
   // State cho tab Nguyên liệu
   const [rawMaterialImports, setRawMaterialImports] = useState<RawMaterialImport[]>([]);
   const [loadingRawMaterialImports, setLoadingRawMaterialImports] = useState(false);
+  const [currentPageRawMaterialImport, setCurrentPageRawMaterialImport] = useState(1);
+  const [totalCountRawMaterialImport, setTotalCountRawMaterialImport] = useState(0);
+  const [pageSizeRawMaterialImport, setPageSizeRawMaterialImport] = useState(10);
   const [showNguyenLieuModal, setShowNguyenLieuModal] = useState(false);
   const [editingRawMaterialImport, setEditingRawMaterialImport] = useState<RawMaterialImport | null>(null);
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
@@ -114,7 +120,8 @@ export default function NhapHangPage() {
   // Load rawMaterialImports khi vào tab nguyên liệu
   useEffect(() => {
     if (activeTab === 'nguyenlieu') {
-      loadRawMaterialImports();
+      setCurrentPageRawMaterialImport(1);
+      loadRawMaterialImports(1);
     }
   }, [activeTab]);
 
@@ -168,12 +175,13 @@ export default function NhapHangPage() {
     }
   };
 
-  const loadRawMaterialImports = async () => {
+  const loadRawMaterialImports = async (page: number = currentPageRawMaterialImport, size: number = pageSizeRawMaterialImport) => {
     setLoadingRawMaterialImports(true);
     setError(null);
     try {
-      const data = await inventoryApi.getRawMaterialImports();
-      setRawMaterialImports(data);
+      const result = await inventoryApi.getRawMaterialImportsFilter(page, size);
+      setRawMaterialImports(result.data);
+      setTotalCountRawMaterialImport(result.totalCount);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage || 'Không thể tải danh sách nhập nguyên liệu');
@@ -183,15 +191,15 @@ export default function NhapHangPage() {
     }
   };
 
-  const loadItems = async () => {
+  const loadItems = async (page: number = currentPageInventoryReceipt, size: number = pageSizeInventoryReceipt) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await inventoryReceiptApi.getInventoryReceipts();
-      console.log(data);
+      const result = await inventoryReceiptApi.getInventoryReceiptsFilter(page, size);
+      console.log(result.data);
       
       // Map dữ liệu từ API về format hiển thị
-      const mappedData: NhapHangItem[] = data.map((receipt) => {
+      const mappedData: NhapHangItem[] = result.data.map((receipt) => {
         let tenHang = '';
         let selectionKey = '';
         
@@ -223,6 +231,7 @@ export default function NhapHangPage() {
       });
       
       setItems(mappedData);
+      setTotalCountInventoryReceipt(result.totalCount);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage || 'Không thể tải danh sách nhập hàng');
@@ -325,7 +334,7 @@ export default function NhapHangPage() {
       handleCloseModal();
       
       // Reload danh sách
-      await loadItems();
+      await loadItems(currentPageInventoryReceipt);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       toast.error(errorMessage || `Có lỗi xảy ra khi ${editingItem ? 'cập nhật' : 'thêm'} nhập hàng`);
@@ -456,7 +465,7 @@ export default function NhapHangPage() {
       });
       
       // Reload danh sách
-      await loadRawMaterialImports();
+      await loadRawMaterialImports(currentPageRawMaterialImport);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       toast.error(errorMessage || `Có lỗi xảy ra khi ${editingRawMaterialImport ? 'cập nhật' : 'nhập'} nguyên liệu`);
@@ -703,6 +712,19 @@ export default function NhapHangPage() {
             data={items}
             columns={columns}
             isLoading={loading}
+            enablePagination={true}
+            totalCount={totalCountInventoryReceipt}
+            currentPage={currentPageInventoryReceipt}
+            pageSize={pageSizeInventoryReceipt}
+            onPageChange={(page) => {
+              setCurrentPageInventoryReceipt(page);
+              loadItems(page);
+            }}
+            onPageSizeChange={(newPageSize) => {
+              setPageSizeInventoryReceipt(newPageSize);
+              setCurrentPageInventoryReceipt(1);
+              loadItems(1, newPageSize);
+            }}
             emptyMessage="Chưa có dữ liệu nhập hàng"
             actions={(item) => [
               {
@@ -749,6 +771,19 @@ export default function NhapHangPage() {
             data={rawMaterialImports}
             columns={rawMaterialImportColumns}
             isLoading={loadingRawMaterialImports}
+            enablePagination={true}
+            totalCount={totalCountRawMaterialImport}
+            currentPage={currentPageRawMaterialImport}
+            pageSize={pageSizeRawMaterialImport}
+            onPageChange={(page) => {
+              setCurrentPageRawMaterialImport(page);
+              loadRawMaterialImports(page);
+            }}
+            onPageSizeChange={(newPageSize) => {
+              setPageSizeRawMaterialImport(newPageSize);
+              setCurrentPageRawMaterialImport(1);
+              loadRawMaterialImports(1, newPageSize);
+            }}
             emptyMessage="Chưa có dữ liệu nhập nguyên liệu"
             actions={(item) => [
               {

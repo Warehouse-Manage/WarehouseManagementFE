@@ -22,6 +22,13 @@ interface DataTableProps<T> {
     actions?: (item: T) => ActionItem[];
     className?: string;
     disableCardView?: boolean;
+    enablePagination?: boolean;
+    totalCount?: number;
+    currentPage?: number;
+    pageSize?: number;
+    onPageChange?: (page: number) => void;
+    onPageSizeChange?: (pageSize: number) => void;
+    pageSizeOptions?: number[];
 }
 
 export function DataTable<T extends { id?: number | string }>({
@@ -33,7 +40,15 @@ export function DataTable<T extends { id?: number | string }>({
     actions,
     className = '',
     disableCardView = false,
+    enablePagination = false,
+    totalCount = 0,
+    currentPage = 1,
+    pageSize = 10,
+    onPageChange,
+    onPageSizeChange,
+    pageSizeOptions = [10, 20, 50, 100],
 }: DataTableProps<T>) {
+    const totalPages = enablePagination ? Math.ceil(totalCount / pageSize) : 1;
     return (
         <div className={`space-y-4 ${className}`}>
             {/* Desktop Table View */}
@@ -160,6 +175,83 @@ export function DataTable<T extends { id?: number | string }>({
                                 </div>
                             </div>
                         ))
+                    )}
+                </div>
+            )}
+
+            {/* Pagination */}
+            {enablePagination && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-200">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                        {onPageSizeChange && (
+                            <div className="flex items-center gap-2">
+                                <label className="text-sm text-gray-600 font-medium">Hiển thị:</label>
+                                <select
+                                    value={pageSize}
+                                    onChange={(e) => {
+                                        const newPageSize = Number(e.target.value);
+                                        onPageSizeChange(newPageSize);
+                                    }}
+                                    disabled={isLoading}
+                                    className="px-3 py-1.5 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    {pageSizeOptions.map((option) => (
+                                        <option key={option} value={option}>
+                                            {option}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="text-sm text-gray-600">
+                                    <span className="font-bold text-gray-900">{(currentPage - 1) * pageSize + 1}</span> - <span className="font-bold text-gray-900">{Math.min(currentPage * pageSize, totalCount)}</span> của <span className="font-bold text-gray-900">{totalCount}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => onPageChange && onPageChange(currentPage - 1)}
+                            disabled={currentPage === 1 || isLoading}
+                            className="px-3 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Trước
+                        </button>
+                        <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                let pageNum: number;
+                                if (totalPages <= 5) {
+                                    pageNum = i + 1;
+                                } else if (currentPage <= 3) {
+                                    pageNum = i + 1;
+                                } else if (currentPage >= totalPages - 2) {
+                                    pageNum = totalPages - 4 + i;
+                                } else {
+                                    pageNum = currentPage - 2 + i;
+                                }
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => onPageChange && onPageChange(pageNum)}
+                                        disabled={isLoading}
+                                        className={`px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                                            currentPage === pageNum
+                                                ? 'bg-orange-600 text-white'
+                                                : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <button
+                            onClick={() => onPageChange && onPageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages || isLoading}
+                            className="px-3 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Sau
+                        </button>
+                    </div>
                     )}
                 </div>
             )}
