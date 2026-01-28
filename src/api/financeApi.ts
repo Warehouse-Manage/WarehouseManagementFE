@@ -47,7 +47,7 @@ export const financeApi = {
     },
 
     getOrdersFilter: async (page: number = 1, pageSize: number = 10, params?: Record<string, string | number>): Promise<{ data: Order[]; totalCount: number }> => {
-        let url = `/api/orders/filter?page=${page}&pageSize=${pageSize}`;
+        let url = `/api/orders/filter?pageNumber=${page}&pageSize=${pageSize}`;
         if (params) {
             const query = new URLSearchParams(params as Record<string, string>).toString();
             if (query) url += `&${query}`;
@@ -90,7 +90,7 @@ export const financeApi = {
     },
 
     getFundsFilter: async (page: number = 1, pageSize: number = 10, params?: Record<string, string | number>): Promise<{ data: Fund[]; totalCount: number }> => {
-        let url = `/api/funds/filter?page=${page}&pageSize=${pageSize}`;
+        let url = `/api/funds/filter?pageNumber=${page}&pageSize=${pageSize}`;
         if (params) {
             const query = new URLSearchParams(params as Record<string, string>).toString();
             if (query) url += `&${query}`;
