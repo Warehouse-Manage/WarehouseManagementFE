@@ -70,7 +70,7 @@ export const inventoryApi = {
     },
 
     getRawMaterialImportsFilter: async (page: number = 1, pageSize: number = 10, params?: Record<string, string | number>): Promise<{ data: RawMaterialImport[]; totalCount: number }> => {
-        let url = `/api/rawmaterialimport/filter?page=${page}&pageSize=${pageSize}`;
+        let url = `/api/rawmaterialimport/filter?pageNumber=${page}&pageSize=${pageSize}`;
         if (params) {
             const query = new URLSearchParams(params as Record<string, string>).toString();
             if (query) url += `&${query}`;

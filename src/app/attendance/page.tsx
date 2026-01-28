@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCookie } from '@/lib/ultis';
-import { workerApi, attendanceApi } from '@/api';
+import { getCookie, printHtmlContent } from '@/lib/ultis';
+import { workerApi, attendanceApi, financeApi } from '@/api';
 import { Worker, Attendance, WorkDate } from '@/types';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
 
@@ -59,6 +59,27 @@ const toMonthIsoString = (monthValue: string) => {
 const toDateIsoString = (dateValue: string) => {
   if (!dateValue) return new Date().toISOString();
   return new Date(`${dateValue}T00:00:00Z`).toISOString();
+};
+
+const printLatestSalaryFundForWorker = async (workerId: number) => {
+  try {
+    const funds = await financeApi.getFunds();
+    const latestSalaryFund = funds
+      .filter(f =>
+        f.type === 'Chi' &&
+        f.category === 'Lương' &&
+        f.objectType === 'Công nhân/Nhân viên' &&
+        f.objectId === workerId
+      )
+      .sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime())[0];
+
+    if (!latestSalaryFund) return;
+
+    const html = await financeApi.printFund(latestSalaryFund.id);
+    await printHtmlContent(html);
+  } catch (error) {
+    console.error('Không thể in phiếu chi lương:', error);
+  }
 };
 
 // Helper function to get days from 15th of selected month to 15th of next month
@@ -901,6 +922,8 @@ export default function AttendancePage() {
       await fetchAttendanceForMarking();
       // Refresh all attendances list
       await fetchAllAttendancesForMonth();
+
+      await printLatestSalaryFundForWorker(updated.workerId);
     } catch (error: unknown) {
       console.error('Không thể thanh toán lương:', error);
       setMarkToast({
@@ -1905,7 +1928,7 @@ export default function AttendancePage() {
                     );
                   })()}
                 </div>
-                <div className="md:col-span-1 flex items-end">
+                <div className="md:col-span-1 flex items-center mt-2">
                   <button
                     onClick={fetchAllAttendancesForMonth}
                     className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"

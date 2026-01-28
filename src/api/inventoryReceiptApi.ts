@@ -7,7 +7,7 @@ export const inventoryReceiptApi = {
     },
 
     getInventoryReceiptsFilter: async (page: number = 1, pageSize: number = 10, params?: Record<string, string | number>): Promise<{ data: InventoryReceipt[]; totalCount: number }> => {
-        let url = `/api/inventoryreceipts/filter?page=${page}&pageSize=${pageSize}`;
+        let url = `/api/inventoryreceipts/filter?pageNumber=${page}&pageSize=${pageSize}`;
         if (params) {
             const query = new URLSearchParams(params as Record<string, string>).toString();
             if (query) url += `&${query}`;
