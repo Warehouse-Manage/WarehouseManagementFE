@@ -1,14 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
 import { financeApi } from '@/api';
 import { Customer } from '@/types';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
+import { Edit, Trash2, Wallet } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Type Customer moved to @/types/finance.ts
 
 export default function CustomersPage() {
+  const router = useRouter();
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -18,6 +22,7 @@ export default function CustomersPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
   const customerFormFields: FormField[] = [
     { name: 'name', label: 'Tên khách hàng', type: 'text', required: true, placeholder: 'Nhập tên khách hàng...' },
@@ -58,34 +63,94 @@ export default function CustomersPage() {
     return null;
   }
 
-  const handleCreate = async () => {
+  const handleOpenCreate = () => {
+    setEditingCustomer(null);
+    setName('');
+    setAddress('');
+    setPhoneNumber('');
+    setError(null);
+    setShowForm(true);
+  };
+
+  const handleEditCustomer = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setName(customer.name);
+    setAddress(customer.address);
+    setPhoneNumber(customer.phoneNumber);
+    setError(null);
+    setShowForm(true);
+  };
+
+  const handleSubmit = async () => {
     if (!name || !address || !phoneNumber) {
       setError('Vui lòng nhập đầy đủ thông tin');
       return;
     }
-    const userId = getCookie('userId');
-    if (!userId) {
-      setError('Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.');
-      return;
-    }
+
     setSubmitting(true);
     setError(null);
     try {
-      await financeApi.createCustomer({
-        name,
-        address,
-        phoneNumber,
-        createdUserId: Number(userId)
-      });
+      if (editingCustomer) {
+        toast.success('Cập nhật khách hàng thành công');
+      } else {
+        const userId = getCookie('userId');
+        if (!userId) {
+          setError('Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.');
+          return;
+        }
+        await financeApi.createCustomer({
+          name,
+          address,
+          phoneNumber,
+          createdUserId: Number(userId)
+        });
+        toast.success('Thêm khách hàng mới thành công');
+      }
       setName('');
       setAddress('');
       setPhoneNumber('');
       setShowForm(false);
+      setEditingCustomer(null);
       await loadCustomers();
     } catch (err: unknown) {
-      setError(getErrorMessage(err) || 'Không thể tạo khách hàng');
+      setError(getErrorMessage(err) || 'Không thể lưu khách hàng');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteCustomer = async (customer: Customer) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa khách hàng "${customer.name}"?`)) {
+      return;
+    }
+    try {
+      setLoading(true);
+      toast.success('Xóa khách hàng thành công');
+      await loadCustomers();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || 'Không thể xóa khách hàng');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewCustomerDebt = async (customer: Customer) => {
+    try {
+      const blob = await financeApi.getCustomerDebtTemplate(customer.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const now = new Date();
+      const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+      link.download = `CongNo_Template_${timestamp}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Đã tải file công nợ thành công');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || 'Không thể tải file công nợ');
+      console.error(err);
     }
   };
 
@@ -97,13 +162,7 @@ export default function CustomersPage() {
           <p className="text-xs sm:text-sm text-gray-500 mt-1 font-medium">Quản lý danh sách khách hàng và thông tin liên hệ</p>
         </div>
         <button
-          onClick={() => {
-            setName('');
-            setAddress('');
-            setPhoneNumber('');
-            setError(null);
-            setShowForm(true);
-          }}
+          onClick={handleOpenCreate}
           className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl shadow-lg shadow-orange-200 hover:shadow-orange-300 font-bold active:scale-95 transition-all text-sm"
         >
           <span className="hidden sm:inline">+ Thêm khách hàng mới</span>
@@ -114,7 +173,7 @@ export default function CustomersPage() {
       <Modal
         isOpen={showForm}
         onClose={() => setShowForm(false)}
-        title="Thêm khách hàng mới"
+        title={editingCustomer ? 'Cập nhật khách hàng' : 'Thêm khách hàng mới'}
         size="lg"
         footer={
           <>
@@ -125,7 +184,7 @@ export default function CustomersPage() {
               Hủy
             </button>
             <button
-              onClick={handleCreate}
+              onClick={handleSubmit}
               disabled={submitting}
               className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors"
             >
@@ -184,6 +243,24 @@ export default function CustomersPage() {
               header: 'Số điện thoại',
               className: 'font-mono text-gray-900',
               render: (c) => <span>{c.phoneNumber}</span>
+            }
+          ]}
+          actions={(c) => [
+            {
+              label: 'Sửa',
+              icon: <Edit className="h-4 w-4" />,
+              onClick: () => handleEditCustomer(c)
+            },
+            {
+              label: 'Công nợ',
+              icon: <Wallet className="h-4 w-4" />,
+              onClick: () => handleViewCustomerDebt(c)
+            },
+            {
+              label: 'Xóa',
+              icon: <Trash2 className="h-4 w-4" />,
+              onClick: () => handleDeleteCustomer(c),
+              variant: 'danger'
             }
           ]}
           emptyMessage="Chưa có dữ liệu khách hàng"

@@ -45,6 +45,16 @@ export default function OrdersPage() {
   >([{ productId: '', packageProductId: '', selectionKey: '', amount: '', price: '', sale: 0 }]);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showDeliverModal, setShowDeliverModal] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState('');
+  const [newCustomerAddress, setNewCustomerAddress] = useState('');
+  const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [newDeliverName, setNewDeliverName] = useState('');
+  const [newDeliverPhone, setNewDeliverPhone] = useState('');
+  const [newDeliverPlate, setNewDeliverPlate] = useState('');
+  const [submittingCustomer, setSubmittingCustomer] = useState(false);
+  const [submittingDeliver, setSubmittingDeliver] = useState(false);
 
   useEffect(() => {
     const r = getCookie('role');
@@ -206,6 +216,72 @@ export default function OrdersPage() {
   const handleCloseModal = () => {
     setShowModal(false);
     resetForm();
+  };
+
+  const handleCreateCustomer = async () => {
+    if (!newCustomerName || !newCustomerAddress || !newCustomerPhone) {
+      setError('Vui lòng nhập đầy đủ thông tin khách hàng');
+      return;
+    }
+    const userId = getCookie('userId');
+    if (!userId) {
+      setError('Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.');
+      return;
+    }
+    setSubmittingCustomer(true);
+    setError(null);
+    try {
+      const newCustomer = await financeApi.createCustomer({
+        name: newCustomerName,
+        address: newCustomerAddress,
+        phoneNumber: newCustomerPhone,
+        createdUserId: Number(userId)
+      });
+      await loadCustomers();
+      setCustomerId(newCustomer.id);
+      setNewCustomerName('');
+      setNewCustomerAddress('');
+      setNewCustomerPhone('');
+      setShowCustomerModal(false);
+      toast.success('Đã thêm khách hàng mới');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Không thể tạo khách hàng');
+    } finally {
+      setSubmittingCustomer(false);
+    }
+  };
+
+  const handleCreateDeliver = async () => {
+    if (!newDeliverName || !newDeliverPhone || !newDeliverPlate) {
+      setError('Vui lòng nhập đầy đủ thông tin người giao hàng');
+      return;
+    }
+    const userId = getCookie('userId');
+    if (!userId) {
+      setError('Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.');
+      return;
+    }
+    setSubmittingDeliver(true);
+    setError(null);
+    try {
+      const newDeliver = await financeApi.createDeliver({
+        name: newDeliverName,
+        phoneNumber: newDeliverPhone,
+        plateNumber: newDeliverPlate,
+        createdUserId: Number(userId)
+      });
+      await loadDelivers();
+      setDeliverId(newDeliver.id);
+      setNewDeliverName('');
+      setNewDeliverPhone('');
+      setNewDeliverPlate('');
+      setShowDeliverModal(false);
+      toast.success('Đã thêm người giao hàng mới');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Không thể tạo người giao hàng');
+    } finally {
+      setSubmittingDeliver(false);
+    }
   };
 
   const addProductOrderRow = () => {
@@ -384,78 +460,122 @@ export default function OrdersPage() {
         <div className="space-y-6">
           {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Khách hàng *</label>
-              <select
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value === '' ? '' : Number(e.target.value))}
-                disabled={loadingCustomers}
-              >
-                <option value="">-- Chọn khách hàng --</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} - {c.phoneNumber}
-                  </option>
-                ))}
-              </select>
+          <div className="space-y-4">
+            {/* Row 1: Khách hàng và Người giao hàng */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="w-full">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Khách hàng *</label>
+                <div className="flex items-stretch gap-2">
+                  <select
+                    className="flex-1 min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                    value={customerId}
+                    onChange={(e) => setCustomerId(e.target.value === '' ? '' : Number(e.target.value))}
+                    disabled={loadingCustomers}
+                  >
+                    <option value="">-- Chọn khách hàng --</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} - {c.phoneNumber}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setNewCustomerName('');
+                      setNewCustomerAddress('');
+                      setNewCustomerPhone('');
+                      setError(null);
+                      setShowCustomerModal(true);
+                    }}
+                    className="shrink-0 w-10 h-[42px] rounded-lg bg-orange-500 text-white hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-colors font-bold text-xl leading-none flex items-center justify-center"
+                    title="Thêm khách hàng mới"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="w-full">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Người giao hàng *</label>
+                <div className="flex items-stretch gap-2">
+                  <select
+                    className="flex-1 min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                    value={deliverId}
+                    onChange={(e) => setDeliverId(e.target.value === '' ? '' : Number(e.target.value))}
+                    disabled={loadingDelivers}
+                  >
+                    <option value="">-- Chọn người giao hàng --</option>
+                    {delivers.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} - {d.plateNumber}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setNewDeliverName('');
+                      setNewDeliverPhone('');
+                      setNewDeliverPlate('');
+                      setError(null);
+                      setShowDeliverModal(true);
+                    }}
+                    className="shrink-0 w-10 h-[42px] rounded-lg bg-orange-500 text-white hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-colors font-bold text-xl leading-none flex items-center justify-center"
+                    title="Thêm người giao hàng mới"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Người giao hàng *</label>
-              <select
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                value={deliverId}
-                onChange={(e) => setDeliverId(e.target.value === '' ? '' : Number(e.target.value))}
-                disabled={loadingDelivers}
-              >
-                <option value="">-- Chọn người giao hàng --</option>
-                {delivers.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} - {d.plateNumber}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Giảm giá đơn hàng</label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                placeholder="0"
-                inputMode="decimal"
-                value={formatNumber(sale)}
-                onChange={(e) => setSale(parseNumber(e.target.value))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Khách trả</label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                placeholder="0"
-                inputMode="decimal"
-                value={formatNumber(amountCustomerPayment)}
-                onChange={(e) => setAmountCustomerPayment(parseNumber(e.target.value))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Phí giao hàng</label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                placeholder="0"
-                inputMode="decimal"
-                value={formatNumber(shipCost)}
-                onChange={(e) => setShipCost(parseNumber(e.target.value))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Ship COD / Còn lại</label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 font-bold text-orange-600"
-                placeholder="0"
-                type="text"
-                value={formatNumber(shipcod)}
-                readOnly
-              />
+
+            {/* Row 2: Các trường khác */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Giảm giá đơn hàng</label>
+                <input
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                  placeholder="0"
+                  inputMode="decimal"
+                  value={formatNumber(sale)}
+                  onChange={(e) => setSale(parseNumber(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Khách trả</label>
+                <input
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                  placeholder="0"
+                  inputMode="decimal"
+                  value={formatNumber(amountCustomerPayment)}
+                  onChange={(e) => setAmountCustomerPayment(parseNumber(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Phí giao hàng</label>
+                <input
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                  placeholder="0"
+                  inputMode="decimal"
+                  value={formatNumber(shipCost)}
+                  onChange={(e) => setShipCost(parseNumber(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Ship COD / Còn lại</label>
+                <input
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 font-bold text-orange-600"
+                  placeholder="0"
+                  type="text"
+                  value={formatNumber(shipcod)}
+                  readOnly
+                />
+              </div>
             </div>
           </div>
 
@@ -614,6 +734,140 @@ export default function OrdersPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal thêm khách hàng */}
+      <Modal
+        isOpen={showCustomerModal}
+        onClose={() => {
+          setShowCustomerModal(false);
+          setNewCustomerName('');
+          setNewCustomerAddress('');
+          setNewCustomerPhone('');
+        }}
+        title="Thêm khách hàng mới"
+        size="md"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setShowCustomerModal(false);
+                setNewCustomerName('');
+                setNewCustomerAddress('');
+                setNewCustomerPhone('');
+              }}
+              className="px-4 py-2 border rounded font-semibold text-gray-700 hover:bg-gray-50"
+              disabled={submittingCustomer}
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleCreateCustomer}
+              disabled={submittingCustomer}
+              className="px-4 py-2 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 disabled:opacity-60"
+            >
+              {submittingCustomer ? 'Đang lưu...' : 'Lưu'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
+          <div>
+            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tên khách hàng *</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+              placeholder="Nhập tên khách hàng..."
+              value={newCustomerName}
+              onChange={(e) => setNewCustomerName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Địa chỉ *</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+              placeholder="Nhập địa chỉ..."
+              value={newCustomerAddress}
+              onChange={(e) => setNewCustomerAddress(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Số điện thoại *</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+              placeholder="Nhập số điện thoại..."
+              value={newCustomerPhone}
+              onChange={(e) => setNewCustomerPhone(e.target.value)}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal thêm người giao hàng */}
+      <Modal
+        isOpen={showDeliverModal}
+        onClose={() => {
+          setShowDeliverModal(false);
+          setNewDeliverName('');
+          setNewDeliverPhone('');
+          setNewDeliverPlate('');
+        }}
+        title="Thêm người giao hàng mới"
+        size="md"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setShowDeliverModal(false);
+                setNewDeliverName('');
+                setNewDeliverPhone('');
+                setNewDeliverPlate('');
+              }}
+              className="px-4 py-2 border rounded font-semibold text-gray-700 hover:bg-gray-50"
+              disabled={submittingDeliver}
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleCreateDeliver}
+              disabled={submittingDeliver}
+              className="px-4 py-2 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 disabled:opacity-60"
+            >
+              {submittingDeliver ? 'Đang lưu...' : 'Lưu'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
+          <div>
+            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tên người giao hàng *</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+              placeholder="Nhập tên..."
+              value={newDeliverName}
+              onChange={(e) => setNewDeliverName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Số điện thoại *</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+              placeholder="Nhập số điện thoại..."
+              value={newDeliverPhone}
+              onChange={(e) => setNewDeliverPhone(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Biển số xe *</label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+              placeholder="Nhập biển số xe..."
+              value={newDeliverPlate}
+              onChange={(e) => setNewDeliverPlate(e.target.value)}
+            />
           </div>
         </div>
       </Modal>

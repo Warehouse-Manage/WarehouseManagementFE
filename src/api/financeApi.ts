@@ -1,4 +1,5 @@
-import { api } from './api';
+import { api, API_HOST } from './api';
+import { getCookie } from '@/lib/ultis';
 import {
     Customer,
     CustomerFormData,
@@ -22,6 +23,24 @@ export const financeApi = {
 
     createCustomer: async (data: CustomerFormData): Promise<Customer> => {
         return api.post<Customer>('/api/customers', data);
+    },
+
+    getCustomerDebtTemplate: async (customerId: number): Promise<Blob> => {
+        const token = getCookie('token');
+        
+        const response = await fetch(`${API_HOST}/api/Customers/debt/template?customerId=${customerId}`, {
+            method: 'GET',
+            headers: {
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            },
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Không thể tải file công nợ');
+        }
+        
+        return await response.blob();
     },
 
     // Delivers
