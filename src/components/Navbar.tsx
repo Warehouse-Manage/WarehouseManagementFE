@@ -232,7 +232,7 @@ export default function Navbar() {
                       setIsKeToanMenuOpen((prev) => !prev);
                     }}
                     className={`${baseLink} ${linkSize} whitespace-nowrap flex items-center gap-1 ${
-                      (isProducts || isNguyenLieu || isCustomers || isDelivers || isOrders || isFunds || isDoiTac || isNhapHang)
+                      (isProducts || isNguyenLieu || isCustomers || isDelivers || isFunds || isDoiTac || isNhapHang)
                         ? active
                         : inactive
                     }`}
@@ -257,7 +257,7 @@ export default function Navbar() {
         {isKeToanMenuOpen && (
           <div 
             ref={keToanMenuRef}
-            className="fixed w-52 bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 z-[100] py-1"
+            className="fixed bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 z-[100] py-2"
             style={{ 
               top: `${keToanMenuPosition.top}px`,
               left: `${keToanMenuPosition.left}px`
@@ -265,63 +265,68 @@ export default function Navbar() {
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <Link
-              href="/products"
-              onClick={() => setIsKeToanMenuOpen(false)}
-              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isProducts ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-            >
-              Sản phẩm
-            </Link>
-            <Link
-              href="/nguyen-lieu"
-              onClick={() => setIsKeToanMenuOpen(false)}
-              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isNguyenLieu ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-            >
-              Nguyên liệu
-            </Link>
-            <Link
-              href="/customers"
-              onClick={() => setIsKeToanMenuOpen(false)}
-              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isCustomers ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-            >
-              Khách hàng
-            </Link>
-            <Link
-              href="/delivers"
-              onClick={() => setIsKeToanMenuOpen(false)}
-              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isDelivers ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-            >
-              Giao hàng
-            </Link>
-            <Link
-              href="/orders"
-              onClick={() => setIsKeToanMenuOpen(false)}
-              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isOrders ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-            >
-              Đơn hàng
-            </Link>
-            <Link
-              href="/funds"
-              onClick={() => setIsKeToanMenuOpen(false)}
-              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isFunds ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-            >
-              Sổ quỹ
-            </Link>
-            <div className="border-t border-gray-100 my-1"></div>
-            <Link
-              href="/doi-tac"
-              onClick={() => setIsKeToanMenuOpen(false)}
-              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isDoiTac ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-            >
-              Đối tác
-            </Link>
-            <Link
-              href="/nhap-hang"
-              onClick={() => setIsKeToanMenuOpen(false)}
-              className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isNhapHang ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-            >
-              Nhập hàng
-            </Link>
+            <div className="flex gap-4 px-2">
+              {/* Cột trái: Nhập hàng, nguyên liệu, đối tác, sản phẩm */}
+              <div className="min-w-[140px]">
+                <Link
+                  href="/nhap-hang"
+                  onClick={() => setIsKeToanMenuOpen(false)}
+                  className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isNhapHang ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Nhập hàng
+                </Link>
+                <Link
+                  href="/nguyen-lieu"
+                  onClick={() => setIsKeToanMenuOpen(false)}
+                  className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isNguyenLieu ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Nguyên liệu
+                </Link>
+                <Link
+                  href="/doi-tac"
+                  onClick={() => setIsKeToanMenuOpen(false)}
+                  className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isDoiTac ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Đối tác
+                </Link>
+                <Link
+                  href="/products"
+                  onClick={() => setIsKeToanMenuOpen(false)}
+                  className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isProducts ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Sản phẩm
+                </Link>
+              </div>
+
+              {/* Cột giữa: Khách hàng, giao hàng */}
+              <div className="min-w-[140px] border-l border-gray-100 pl-2">
+                <Link
+                  href="/customers"
+                  onClick={() => setIsKeToanMenuOpen(false)}
+                  className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isCustomers ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Khách hàng
+                </Link>
+                <Link
+                  href="/delivers"
+                  onClick={() => setIsKeToanMenuOpen(false)}
+                  className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isDelivers ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Giao hàng
+                </Link>
+              </div>
+
+              {/* Cột phải: Sổ quỹ */}
+              <div className="min-w-[140px] border-l border-gray-100 pl-2">
+                <Link
+                  href="/funds"
+                  onClick={() => setIsKeToanMenuOpen(false)}
+                  className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isFunds ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Sổ quỹ
+                </Link>
+              </div>
+            </div>
           </div>
         )}
 
@@ -344,6 +349,16 @@ export default function Navbar() {
               )}
             </svg>
           </button>
+
+          {/* Đơn hàng - sát nút thông báo */}
+          {(role === 'Admin' || role === 'accountance') && (
+            <Link
+              href="/orders"
+              className={`${baseLink} ${linkSize} whitespace-nowrap hidden md:block ${isOrders ? active : inactive}`}
+            >
+              Đơn hàng
+            </Link>
+          )}
 
           {/* Notification component */}
           <div className="flex items-center">
