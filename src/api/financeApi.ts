@@ -25,10 +25,18 @@ export const financeApi = {
         return api.post<Customer>('/api/customers', data);
     },
 
-    getCustomerDebtTemplate: async (customerId: number): Promise<Blob> => {
+    getCustomerDebtTemplate: async (customerId: number, startDate?: string, endDate?: string): Promise<Blob> => {
         const token = getCookie('token');
         
-        const response = await fetch(`${API_HOST}/api/Customers/debt/template?customerId=${customerId}`, {
+        let url = `${API_HOST}/api/customers/debt/template?customerId=${customerId}`;
+        if (startDate) {
+            url += `&startDate=${startDate}`;
+        }
+        if (endDate) {
+            url += `&endDate=${endDate}`;
+        }
+        
+        const response = await fetch(url, {
             method: 'GET',
             headers: {
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -50,6 +58,14 @@ export const financeApi = {
 
     createDeliver: async (data: DeliverFormData): Promise<Deliver> => {
         return api.post<Deliver>('/api/delivers', data);
+    },
+
+    updateDeliver: async (id: number, data: DeliverFormData): Promise<Deliver> => {
+        return api.put<Deliver>(`/api/delivers/${id}`, data);
+    },
+
+    deleteDeliver: async (id: number): Promise<void> => {
+        return api.delete<void>(`/api/delivers/${id}`);
     },
 
     payDeliver: async (id: number, data: DeliverPaymentFormData): Promise<void> => {
@@ -96,6 +112,10 @@ export const financeApi = {
 
     printOrderDeliveryNoteModel: async (data: OrderDeliveryNotePrintModel): Promise<string> => {
         return api.post<string>(`/api/orders/delivery-note`, data);
+    },
+
+    deleteOrder: async (id: number): Promise<void> => {
+        return api.delete<void>(`/api/orders/${id}`);
     },
 
     // Funds

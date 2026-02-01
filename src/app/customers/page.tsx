@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
 import { financeApi } from '@/api';
 import { Customer } from '@/types';
@@ -12,7 +11,6 @@ import { toast } from 'sonner';
 // Type Customer moved to @/types/finance.ts
 
 export default function CustomersPage() {
-  const router = useRouter();
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,6 +21,11 @@ export default function CustomersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [showDebtModal, setShowDebtModal] = useState(false);
+  const [selectedCustomerForDebt, setSelectedCustomerForDebt] = useState<Customer | null>(null);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [downloadingDebt, setDownloadingDebt] = useState(false);
 
   const customerFormFields: FormField[] = [
     { name: 'name', label: 'Tên khách hàng', type: 'text', required: true, placeholder: 'Nhập tên khách hàng...' },
@@ -134,9 +137,25 @@ export default function CustomersPage() {
     }
   };
 
-  const handleViewCustomerDebt = async (customer: Customer) => {
+  const handleViewCustomerDebt = (customer: Customer) => {
+    setSelectedCustomerForDebt(customer);
+    setStartDate('');
+    setEndDate('');
+    setError(null);
+    setShowDebtModal(true);
+  };
+
+  const handleDownloadDebt = async () => {
+    if (!selectedCustomerForDebt) return;
+    
+    setDownloadingDebt(true);
+    setError(null);
     try {
-      const blob = await financeApi.getCustomerDebtTemplate(customer.id);
+      const blob = await financeApi.getCustomerDebtTemplate(
+        selectedCustomerForDebt.id,
+        startDate || undefined,
+        endDate || undefined
+      );
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -148,9 +167,15 @@ export default function CustomersPage() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       toast.success('Đã tải file công nợ thành công');
+      setShowDebtModal(false);
+      setSelectedCustomerForDebt(null);
+      setStartDate('');
+      setEndDate('');
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err) || 'Không thể tải file công nợ');
+      setError(getErrorMessage(err) || 'Không thể tải file công nợ');
       console.error(err);
+    } finally {
+      setDownloadingDebt(false);
     }
   };
 
@@ -266,6 +291,81 @@ export default function CustomersPage() {
           emptyMessage="Chưa có dữ liệu khách hàng"
         />
       </div>
+
+      {/* Modal công nợ */}
+      <Modal
+        isOpen={showDebtModal && !!selectedCustomerForDebt}
+        onClose={() => {
+          setShowDebtModal(false);
+          setSelectedCustomerForDebt(null);
+          setStartDate('');
+          setEndDate('');
+          setError(null);
+        }}
+        title={`Công nợ - ${selectedCustomerForDebt?.name}`}
+        size="md"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setShowDebtModal(false);
+                setSelectedCustomerForDebt(null);
+                setStartDate('');
+                setEndDate('');
+                setError(null);
+              }}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              disabled={downloadingDebt}
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleDownloadDebt}
+              disabled={downloadingDebt}
+              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors"
+            >
+              {downloadingDebt ? 'Đang tải...' : 'Tải file Excel'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
+          
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">
+                Từ ngày <span className="text-gray-400 font-normal normal-case">(tùy chọn)</span>
+              </label>
+              <input
+                type="date"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">
+                Đến ngày <span className="text-gray-400 font-normal normal-case">(tùy chọn)</span>
+              </label>
+              <input
+                type="date"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate || undefined}
+              />
+            </div>
+            
+            <div className="text-xs text-gray-500 italic">
+              <p>• Để trống cả 2 trường để lấy công nợ tất cả thời gian</p>
+              <p>• Chỉ chọn &quot;Từ ngày&quot; để lấy từ ngày đó đến hiện tại</p>
+              <p>• Chọn cả 2 để lấy công nợ trong khoảng thời gian</p>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

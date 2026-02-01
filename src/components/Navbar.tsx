@@ -260,7 +260,7 @@ export default function Navbar() {
             className="fixed bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 z-[100] py-2"
             style={{ 
               top: `${keToanMenuPosition.top}px`,
-              left: `${keToanMenuPosition.left}px`
+              left: `${keToanMenuPosition.left-190}px`
             }}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -354,7 +354,7 @@ export default function Navbar() {
           {(role === 'Admin' || role === 'accountance') && (
             <Link
               href="/orders"
-              className={`${baseLink} ${linkSize} whitespace-nowrap hidden md:block ${isOrders ? active : inactive}`}
+              className={`${baseLink} ${linkSize} whitespace-nowrap hidden md:block bg-orange-400 text-white font-semibold hover:bg-orange-500`}
             >
               Đơn hàng
             </Link>

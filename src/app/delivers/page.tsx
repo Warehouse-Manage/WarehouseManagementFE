@@ -5,7 +5,8 @@ import { getCookie } from '@/lib/ultis';
 import { financeApi } from '@/api';
 import { Deliver } from '@/types';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, Edit, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Type Deliver moved to @/types/finance.ts
 
@@ -19,6 +20,7 @@ export default function DeliversPage() {
   const [plateNumber, setPlateNumber] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingDeliver, setEditingDeliver] = useState<Deliver | null>(null);
 
   const deliverFormFields: FormField[] = [
     { name: 'name', label: 'Tên người giao hàng', type: 'text', required: true, placeholder: 'Nhập tên...' },
@@ -131,7 +133,25 @@ export default function DeliversPage() {
     }
   };
 
-  const handleCreate = async () => {
+  const handleOpenCreate = () => {
+    setEditingDeliver(null);
+    setName('');
+    setPhoneNumber('');
+    setPlateNumber('');
+    setError(null);
+    setShowForm(true);
+  };
+
+  const handleEditDeliver = (deliver: Deliver) => {
+    setEditingDeliver(deliver);
+    setName(deliver.name);
+    setPhoneNumber(deliver.phoneNumber);
+    setPlateNumber(deliver.plateNumber);
+    setError(null);
+    setShowForm(true);
+  };
+
+  const handleSubmit = async () => {
     if (!name || !phoneNumber || !plateNumber) {
       setError('Vui lòng nhập đầy đủ thông tin');
       return;
@@ -144,21 +164,49 @@ export default function DeliversPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await financeApi.createDeliver({
-        name,
-        phoneNumber,
-        plateNumber,
-        createdUserId: Number(userId)
-      });
+      if (editingDeliver) {
+        await financeApi.updateDeliver(editingDeliver.id, {
+          name,
+          phoneNumber,
+          plateNumber,
+          createdUserId: Number(userId)
+        });
+        toast.success('Cập nhật người giao hàng thành công');
+      } else {
+        await financeApi.createDeliver({
+          name,
+          phoneNumber,
+          plateNumber,
+          createdUserId: Number(userId)
+        });
+        toast.success('Thêm người giao hàng mới thành công');
+      }
       setName('');
       setPhoneNumber('');
       setPlateNumber('');
       setShowForm(false);
+      setEditingDeliver(null);
       await loadDelivers();
     } catch (err: unknown) {
-      setError(getErrorMessage(err) || 'Không thể tạo người giao hàng');
+      setError(getErrorMessage(err) || (editingDeliver ? 'Không thể cập nhật người giao hàng' : 'Không thể tạo người giao hàng'));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteDeliver = async (deliver: Deliver) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa người giao hàng "${deliver.name}"?`)) {
+      return;
+    }
+    try {
+      setLoading(true);
+      await financeApi.deleteDeliver(deliver.id);
+      toast.success('Xóa người giao hàng thành công');
+      await loadDelivers();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || 'Không thể xóa người giao hàng');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -170,13 +218,7 @@ export default function DeliversPage() {
           <p className="text-xs sm:text-sm text-gray-500 mt-1 font-medium">Quản lý đội ngũ vận chuyển và chi phí giao hàng</p>
         </div>
         <button
-          onClick={() => {
-            setName('');
-            setPhoneNumber('');
-            setPlateNumber('');
-            setError(null);
-            setShowForm(true);
-          }}
+          onClick={handleOpenCreate}
           className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl shadow-lg shadow-orange-200 hover:shadow-orange-300 font-bold active:scale-95 transition-all text-sm"
         >
           <span className="hidden sm:inline">+ Thêm người giao hàng mới</span>
@@ -186,19 +228,25 @@ export default function DeliversPage() {
 
       <Modal
         isOpen={showForm}
-        onClose={() => setShowForm(false)}
-        title="Thêm người giao hàng mới"
+        onClose={() => {
+          setShowForm(false);
+          setEditingDeliver(null);
+        }}
+        title={editingDeliver ? 'Cập nhật người giao hàng' : 'Thêm người giao hàng mới'}
         size="lg"
         footer={
           <>
             <button
-              onClick={() => setShowForm(false)}
+              onClick={() => {
+                setShowForm(false);
+                setEditingDeliver(null);
+              }}
               className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Hủy
             </button>
             <button
-              onClick={handleCreate}
+              onClick={handleSubmit}
               disabled={submitting}
               className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors"
             >
@@ -278,14 +326,33 @@ export default function DeliversPage() {
           ]}
           actions={(d) => {
             const remaining = (d.amountMoneyTotal || 0) - (d.amountMoneyPaid || 0);
-            return [
+            const actions: Array<{
+              label: string;
+              icon: React.ReactElement;
+              onClick: () => void;
+              variant?: 'default' | 'danger';
+            }> = [
               {
+                label: 'Sửa',
+                icon: <Edit className="h-4 w-4" />,
+                onClick: () => handleEditDeliver(d)
+              },
+              {
+                label: 'Xóa',
+                icon: <Trash2 className="h-4 w-4" />,
+                onClick: () => handleDeleteDeliver(d),
+                variant: 'danger' as const
+              }
+            ];
+            if (remaining > 0) {
+              actions.unshift({
                 label: 'Thanh toán',
                 icon: <CreditCard className="h-4 w-4" />,
                 onClick: () => handleOpenPaymentModal(d),
                 variant: 'default' as const
-              }
-            ].filter(() => remaining > 0);
+              });
+            }
+            return actions;
           }}
           emptyMessage="Chưa có dữ liệu người giao hàng"
         />
