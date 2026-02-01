@@ -6,7 +6,7 @@ import { financeApi, inventoryApi } from '@/api';
 import { Order, Customer, Deliver, Product, PackageProduct } from '@/types';
 import { Modal, DataTable } from '@/components/shared';
 import { toast } from 'sonner';
-import { Printer } from 'lucide-react';
+import { Printer, Trash2 } from 'lucide-react';
 
 // Types moved to @/types/finance.ts and @/types/inventory.ts
 
@@ -297,6 +297,22 @@ export default function OrdersPage() {
       await printHtmlContent(html);
     } catch (err) {
       toast.error('Không thể tải phiếu xuất kho: ' + getErrorMessage(err));
+    }
+  };
+
+  const handleDeleteOrder = async (order: Order) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa đơn hàng #${order.id}?`)) {
+      return;
+    }
+    try {
+      setLoading(true);
+      await financeApi.deleteOrder(order.id);
+      toast.success('Xóa đơn hàng thành công');
+      await loadOrders(currentPage);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err) || 'Không thể xóa đơn hàng');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -978,6 +994,12 @@ export default function OrdersPage() {
               label: 'In đơn hàng',
               icon: <Printer className="h-4 w-4" />,
               onClick: () => handlePrintDeliveryNote(o.id)
+            },
+            {
+              label: 'Xóa',
+              icon: <Trash2 className="h-4 w-4" />,
+              onClick: () => handleDeleteOrder(o),
+              variant: 'danger' as const
             }
           ]}
           emptyMessage="Chưa có dữ liệu đơn hàng"
