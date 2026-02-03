@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { formatNumberInput, parseNumberInput } from '@/lib/ultis';
 
 export type FieldType = 'text' | 'number' | 'date' | 'month' | 'select' | 'checkbox' | 'textarea' | 'tel' | 'datetime-local' | 'time';
 
@@ -33,6 +34,22 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
     isSubmitting = false,
     columns = 1,
 }) => {
+    // Lưu raw string cho các field number để giữ dấu chấm khi đang gõ
+    const [rawNumberValues, setRawNumberValues] = useState<Record<string, string>>({});
+    
+    // Reset raw values khi values thay đổi từ bên ngoài (không phải từ user input)
+    useEffect(() => {
+        const numberFields = fields.filter(f => f.type === 'number');
+        numberFields.forEach(field => {
+            const value = values[field.name];
+            const formatted = formatNumberInput(value as number | '' | null | undefined);
+            if (rawNumberValues[field.name] !== formatted && !rawNumberValues[field.name]?.endsWith('.')) {
+                setRawNumberValues(prev => ({ ...prev, [field.name]: formatted }));
+            }
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [values]);
+    
     // isSubmitting can be used if we want to disable inputs while submitting
     const renderField = (field: FormField) => {
         const commonClasses = `w-full rounded-lg border-2 border-gray-100 bg-white px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`;
@@ -78,6 +95,52 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                     </div>
                 );
             default:
+                if (field.type === 'number') {
+                    const rawValue = values[field.name] as number | '' | null | undefined;
+                    const displayValue = rawNumberValues[field.name] ?? formatNumberInput(rawValue);
+                    
+                    return (
+                        <input
+                            type="text"
+                            inputMode="decimal"
+                            value={displayValue}
+                            onChange={(e) => {
+                                const inputVal = e.target.value;
+                                
+                                // Lưu raw string để giữ dấu chấm khi đang gõ
+                                setRawNumberValues(prev => ({ ...prev, [field.name]: inputVal }));
+                                
+                                // Nếu input kết thúc bằng dấu chấm, parse phần trước dấu chấm
+                                if (inputVal.endsWith('.') && inputVal.split('.').length === 2) {
+                                    const beforeDot = inputVal.slice(0, -1);
+                                    const parsed = parseNumberInput(beforeDot);
+                                    onChange(field.name, parsed);
+                                } else {
+                                    // Parse toàn bộ input
+                                    const parsed = parseNumberInput(inputVal);
+                                    onChange(field.name, parsed);
+                                    
+                                    // Nếu parse thành công và không kết thúc bằng dấu chấm, format lại
+                                    if (parsed !== '' && !inputVal.endsWith('.')) {
+                                        setRawNumberValues(prev => ({ ...prev, [field.name]: formatNumberInput(parsed) }));
+                                    }
+                                }
+                            }}
+                            onBlur={(e) => {
+                                // Khi blur, format lại giá trị cuối cùng
+                                const parsed = parseNumberInput(e.target.value);
+                                const formatted = formatNumberInput(parsed);
+                                setRawNumberValues(prev => ({ ...prev, [field.name]: formatted }));
+                            }}
+                            placeholder={field.placeholder}
+                            className={commonClasses + ' text-right font-semibold'}
+                            required={field.required}
+                            min={field.min}
+                            max={field.max}
+                            step={field.step}
+                        />
+                    );
+                }
                 return (
                     <input
                         type={field.type}

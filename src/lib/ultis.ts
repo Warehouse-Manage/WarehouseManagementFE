@@ -56,6 +56,34 @@ export function deleteCookie(name: string): void {
 	}
 }
 
+export const formatNumberInput = (value: number | '' | null | undefined): string => {
+	if (value === '' || value === null || value === undefined) return '';
+	if (typeof value !== 'number') return '';
+	
+	// Tách phần nguyên và phần thập phân
+	const parts = value.toString().split('.');
+	const integerPart = parts[0];
+	const decimalPart = parts[1];
+	
+	// Format phần nguyên với dấu phẩy ngăn cách hàng nghìn
+	const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	
+	// Nếu có phần thập phân thì giữ lại với dấu chấm
+	return decimalPart !== undefined ? `${formattedInteger}.${decimalPart}` : formattedInteger;
+};
+
+export const parseNumberInput = (input: string): number | '' => {
+	if (!input) return '';
+	
+	// Bỏ tất cả dấu phẩy (hàng nghìn), giữ lại dấu chấm (thập phân)
+	const cleaned = input.replace(/,/g, '');
+	
+	if (!cleaned || cleaned === '.') return '';
+	
+	const num = Number(cleaned);
+	return Number.isNaN(num) ? '' : num;
+};
+
 export const printHtmlContent = (html: string): void => {
 	const iframe = document.createElement('iframe');
 	iframe.style.position = 'fixed';

@@ -26,6 +26,7 @@ export default function CustomersPage() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [downloadingDebt, setDownloadingDebt] = useState(false);
+  const [customerDebts, setCustomerDebts] = useState<Record<number, number>>({});
 
   const customerFormFields: FormField[] = [
     { name: 'name', label: 'Tên khách hàng', type: 'text', required: true, placeholder: 'Nhập tên khách hàng...' },
@@ -55,6 +56,29 @@ export default function CustomersPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchCustomerDebts = async () => {
+      if (!customers.length) return;
+
+      try {
+        const updates: Record<number, number> = {};
+        for (const c of customers) {
+          if (customerDebts[c.id] !== undefined) continue;
+          const balance = await financeApi.getCustomerDebtSummary(c.id);
+          updates[c.id] = balance ?? 0;
+        }
+        if (Object.keys(updates).length > 0) {
+          setCustomerDebts((prev) => ({ ...prev, ...updates }));
+        }
+      } catch (err) {
+        console.error('Failed to load customer debts', err);
+      }
+    };
+
+    fetchCustomerDebts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customers]);
 
   useEffect(() => {
     loadCustomers();
@@ -262,6 +286,18 @@ export default function CustomersPage() {
               header: 'Địa chỉ',
               className: 'text-gray-600',
               render: (c) => <span>{c.address}</span>
+            },
+            {
+              key: 'debt',
+              header: 'Công nợ',
+              className: 'font-semibold text-right text-gray-900',
+              render: (c) => {
+                const debt = customerDebts[c.id];
+                if (debt === undefined) {
+                  return <span className="text-gray-400 text-xs">Đang tải...</span>;
+                }
+                return <span>{debt.toLocaleString('vi-VN')}</span>;
+              }
             },
             {
               key: 'phoneNumber',

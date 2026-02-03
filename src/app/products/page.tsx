@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCookie } from '@/lib/ultis';
+import { getCookie, formatNumberInput, parseNumberInput } from '@/lib/ultis';
 import { inventoryApi } from '@/api';
 import { Product } from '@/types';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
@@ -420,22 +420,24 @@ export default function ProductsPage() {
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Số lượng sản phẩm / kiện</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 min={0}
-                value={pkgUnitsPerPackage}
-                onChange={(e) => setPkgUnitsPerPackage(e.target.value === '' ? '' : Number(e.target.value))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                value={formatNumberInput(pkgUnitsPerPackage)}
+                onChange={(e) => setPkgUnitsPerPackage(parseNumberInput(e.target.value))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 text-right"
                 placeholder="Ví dụ: 100"
               />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Số lượng ban đầu (kiện)</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 min={0}
-                value={pkgInitialPackages}
-                onChange={(e) => setPkgInitialPackages(e.target.value === '' ? '' : Number(e.target.value))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                value={formatNumberInput(pkgInitialPackages)}
+                onChange={(e) => setPkgInitialPackages(parseNumberInput(e.target.value))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 text-right"
                 placeholder="Ví dụ: 10"
               />
             </div>
