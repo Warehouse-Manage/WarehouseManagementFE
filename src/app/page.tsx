@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { getCookie } from '@/lib/ultis';
+import { getCookie, formatNumberInput, parseNumberInput } from '@/lib/ultis';
 import { Material } from '@/types';
 import { materialApi } from '@/api/materialApi';
 import { DataTable, Modal } from '@/components/shared';
@@ -315,9 +315,14 @@ export default function MaterialsPage() {
                     className="h-12 w-12 bg-gray-100 rounded-xl flex items-center justify-center font-black text-xl hover:bg-gray-200 transition-all"
                   >-</button>
                   <input
-                    type="number"
-                    value={requestQuantity}
-                    onChange={(e) => setRequestQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    type="text"
+                    inputMode="decimal"
+                    value={formatNumberInput(requestQuantity)}
+                    onChange={(e) => {
+                      const parsed = parseNumberInput(e.target.value);
+                      const normalized = parsed === '' ? 1 : Math.max(1, Number(parsed));
+                      setRequestQuantity(normalized);
+                    }}
                     className="flex-1 h-12 bg-white border border-gray-200 rounded-xl px-4 text-center font-black text-lg focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none"
                   />
                   <button

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCookie } from '@/lib/ultis';
+import { getCookie, formatNumberInput, parseNumberInput } from '@/lib/ultis';
 import { toast } from 'sonner';
 
 
@@ -102,7 +102,7 @@ export default function ApprovalsPage() {
   const [editingRequest, setEditingRequest] = useState<Request | null>(null);
   const [editedItems, setEditedItems] = useState<RequestItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [totalDiscountAmount, setTotalDiscountAmount] = useState(0);
+  const [totalDiscountAmount, setTotalDiscountAmount] = useState<number | ''>(0);
 
   const handleApprove = async (requestId: number) => {
     const request = requests.find(r => r.id === requestId);
@@ -183,7 +183,8 @@ export default function ApprovalsPage() {
 
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
-    return Math.max(0, subtotal - totalDiscountAmount);
+    const discount = Number(totalDiscountAmount || 0);
+    return Math.max(0, subtotal - discount);
   };
 
   const handleReject = async (requestId: number) => {
@@ -553,12 +554,16 @@ export default function ApprovalsPage() {
                     const item = it as RequestItem;
                     return (
                       <input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => handleItemChange(item.id, 'quantity', Number(e.target.value))}
-                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-black text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-all"
-                      />
+                      type="text"
+                      inputMode="decimal"
+                      min="1"
+                      value={formatNumberInput(item.quantity)}
+                      onChange={(e) => {
+                        const parsed = parseNumberInput(e.target.value);
+                        handleItemChange(item.id, 'quantity', parsed === '' ? 0 : Number(parsed));
+                      }}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-black text-gray-800 text-right focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-all"
+                    />
                     );
                   }
                 },
@@ -570,13 +575,17 @@ export default function ApprovalsPage() {
                     const item = it as RequestItem;
                     return (
                       <input
-                        type="number"
-                        min="0"
-                        value={item.unitPrice || 0}
-                        onChange={(e) => handleItemChange(item.id, 'unitPrice', Number(e.target.value))}
-                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-black text-gray-800 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-all"
-                        placeholder="Nhập giá..."
-                      />
+                      type="text"
+                      inputMode="decimal"
+                      min="0"
+                      value={formatNumberInput(item.unitPrice || 0)}
+                      onChange={(e) => {
+                        const parsed = parseNumberInput(e.target.value);
+                        handleItemChange(item.id, 'unitPrice', parsed === '' ? 0 : Number(parsed));
+                      }}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-black text-gray-800 text-right focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-all"
+                      placeholder="Nhập giá..."
+                    />
                     );
                   }
                 },
@@ -616,11 +625,12 @@ export default function ApprovalsPage() {
                 <span className="font-bold text-sm text-gray-500 uppercase">Giảm giá:</span>
                 <div className="flex items-center gap-2">
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     min="0"
                     max={calculateSubtotal()}
-                    value={totalDiscountAmount}
-                    onChange={(e) => setTotalDiscountAmount(Number(e.target.value))}
+                    value={formatNumberInput(totalDiscountAmount as number | '' | null | undefined)}
+                    onChange={(e) => setTotalDiscountAmount(parseNumberInput(e.target.value))}
                     className="w-32 text-right font-black text-red-600 focus:outline-none"
                   />
                   <span className="font-bold text-red-300">đ</span>

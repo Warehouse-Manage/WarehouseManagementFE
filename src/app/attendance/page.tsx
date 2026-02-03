@@ -1416,25 +1416,27 @@ export default function AttendancePage() {
                             <label className="text-xs text-gray-600">
                               Công:
                               <input
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                max="2"
-                                value={workDate.workQuantity}
-                                onChange={(e) => updateMarkWorkDate(index, 'workQuantity', parseFloat(e.target.value) || 0)}
-                                className="ml-1 w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none"
-                              />
+                              type="text"
+                              inputMode="decimal"
+                              step="0.5"
+                              min="0"
+                              max="2"
+                              value={workDate.workQuantity}
+                              onChange={(e) => updateMarkWorkDate(index, 'workQuantity', parseFloat(e.target.value.replace(/,/g, '.')) || 0)}
+                              className="ml-1 w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none text-right"
+                            />
                             </label>
                             <label className="text-xs text-gray-600">
                               OT:
                               <input
-                                type="number"
-                                step="1"
-                                min="0"
-                                value={workDate.workOvertime}
-                                onChange={(e) => updateMarkWorkDate(index, 'workOvertime', parseFloat(e.target.value) || 0)}
-                                className="ml-1 w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none"
-                              />
+                              type="text"
+                              inputMode="decimal"
+                              step="1"
+                              min="0"
+                              value={workDate.workOvertime}
+                              onChange={(e) => updateMarkWorkDate(index, 'workOvertime', parseFloat(e.target.value.replace(/,/g, '.')) || 0)}
+                              className="ml-1 w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none text-right"
+                            />
                               h
                             </label>
                             <button

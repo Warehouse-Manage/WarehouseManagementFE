@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCookie, printHtmlContent } from '@/lib/ultis';
+import { getCookie, printHtmlContent, formatNumberInput, parseNumberInput } from '@/lib/ultis';
 import { Partner } from '@/types';
 import { partnerApi } from '@/api';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
@@ -498,12 +498,13 @@ export default function DoiTacPage() {
                 <label className="text-xs font-black uppercase text-gray-500">Số tiền muốn thanh toán</label>
                 <div className="relative">
                   <input
-                    type="number"
-                    className="w-full rounded-xl border border-gray-200 p-4 text-2xl font-black text-orange-600 placeholder:text-gray-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-50 outline-none transition-all"
+                    type="text"
+                    inputMode="decimal"
+                    className="w-full rounded-xl border border-gray-200 p-4 text-2xl font-black text-orange-600 placeholder:text-gray-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-50 outline-none transition-all text-right"
                     placeholder="0"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                    min="0"
+                    value={formatNumberInput(paymentAmount)}
+                    onChange={(e) => setPaymentAmount(parseNumberInput(e.target.value))}
+                    min={0}
                     max={(selectedPartner.amountMoneyTotal || 0) - (selectedPartner.amountMoneyPaid || 0)}
                   />
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">VNĐ</div>

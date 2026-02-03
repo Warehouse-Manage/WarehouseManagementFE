@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import Image from "next/image";
 import { sendNotification } from "../../../actions/notification";
 import { materialApi, notificationApi } from "@/api";
-import { getCookie } from "@/lib/ultis";
+import { getCookie, formatNumberInput, parseNumberInput } from "@/lib/ultis";
 import { Material, UserWithNotification } from "@/types";
 import { Modal, DataTable, DynamicForm, FormField } from "@/components/shared";
 
@@ -101,7 +101,12 @@ export default function RequestsPage() {
   };
 
   const handleItemChange = (id: number, field: keyof RequestItem, value: string) => {
-    setItems(prev => prev.map(it => it.id === id ? { ...it, [field]: field === "quantity" ? (value === "" ? "" : Number(value)) : value } : it));
+    setItems(prev => prev.map(it => it.id === id ? {
+      ...it,
+      [field]: field === "quantity"
+        ? (value === "" ? "" : parseNumberInput(value) ?? "")
+        : value
+    } : it));
   };
 
   // Nhập tên để tìm nhanh từ API /api/Items/search?name=
@@ -460,13 +465,14 @@ export default function RequestsPage() {
               className: 'w-24',
               render: (it: RequestItem) => (
                 <input
-                  type="number"
-                  min="0"
-                  value={it.quantity === "" ? "" : it.quantity}
-                  onChange={e => handleItemChange(it.id, "quantity", e.target.value)}
-                  placeholder="0"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-center font-bold text-orange-600 focus:border-orange-500 outline-none"
-                />
+                type="text"
+                inputMode="decimal"
+                min="0"
+                value={formatNumberInput(it.quantity as number | '' | null | undefined)}
+                onChange={e => handleItemChange(it.id, "quantity", e.target.value)}
+                placeholder="0"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-center font-bold text-orange-600 focus:border-orange-500 outline-none"
+              />
               )
             },
             {

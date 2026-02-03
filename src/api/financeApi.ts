@@ -21,6 +21,10 @@ export const financeApi = {
         return api.get<Customer[]>('/api/customers');
     },
 
+    getCustomerDebtSummary: async (customerId: number): Promise<number> => {
+        return api.get<number>(`/api/customers/debt/summary?customerId=${customerId}`);
+    },
+
     createCustomer: async (data: CustomerFormData): Promise<Customer> => {
         return api.post<Customer>('/api/customers', data);
     },

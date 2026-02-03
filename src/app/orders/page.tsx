@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCookie, printHtmlContent } from '@/lib/ultis';
+import { getCookie, printHtmlContent, formatNumberInput, parseNumberInput } from '@/lib/ultis';
 import { financeApi, inventoryApi } from '@/api';
 import { Order, Customer, Deliver, Product, PackageProduct } from '@/types';
 import { Modal, DataTable } from '@/components/shared';
@@ -62,12 +62,6 @@ export default function OrdersPage() {
   }, []);
 
   const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
-  const formatNumber = (value: number | '') => (value === '' ? '' : value.toLocaleString());
-  const parseNumber = (input: string) => {
-    const cleaned = input.replace(/[.,\s]/g, '');
-    const num = Number(cleaned);
-    return Number.isNaN(num) ? '' : num;
-  };
 
   const formatDateTime = (value?: string) => {
     if (!value) return '';
@@ -558,8 +552,8 @@ export default function OrdersPage() {
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
                   placeholder="0"
                   inputMode="decimal"
-                  value={formatNumber(sale)}
-                  onChange={(e) => setSale(parseNumber(e.target.value))}
+                  value={formatNumberInput(sale)}
+                  onChange={(e) => setSale(parseNumberInput(e.target.value))}
                 />
               </div>
               <div>
@@ -568,8 +562,8 @@ export default function OrdersPage() {
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
                   placeholder="0"
                   inputMode="decimal"
-                  value={formatNumber(amountCustomerPayment)}
-                  onChange={(e) => setAmountCustomerPayment(parseNumber(e.target.value))}
+                  value={formatNumberInput(amountCustomerPayment)}
+                  onChange={(e) => setAmountCustomerPayment(parseNumberInput(e.target.value))}
                 />
               </div>
               <div>
@@ -578,8 +572,8 @@ export default function OrdersPage() {
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
                   placeholder="0"
                   inputMode="decimal"
-                  value={formatNumber(shipCost)}
-                  onChange={(e) => setShipCost(parseNumber(e.target.value))}
+                  value={formatNumberInput(shipCost)}
+                  onChange={(e) => setShipCost(parseNumberInput(e.target.value))}
                 />
               </div>
               <div>
@@ -693,8 +687,8 @@ export default function OrdersPage() {
                           className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
                           placeholder="0"
                           inputMode="decimal"
-                          value={formatNumber(p.amount)}
-                          onChange={(e) => updateProductOrderField(idx, 'amount', parseNumber(e.target.value))}
+                          value={formatNumberInput(p.amount)}
+                          onChange={(e) => updateProductOrderField(idx, 'amount', parseNumberInput(e.target.value))}
                         />
                       </div>
                       <div>
@@ -703,9 +697,9 @@ export default function OrdersPage() {
                           className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
                           placeholder="0"
                           inputMode="decimal"
-                          value={formatNumber(displayPrice)}
+                          value={formatNumberInput(displayPrice)}
                           onChange={(e) => {
-                            const newPricePerUnit = parseNumber(e.target.value);
+                            const newPricePerUnit = parseNumberInput(e.target.value);
                             if (newPricePerUnit === '') return;
                             // Nếu là kiện thì nhân lại với quantityProduct, nếu là sản phẩm thì dùng trực tiếp
                             if (isPackage && selectedPackage && selectedPackage.quantityProduct > 0) {
