@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCookie, printHtmlContent } from '@/lib/ultis';
+import { getCookie, printHtmlContent, formatNumberInput, parseNumberInput } from '@/lib/ultis';
 import { workerApi, attendanceApi, financeApi } from '@/api';
 import { Worker, Attendance, WorkDate } from '@/types';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
@@ -271,6 +271,7 @@ export default function AttendancePage() {
   const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
   const [isSavingMark, setIsSavingMark] = useState(false);
   const [salaryPaymentAmount, setSalaryPaymentAmount] = useState('');
+  const parsedSalaryPaymentAmount = useMemo(() => parseNumberInput(salaryPaymentAmount), [salaryPaymentAmount]);
   const [isPayingSalary, setIsPayingSalary] = useState(false);
   const [allAttendances, setAllAttendances] = useState<Attendance[]>([]);
   const [isLoadingAllAttendances, setIsLoadingAllAttendances] = useState(false);
@@ -895,8 +896,8 @@ export default function AttendancePage() {
       return;
     }
 
-    const amount = parseFloat(salaryPaymentAmount);
-    if (!amount || amount <= 0) {
+    const parsedAmount = parseNumberInput(salaryPaymentAmount);
+    if (typeof parsedAmount !== 'number' || parsedAmount <= 0) {
       setMarkToast({ type: 'error', message: 'Vui lòng nhập số tiền hợp lệ.' });
       return;
     }
@@ -911,7 +912,7 @@ export default function AttendancePage() {
     setMarkToast(null);
     try {
       const updated = await attendanceApi.paySalary(markAttendance.id, {
-        amount: amount,
+        amount: parsedAmount,
         createdUserId: Number(userId),
       });
       setMarkAttendance(updated);
@@ -2153,11 +2154,29 @@ export default function AttendancePage() {
                     <div className="md:col-span-2">
                       <label className="text-sm font-semibold text-gray-700 block mb-2">Số tiền thanh toán</label>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         step="1000"
                         min="0"
                         value={salaryPaymentAmount}
-                        onChange={(e) => setSalaryPaymentAmount(e.target.value)}
+                        onChange={(e) => {
+                          const inputVal = e.target.value;
+                          // Lưu raw string trước
+                          setSalaryPaymentAmount(inputVal);
+
+                          // Nếu không kết thúc bằng dấu chấm thì parse và format lại
+                          if (!inputVal.endsWith('.')) {
+                            const parsed = parseNumberInput(inputVal);
+                            if (parsed !== '') {
+                              setSalaryPaymentAmount(formatNumberInput(parsed));
+                            }
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const parsed = parseNumberInput(e.target.value);
+                          const formatted = formatNumberInput(parsed);
+                          setSalaryPaymentAmount(formatted);
+                        }}
                         placeholder="Nhập số tiền lương cần thanh toán"
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
                       />
@@ -2166,7 +2185,11 @@ export default function AttendancePage() {
                       <button
                         onClick={handlePaySalary}
                         className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
-                        disabled={isPayingSalary || !salaryPaymentAmount || parseFloat(salaryPaymentAmount) <= 0}
+                        disabled={
+                          isPayingSalary ||
+                          typeof parsedSalaryPaymentAmount !== 'number' ||
+                          parsedSalaryPaymentAmount <= 0
+                        }
                       >
                         {isPayingSalary ? 'Đang xử lý...' : 'Thanh toán lương'}
                       </button>
