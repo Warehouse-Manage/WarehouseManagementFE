@@ -154,7 +154,7 @@ export default function NguyenLieuPage() {
             resetForm();
             setShowForm(true);
           }}
-          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl shadow-lg shadow-orange-200 hover:shadow-orange-300 font-bold active:scale-95 transition-all text-sm"
+          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl shadow-lg shadow-orange-200 hover:shadow-orange-300 font-bold active:scale-95 transition-all text-sm cursor-pointer"
         >
           <span className="hidden sm:inline">+ Thêm nguyên liệu</span>
           <span className="sm:hidden">+ Thêm</span>
@@ -176,14 +176,14 @@ export default function NguyenLieuPage() {
                 setShowForm(false);
                 resetForm();
               }}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
             >
               Hủy
             </button>
             <button
               onClick={handleCreate}
               disabled={submitting}
-              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors"
+              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors cursor-pointer disabled:cursor-not-allowed"
             >
               {submitting ? 'Đang lưu...' : 'Lưu'}
             </button>
@@ -212,7 +212,7 @@ export default function NguyenLieuPage() {
           <h2 className="font-bold text-gray-900">Danh sách nguyên liệu</h2>
           <button
             onClick={loadNguyenLieu}
-            className="px-3 py-1 border rounded text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            className="px-3 py-1 border rounded text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
           >
             Làm mới
           </button>

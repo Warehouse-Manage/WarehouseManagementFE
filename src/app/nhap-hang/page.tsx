@@ -666,7 +666,7 @@ export default function NhapHangPage() {
         <div className="flex gap-2 border-b border-gray-200">
           <button
             onClick={() => setActiveTab('sanpham')}
-            className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+            className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 cursor-pointer ${
               activeTab === 'sanpham'
                 ? 'text-orange-600 border-orange-600'
                 : 'text-gray-600 border-transparent hover:text-orange-600'
@@ -676,7 +676,7 @@ export default function NhapHangPage() {
           </button>
           <button
             onClick={() => setActiveTab('nguyenlieu')}
-            className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 ${
+            className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 cursor-pointer ${
               activeTab === 'nguyenlieu'
                 ? 'text-orange-600 border-orange-600'
                 : 'text-gray-600 border-transparent hover:text-orange-600'
@@ -699,7 +699,7 @@ export default function NhapHangPage() {
           <div className="mb-4 flex justify-end">
             <button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 cursor-pointer"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -758,7 +758,7 @@ export default function NhapHangPage() {
                 });
                 setShowNguyenLieuModal(true);
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -809,14 +809,14 @@ export default function NhapHangPage() {
           <>
             <button
               onClick={handleCloseModal}
-              className="rounded-lg border-2 border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+              className="rounded-lg border-2 border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 cursor-pointer"
             >
               Hủy
             </button>
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {submitting ? 'Đang lưu...' : editingItem ? 'Cập nhật' : 'Lưu'}
             </button>
@@ -843,14 +843,14 @@ export default function NhapHangPage() {
           <>
             <button
               onClick={handleCloseNguyenLieuModal}
-              className="rounded-lg border-2 border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+              className="rounded-lg border-2 border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 cursor-pointer"
             >
               Hủy
             </button>
             <button
               onClick={handleNguyenLieuSubmit}
               disabled={submittingNguyenLieu}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {submittingNguyenLieu ? 'Đang lưu...' : editingRawMaterialImport ? 'Cập nhật' : 'Lưu'}
             </button>

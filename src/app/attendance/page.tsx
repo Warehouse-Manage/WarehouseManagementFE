@@ -306,16 +306,42 @@ export default function AttendancePage() {
   const [overviewAttendances, setOverviewAttendances] = useState<Map<number, Attendance>>(new Map());
   const [isLoadingOverviewAll, setIsLoadingOverviewAll] = useState(false);
 
-  // Mobile Overview (Admin/Approver): single horizontal scrollbar (on header) that drives body/footer via transform
+  // Mobile Overview (Admin/Approver): horizontal scrollbar sync between header and body
   const overviewHeaderScrollRef = useRef<HTMLDivElement | null>(null);
+  const overviewBodyScrollRef = useRef<HTMLDivElement | null>(null);
   const [overviewMobileScrollLeft, setOverviewMobileScrollLeft] = useState(0);
   const overviewMobileScrollRafRef = useRef<number | null>(null);
+  const isScrollingRef = useRef<'header' | 'body' | null>(null);
 
   const handleOverviewHeaderScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const left = e.currentTarget.scrollLeft;
     if (overviewMobileScrollRafRef.current) cancelAnimationFrame(overviewMobileScrollRafRef.current);
     overviewMobileScrollRafRef.current = requestAnimationFrame(() => {
       setOverviewMobileScrollLeft(left);
+      // Sync body scroll with header
+      if (overviewBodyScrollRef.current && isScrollingRef.current !== 'body') {
+        isScrollingRef.current = 'header';
+        overviewBodyScrollRef.current.scrollLeft = left;
+        setTimeout(() => {
+          isScrollingRef.current = null;
+        }, 50);
+      }
+    });
+  }, []);
+
+  const handleOverviewBodyScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const left = e.currentTarget.scrollLeft;
+    if (overviewMobileScrollRafRef.current) cancelAnimationFrame(overviewMobileScrollRafRef.current);
+    overviewMobileScrollRafRef.current = requestAnimationFrame(() => {
+      setOverviewMobileScrollLeft(left);
+      // Sync header scroll with body
+      if (overviewHeaderScrollRef.current && isScrollingRef.current !== 'header') {
+        isScrollingRef.current = 'body';
+        overviewHeaderScrollRef.current.scrollLeft = left;
+        setTimeout(() => {
+          isScrollingRef.current = null;
+        }, 50);
+      }
     });
   }, []);
 
@@ -1338,7 +1364,7 @@ export default function AttendancePage() {
               <div className="flex items-end">
                 <button
                   onClick={fetchAttendanceForMarking}
-                  className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+                  className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
                   disabled={!selectedWorkerForDetail || !markForm.month || isLoadingAttendance}
                 >
                   {isLoadingAttendance ? 'Đang tải...' : 'Tải bảng chấm công'}
@@ -1489,7 +1515,7 @@ export default function AttendancePage() {
               <div className="flex justify-end">
                 <button
                   onClick={saveMarkedAttendance}
-                  className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold uppercase tracking-wide text-white shadow hover:bg-orange-700 disabled:opacity-50"
+                  className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold uppercase tracking-wide text-white shadow hover:bg-orange-700 disabled:opacity-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
                   disabled={isSavingMark || !selectedWorkerForDetail || !markForm.month}
                 >
                   {isSavingMark ? 'Đang lưu...' : 'Cập nhật chấm công'}
@@ -1521,7 +1547,7 @@ export default function AttendancePage() {
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="flex overflow-x-auto no-scrollbar scroll-smooth bg-gray-50/50 border-b border-gray-100">
           <button
-            className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'create'
+            className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${activeTab === 'create'
               ? 'bg-white text-orange-600 border-b-2 border-orange-600'
               : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'
               }`}
@@ -1533,7 +1559,7 @@ export default function AttendancePage() {
           {userRole === 'Admin' && (
             <>
               <button
-                className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'mark'
+                className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${activeTab === 'mark'
                   ? 'bg-white text-orange-600 border-b-2 border-orange-600'
                   : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'
                   }`}
@@ -1542,7 +1568,7 @@ export default function AttendancePage() {
                 Quản lý
               </button>
               <button
-                className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'worker'
+                className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${activeTab === 'worker'
                   ? 'bg-white text-orange-600 border-b-2 border-orange-600'
                   : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'
                   }`}
@@ -1553,7 +1579,7 @@ export default function AttendancePage() {
             </>
           )}
           <button
-            className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'overview'
+            className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${activeTab === 'overview'
               ? 'bg-white text-orange-600 border-b-2 border-orange-600'
               : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'
               }`}
@@ -1613,8 +1639,8 @@ export default function AttendancePage() {
                             <button
                               key={`${day.dateValue}-${rowIndex}-${colIndex}`}
                               onClick={() => toggleCalendarDaySelection(day.dateValue)}
-                              className={`rounded-md px-0 py-2 font-semibold transition ${createForm.selectedDate === day.dateValue
-                                ? 'bg-orange-600 text-white shadow-lg ring-2 ring-orange-300'
+                              className={`rounded-md px-0 py-2 font-semibold transition cursor-pointer ${createForm.selectedDate === day.dateValue
+                                ? 'bg-orange-600 text-white shadow-lg ring-2 ring-orange-300 hover:bg-orange-700'
                                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
                                 }`}
                             >
@@ -1725,7 +1751,7 @@ export default function AttendancePage() {
                                             );
                                           }}
                                           disabled={isSaving}
-                                          className="flex h-7 w-7 items-center justify-center rounded-l bg-gray-200 text-gray-700 active:bg-gray-300"
+                                          className="flex h-7 w-7 items-center justify-center rounded-l bg-gray-200 text-gray-700 active:bg-gray-300 cursor-pointer hover:bg-gray-300 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                           -
                                         </button>
@@ -1751,7 +1777,7 @@ export default function AttendancePage() {
                                             );
                                           }}
                                           disabled={isSaving}
-                                          className="flex h-7 w-7 items-center justify-center rounded-r bg-gray-200 text-gray-700 active:bg-gray-300"
+                                          className="flex h-7 w-7 items-center justify-center rounded-r bg-gray-200 text-gray-700 active:bg-gray-300 cursor-pointer hover:bg-gray-300 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                           +
                                         </button>
@@ -1801,7 +1827,7 @@ export default function AttendancePage() {
                                             );
                                           }}
                                           disabled={isSaving}
-                                          className="flex h-8 w-8 items-center justify-center rounded-l bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                          className="flex h-8 w-8 items-center justify-center rounded-l bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                           -
                                         </button>
@@ -1840,7 +1866,7 @@ export default function AttendancePage() {
                                             );
                                           }}
                                           disabled={isSaving}
-                                          className="flex h-8 w-8 items-center justify-center rounded-r bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                          className="flex h-8 w-8 items-center justify-center rounded-r bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                           +
                                         </button>
@@ -1934,7 +1960,7 @@ export default function AttendancePage() {
                 <div className="md:col-span-1 flex items-center mt-2">
                   <button
                     onClick={fetchAllAttendancesForMonth}
-                    className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+                    className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
                     disabled={!markForm.month || isLoadingAllAttendances}
                   >
                     {isLoadingAllAttendances ? 'Đang tải...' : 'Tải danh sách lương'}
@@ -2111,7 +2137,7 @@ export default function AttendancePage() {
                             h
                           </label>
                           <button
-                            className="ml-2 rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-200"
+                            className="ml-2 rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-200 cursor-pointer transition-colors"
                             onClick={() => removeMarkWorkDate(workDate)}
                             aria-label={`Xóa ${workDate.workDate}`}
                           >
@@ -2184,7 +2210,7 @@ export default function AttendancePage() {
                     <div className="md:col-span-1 flex items-end">
                       <button
                         onClick={handlePaySalary}
-                        className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                        className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
                         disabled={
                           isPayingSalary ||
                           typeof parsedSalaryPaymentAmount !== 'number' ||
@@ -2225,7 +2251,7 @@ export default function AttendancePage() {
                 <div className="flex justify-end">
                   <button
                     onClick={saveMarkedAttendance}
-                    className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold uppercase tracking-wide text-white shadow hover:bg-orange-700 disabled:opacity-50"
+                    className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold uppercase tracking-wide text-white shadow hover:bg-orange-700 disabled:opacity-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
                     disabled={isSavingMark || !selectedWorkerForDetail || !markForm.month}
                   >
                     {isSavingMark ? 'Đang lưu...' : 'Cập nhật chấm công'}
@@ -2248,7 +2274,7 @@ export default function AttendancePage() {
                 {editingWorker && (
                   <button
                     onClick={resetWorkerForm}
-                    className="text-sm font-semibold text-gray-600 hover:text-gray-900"
+                    className="text-sm font-semibold text-gray-600 hover:text-gray-900 cursor-pointer transition-colors"
                   >
                     Hủy chỉnh sửa
                   </button>
@@ -2280,7 +2306,7 @@ export default function AttendancePage() {
                 {editingWorker && (
                   <button
                     onClick={resetWorkerForm}
-                    className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-2 text-sm font-bold uppercase tracking-wide text-gray-700 shadow hover:bg-gray-50 disabled:opacity-50"
+                    className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-2 text-sm font-bold uppercase tracking-wide text-gray-700 shadow hover:bg-gray-50 disabled:opacity-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
                     disabled={isSavingWorker}
                   >
                     Hủy
@@ -2288,7 +2314,7 @@ export default function AttendancePage() {
                 )}
                 <button
                   onClick={submitCreateWorker}
-                  className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold uppercase tracking-wide text-white shadow hover:bg-orange-700 disabled:opacity-50"
+                  className="inline-flex items-center justify-center rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold uppercase tracking-wide text-white shadow hover:bg-orange-700 disabled:opacity-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
                   disabled={isSavingWorker}
                 >
                   {isSavingWorker
@@ -2366,7 +2392,7 @@ export default function AttendancePage() {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleViewSalary(w)}
-                                className="rounded-lg bg-blue-50 p-2 text-blue-600 hover:bg-blue-100 transition-colors"
+                                className="rounded-lg bg-blue-50 p-2 text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer"
                                 title="Xem chi tiết lương"
                               >
                                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2375,7 +2401,7 @@ export default function AttendancePage() {
                               </button>
                               <button
                                 onClick={() => handleEditWorker(w)}
-                                className="rounded-lg bg-gray-50 p-2 text-gray-600 hover:bg-gray-100 transition-colors"
+                                className="rounded-lg bg-gray-50 p-2 text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
                               >
                                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -2383,7 +2409,7 @@ export default function AttendancePage() {
                               </button>
                               <button
                                 onClick={() => setShowDeleteConfirm(w.id)}
-                                className="rounded-lg bg-red-50 p-2 text-red-600 hover:bg-red-100 transition-colors"
+                                className="rounded-lg bg-red-50 p-2 text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
                               >
                                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -2407,7 +2433,7 @@ export default function AttendancePage() {
                 footer={
                   <button
                     onClick={() => setViewingSalaryWorker(null)}
-                    className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700"
+                    className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 cursor-pointer transition-colors"
                   >
                     Đóng
                   </button>
@@ -2501,13 +2527,13 @@ export default function AttendancePage() {
                   <>
                     <button
                       onClick={() => setShowDeleteConfirm(null)}
-                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors"
                     >
                       Hủy
                     </button>
                     <button
                       onClick={() => showDeleteConfirm !== null && handleDeleteWorker(showDeleteConfirm)}
-                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 cursor-pointer transition-colors"
                     >
                       Xóa
                     </button>
@@ -2593,12 +2619,13 @@ export default function AttendancePage() {
                             ))}
                           </div>
 
-                          {/* No horizontal scroll here: follow header scroll via transform */}
-                          <div className="flex-1 overflow-hidden">
-                            <div
-                              className="min-w-max will-change-transform"
-                              style={{ transform: `translateX(-${overviewMobileScrollLeft}px)` }}
-                            >
+                          {/* Horizontal scrollable body: sync with header */}
+                          <div
+                            ref={overviewBodyScrollRef}
+                            onScroll={handleOverviewBodyScroll}
+                            className="flex-1 overflow-x-auto no-scrollbar"
+                          >
+                            <div className="flex min-w-max">
                               {getOverviewDays(overviewMonth).map((d) => (
                                 <div key={`r-${d.dateValue}`} className="flex h-10 border-b border-gray-50">
                                   {workers.map((w) => {

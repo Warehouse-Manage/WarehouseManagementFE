@@ -130,7 +130,7 @@ export default function ThongKePage() {
         <p className="text-gray-500 font-medium max-w-md">{error}</p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-8 px-8 py-3 bg-red-600 text-white font-black rounded-xl shadow-lg shadow-red-200 hover:bg-red-700 transition-all active:scale-95"
+          className="mt-8 px-8 py-3 bg-red-600 text-white font-black rounded-xl shadow-lg shadow-red-200 hover:bg-red-700 transition-all active:scale-95 cursor-pointer"
         >
           Thử lại ngay
         </button>
@@ -195,7 +195,7 @@ export default function ThongKePage() {
               <button
                 key={p}
                 onClick={() => setSelectedPeriod(p as 'tuần' | 'tháng' | 'quý' | 'năm')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${selectedPeriod === p
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${selectedPeriod === p
                   ? 'bg-white text-orange-600 shadow-md ring-1 ring-orange-100'
                   : 'text-gray-500 hover:bg-gray-100'
                   }`}

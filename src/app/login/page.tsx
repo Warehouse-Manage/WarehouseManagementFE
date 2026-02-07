@@ -252,7 +252,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-orange-500 transition-colors duration-200 focus:outline-none focus:text-orange-500"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-orange-500 transition-colors duration-200 focus:outline-none focus:text-orange-500 cursor-pointer"
                 >
                   {showPassword ? (
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -293,7 +293,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
-                  className="font-medium text-orange-600 hover:text-orange-500 transition-colors duration-200 hover:underline"
+                  className="font-medium text-orange-600 hover:text-orange-500 transition-colors duration-200 hover:underline cursor-pointer"
                 >
                   Quên mật khẩu?
                 </button>
@@ -304,7 +304,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow text-sm font-bold text-white bg-gradient-to-r from-orange-500 via-orange-600 to-orange-700 hover:from-orange-600 hover:via-orange-700 hover:to-orange-800 focus:outline-none focus:ring-2 focus:ring-orange-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow text-sm font-bold text-white bg-gradient-to-r from-orange-500 via-orange-600 to-orange-700 hover:from-orange-600 hover:via-orange-700 hover:to-orange-800 focus:outline-none focus:ring-2 focus:ring-orange-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
             >
               {isLoading ? (
                 <div className="flex items-center space-x-3">
@@ -350,7 +350,7 @@ export default function LoginPage() {
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900">Quên mật khẩu</h2>
                 <button
                   onClick={() => setShowForgotPassword(false)}
-                  className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer transition-colors"
                 >
                   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -410,7 +410,7 @@ export default function LoginPage() {
                 <button
                   onClick={() => setShowForgotPassword(false)}
                   disabled={isForgotPasswordLoading}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
                 >
                   Hủy
                 </button>
@@ -418,7 +418,7 @@ export default function LoginPage() {
                   <button
                     onClick={handleForgotPassword}
                     disabled={isForgotPasswordLoading}
-                    className="inline-flex items-center rounded-lg bg-gradient-to-r from-orange-500 via-orange-600 to-orange-700 px-4 py-2 text-sm font-bold text-white shadow hover:from-orange-600 hover:via-orange-700 hover:to-orange-800 focus:outline-none focus:ring-4 focus:ring-orange-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center rounded-lg bg-gradient-to-r from-orange-500 via-orange-600 to-orange-700 px-4 py-2 text-sm font-bold text-white shadow hover:from-orange-600 hover:via-orange-700 hover:to-orange-800 focus:outline-none focus:ring-4 focus:ring-orange-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {isForgotPasswordLoading ? (
                       <>
@@ -436,7 +436,7 @@ export default function LoginPage() {
                   <button
                     onClick={handleResetPassword}
                     disabled={isForgotPasswordLoading}
-                    className="inline-flex items-center rounded-lg bg-gradient-to-r from-green-500 via-green-600 to-green-700 px-4 py-2 text-sm font-bold text-white shadow hover:from-green-600 hover:via-green-700 hover:to-green-800 focus:outline-none focus:ring-4 focus:ring-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center rounded-lg bg-gradient-to-r from-green-500 via-green-600 to-green-700 px-4 py-2 text-sm font-bold text-white shadow hover:from-green-600 hover:via-green-700 hover:to-green-800 focus:outline-none focus:ring-4 focus:ring-green-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {isForgotPasswordLoading ? (
                       <>

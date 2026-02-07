@@ -81,6 +81,7 @@ export default function Navbar() {
   const isCustomers = pathname?.startsWith('/customers');
   const isDelivers = pathname?.startsWith('/delivers');
   const isOrders = pathname?.startsWith('/orders');
+  const isPlaceOrder = pathname?.startsWith('/place-order');
   const isFunds = pathname?.startsWith('/funds');
   const isDoiTac = pathname?.startsWith('/doi-tac');
   const isNhapHang = pathname?.startsWith('/nhap-hang');
@@ -232,7 +233,7 @@ export default function Navbar() {
                       setIsKeToanMenuOpen((prev) => !prev);
                     }}
                     className={`${baseLink} ${linkSize} whitespace-nowrap flex items-center gap-1 ${
-                      (isProducts || isNguyenLieu || isCustomers || isDelivers || isFunds || isDoiTac || isNhapHang)
+                      (isProducts || isNguyenLieu || isCustomers || isDelivers || isFunds || isDoiTac || isNhapHang || isPlaceOrder)
                         ? active
                         : inactive
                     }`}
@@ -295,6 +296,13 @@ export default function Navbar() {
                   className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isProducts ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
                 >
                   Sản phẩm
+                </Link>
+                <Link
+                  href="/place-order"
+                  onClick={() => setIsKeToanMenuOpen(false)}
+                  className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isPlaceOrder ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Đặt hàng
                 </Link>
               </div>
 
@@ -514,6 +522,16 @@ export default function Navbar() {
                     }`}
                 >
                   Đơn hàng
+                </Link>
+                <Link
+                  href="/place-order"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isPlaceOrder
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                    : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                >
+                  Đặt hàng
                 </Link>
                 <Link
                   href="/funds"
