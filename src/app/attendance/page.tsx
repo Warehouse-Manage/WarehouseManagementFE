@@ -306,44 +306,42 @@ export default function AttendancePage() {
   const [overviewAttendances, setOverviewAttendances] = useState<Map<number, Attendance>>(new Map());
   const [isLoadingOverviewAll, setIsLoadingOverviewAll] = useState(false);
 
-  // Mobile Overview (Admin/Approver): horizontal scrollbar sync between header and body
-  const overviewHeaderScrollRef = useRef<HTMLDivElement | null>(null);
+  // Mobile Overview (Admin/Approver): horizontal scroll synchronized across header/body/footer
   const overviewBodyScrollRef = useRef<HTMLDivElement | null>(null);
-  const [overviewMobileScrollLeft, setOverviewMobileScrollLeft] = useState(0);
-  const overviewMobileScrollRafRef = useRef<number | null>(null);
-  const isScrollingRef = useRef<'header' | 'body' | null>(null);
+  const overviewHeaderScrollRef = useRef<HTMLDivElement | null>(null);
+  const overviewFooterScrollRef = useRef<HTMLDivElement | null>(null);
+  const isSyncingScrollRef = useRef(false);
 
-  const handleOverviewHeaderScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const left = e.currentTarget.scrollLeft;
-    if (overviewMobileScrollRafRef.current) cancelAnimationFrame(overviewMobileScrollRafRef.current);
-    overviewMobileScrollRafRef.current = requestAnimationFrame(() => {
-      setOverviewMobileScrollLeft(left);
-      // Sync body scroll with header
-      if (overviewBodyScrollRef.current && isScrollingRef.current !== 'body') {
-        isScrollingRef.current = 'header';
-        overviewBodyScrollRef.current.scrollLeft = left;
-        setTimeout(() => {
-          isScrollingRef.current = null;
-        }, 50);
-      }
+  const syncScroll = useCallback((sourceScrollLeft: number) => {
+    if (isSyncingScrollRef.current) return;
+    isSyncingScrollRef.current = true;
+    
+    if (overviewHeaderScrollRef.current) {
+      overviewHeaderScrollRef.current.scrollLeft = sourceScrollLeft;
+    }
+    if (overviewBodyScrollRef.current) {
+      overviewBodyScrollRef.current.scrollLeft = sourceScrollLeft;
+    }
+    if (overviewFooterScrollRef.current) {
+      overviewFooterScrollRef.current.scrollLeft = sourceScrollLeft;
+    }
+    
+    requestAnimationFrame(() => {
+      isSyncingScrollRef.current = false;
     });
   }, []);
 
   const handleOverviewBodyScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const left = e.currentTarget.scrollLeft;
-    if (overviewMobileScrollRafRef.current) cancelAnimationFrame(overviewMobileScrollRafRef.current);
-    overviewMobileScrollRafRef.current = requestAnimationFrame(() => {
-      setOverviewMobileScrollLeft(left);
-      // Sync header scroll with body
-      if (overviewHeaderScrollRef.current && isScrollingRef.current !== 'header') {
-        isScrollingRef.current = 'body';
-        overviewHeaderScrollRef.current.scrollLeft = left;
-        setTimeout(() => {
-          isScrollingRef.current = null;
-        }, 50);
-      }
-    });
-  }, []);
+    syncScroll(e.currentTarget.scrollLeft);
+  }, [syncScroll]);
+
+  const handleOverviewHeaderScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    syncScroll(e.currentTarget.scrollLeft);
+  }, [syncScroll]);
+
+  const handleOverviewFooterScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    syncScroll(e.currentTarget.scrollLeft);
+  }, [syncScroll]);
 
   useEffect(() => {
     const userId = getCookie('userId');
@@ -2604,57 +2602,46 @@ export default function AttendancePage() {
                         </div>
                       </div>
 
-                      {/* Scrollable body: days */}
-                      <div className="max-h-[65vh] overflow-y-auto">
-                        <div className="flex">
-                          <div className="w-24 shrink-0 border-r border-gray-100 bg-white">
-                            {getOverviewDays(overviewMonth).map((d) => (
-                              <div
-                                key={`d-${d.dateValue}`}
-                                className="h-10 px-2 flex flex-col justify-center border-b border-gray-50"
-                              >
+                      {/* Scrollable body: days - can scroll horizontally from anywhere */}
+                      <div 
+                        ref={overviewBodyScrollRef}
+                        onScroll={handleOverviewBodyScroll}
+                        className="max-h-[65vh] overflow-y-auto overflow-x-auto no-scrollbar"
+                      >
+                        <div className="min-w-max">
+                          {getOverviewDays(overviewMonth).map((d) => (
+                            <div key={`r-${d.dateValue}`} className="flex h-10 border-b border-gray-50">
+                              {/* Date column - sticky left */}
+                              <div className="w-24 shrink-0 px-2 flex flex-col justify-center border-r border-gray-100 bg-white sticky left-0 z-10">
                                 <div className="text-[11px] font-bold text-gray-900">{String(d.day).padStart(2, '0')}</div>
                                 <div className="text-[10px] text-gray-400">{d.month}</div>
                               </div>
-                            ))}
-                          </div>
-
-                          {/* Horizontal scrollable body: sync with header */}
-                          <div
-                            ref={overviewBodyScrollRef}
-                            onScroll={handleOverviewBodyScroll}
-                            className="flex-1 overflow-x-auto no-scrollbar"
-                          >
-                            <div className="flex min-w-max">
-                              {getOverviewDays(overviewMonth).map((d) => (
-                                <div key={`r-${d.dateValue}`} className="flex h-10 border-b border-gray-50">
-                                  {workers.map((w) => {
-                                    const attendance = overviewAttendances.get(w.id);
-                                    const wd = getWorkDateForOverview(attendance || null, d.dateValue);
-                                    const hasWork = !!wd && wd.workQuantity > 0;
-                                    return (
-                                      <div
-                                        key={`c-${d.dateValue}-${w.id}`}
-                                        className={`w-24 shrink-0 px-2 flex items-center justify-center border-l border-gray-50 ${hasWork ? 'bg-green-50' : 'bg-white'}`}
-                                        title={hasWork ? `Công: ${wd?.workQuantity} • OT: ${wd?.workOvertime || 0}h` : 'Chưa làm'}
-                                      >
-                                        {hasWork ? (
-                                          <div className="flex items-baseline gap-1">
-                                            <span className="text-[11px] font-black text-green-700">{wd?.workQuantity}</span>
-                                            {!!wd?.workOvertime && wd.workOvertime > 0 && (
-                                              <span className="text-[10px] font-bold text-orange-600">+{wd.workOvertime}h</span>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          <span className="text-[11px] text-gray-300">-</span>
+                              {/* Worker columns */}
+                              {workers.map((w) => {
+                                const attendance = overviewAttendances.get(w.id);
+                                const wd = getWorkDateForOverview(attendance || null, d.dateValue);
+                                const hasWork = !!wd && wd.workQuantity > 0;
+                                return (
+                                  <div
+                                    key={`c-${d.dateValue}-${w.id}`}
+                                    className={`w-24 shrink-0 px-2 flex items-center justify-center border-l border-gray-50 ${hasWork ? 'bg-green-50' : 'bg-white'}`}
+                                    title={hasWork ? `Công: ${wd?.workQuantity} • OT: ${wd?.workOvertime || 0}h` : 'Chưa làm'}
+                                  >
+                                    {hasWork ? (
+                                      <div className="flex items-baseline gap-1">
+                                        <span className="text-[11px] font-black text-green-700">{wd?.workQuantity}</span>
+                                        {!!wd?.workOvertime && wd.workOvertime > 0 && (
+                                          <span className="text-[10px] font-bold text-orange-600">+{wd.workOvertime}h</span>
                                         )}
                                       </div>
-                                    );
-                                  })}
-                                </div>
-                              ))}
+                                    ) : (
+                                      <span className="text-[11px] text-gray-300">-</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          </div>
+                          ))}
                         </div>
                       </div>
 
@@ -2664,12 +2651,12 @@ export default function AttendancePage() {
                           <div className="w-24 shrink-0 px-2 py-2 text-[10px] font-black uppercase tracking-wider text-gray-500 bg-white">
                             Tổng
                           </div>
-                          {/* No horizontal scroll here: follow header scroll via transform */}
-                          <div className="flex-1 overflow-hidden">
-                            <div
-                              className="flex min-w-max will-change-transform"
-                              style={{ transform: `translateX(-${overviewMobileScrollLeft}px)` }}
-                            >
+                          <div
+                            ref={overviewFooterScrollRef}
+                            onScroll={handleOverviewFooterScroll}
+                            className="flex-1 overflow-x-auto no-scrollbar"
+                          >
+                            <div className="flex min-w-max">
                               {workers.map((w) => {
                                 const attendance = overviewAttendances.get(w.id);
                                 const totalWorkQuantity = attendance?.daysOff?.reduce((sum, wd) => sum + wd.workQuantity, 0) || 0;
