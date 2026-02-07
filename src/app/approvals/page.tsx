@@ -351,7 +351,7 @@ export default function ApprovalsPage() {
                       <button
                         onClick={() => handleApprove(req.id)}
                         disabled={actionLoading === req.id}
-                        className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors shadow-sm"
+                        className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors shadow-sm cursor-pointer disabled:cursor-not-allowed"
                         title="Duyệt và mua"
                       >
                         <Check className="h-4 w-4" strokeWidth={3} />
@@ -359,7 +359,7 @@ export default function ApprovalsPage() {
                       <button
                         onClick={() => handleReject(req.id)}
                         disabled={actionLoading === req.id}
-                        className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors shadow-sm"
+                        className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors shadow-sm cursor-pointer disabled:cursor-not-allowed"
                         title="Từ chối"
                       >
                         <X className="h-4 w-4" strokeWidth={3} />
@@ -368,7 +368,7 @@ export default function ApprovalsPage() {
                   )}
                   <button
                     onClick={() => setSelectedRequest(req)}
-                    className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors shadow-sm"
+                    className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors shadow-sm cursor-pointer"
                     title="Xem chi tiết"
                   >
                     <FileText className="h-4 w-4" />
@@ -475,14 +475,14 @@ export default function ApprovalsPage() {
             <button
               onClick={handleCancelApproval}
               disabled={isSubmitting}
-              className="px-6 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-600 hover:bg-gray-50 transition-all"
+              className="px-6 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-600 hover:bg-gray-50 transition-all cursor-pointer disabled:cursor-not-allowed"
             >
               Hủy
             </button>
             <button
               onClick={handleConfirmApproval}
               disabled={isSubmitting || editedItems.length === 0}
-              className="inline-flex items-center gap-2 px-8 py-2.5 rounded-xl bg-orange-600 font-black text-white shadow-lg shadow-orange-100 hover:bg-orange-700 transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-8 py-2.5 rounded-xl bg-orange-600 font-black text-white shadow-lg shadow-orange-100 hover:bg-orange-700 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>

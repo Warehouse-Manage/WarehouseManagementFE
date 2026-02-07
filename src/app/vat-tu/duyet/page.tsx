@@ -408,14 +408,14 @@ export default function DuyetPage() {
             <button
               onClick={handleCancelApproval}
               disabled={isSubmitting}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Hủy
             </button>
             <button
               onClick={handleConfirmApproval}
               disabled={isSubmitting || editedItems.length === 0}
-              className="inline-flex items-center justify-center rounded-lg bg-green-600 px-6 py-2 text-sm font-bold text-white hover:bg-green-700 transition-colors disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-lg bg-green-600 px-6 py-2 text-sm font-bold text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {isSubmitting ? 'Đang xử lý...' : 'Xác nhận duyệt và mua'}
             </button>
@@ -468,7 +468,7 @@ export default function DuyetPage() {
                       </div>
                       <button
                         onClick={() => handleRemoveItem(item.id)}
-                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

@@ -9,10 +9,12 @@ import {
     MonthlyTotalResponse,
     Order,
     OrderFormData,
+    PlaceOrderFormData,
     Fund,
     FundFormData,
     OrderReceiptPrintModel,
-    OrderDeliveryNotePrintModel
+    OrderDeliveryNotePrintModel,
+    InventoryForecastResponse
 } from '@/types';
 
 export const financeApi = {
@@ -120,6 +122,52 @@ export const financeApi = {
 
     deleteOrder: async (id: number): Promise<void> => {
         return api.delete<void>(`/api/orders/${id}`);
+    },
+
+    // PlaceOrders
+    getPlaceOrders: async (): Promise<Order[]> => {
+        return api.get<Order[]>('/api/place-orders');
+    },
+
+    getPlaceOrdersFilter: async (page: number = 1, pageSize: number = 10, params?: Record<string, string | number>): Promise<{ data: Order[]; totalCount: number }> => {
+        let url = `/api/place-orders/filter?pageNumber=${page}&pageSize=${pageSize}`;
+        if (params) {
+            const query = new URLSearchParams(params as Record<string, string>).toString();
+            if (query) url += `&${query}`;
+        }
+        const response = await api.get<{ data: Order[]; totalCount: number }>(url);
+        return {
+            data: response.data || [],
+            totalCount: response.totalCount || 0
+        };
+    },
+
+    createPlaceOrder: async (data: PlaceOrderFormData): Promise<Order> => {
+        return api.post<Order>('/api/place-orders', data);
+    },
+
+    printPlaceOrderReceipt: async (id: number): Promise<string> => {
+        return api.get<string>(`/api/place-orders/${id}/receipt`);
+    },
+
+    printPlaceOrderDeliveryNote: async (id: number): Promise<string> => {
+        return api.get<string>(`/api/place-orders/${id}/delivery-note`);
+    },
+
+    printPlaceOrderReceiptModel: async (data: OrderReceiptPrintModel): Promise<string> => {
+        return api.post<string>(`/api/place-orders/receipt`, data);
+    },
+
+    printPlaceOrderDeliveryNoteModel: async (data: OrderDeliveryNotePrintModel): Promise<string> => {
+        return api.post<string>(`/api/place-orders/delivery-note`, data);
+    },
+
+    deletePlaceOrder: async (id: number): Promise<void> => {
+        return api.delete<void>(`/api/place-orders/${id}`);
+    },
+
+    calculatePlaceOrderForecast: async (data: { deliveryDate: string; items: Array<{ productId?: number; packageProductId?: number; requiredQuantity: number }> }): Promise<InventoryForecastResponse> => {
+        return api.post<InventoryForecastResponse>('/api/place-orders/forecast', data);
     },
 
     // Funds

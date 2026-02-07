@@ -71,6 +71,17 @@ export interface OrderFormData {
     createdUserId: number;
 }
 
+export interface PlaceOrderFormData {
+    customerId: number;
+    deliverId: number;
+    sale: number;
+    amountCustomerPayment: number;
+    shipCost: number;
+    placeOrderProductOrders: ProductOrderDetail[];
+    createdUserId: number;
+    deliveryDate?: string;
+}
+
 export interface OrderReceiptPrintModel {
     Tieu_De: string;
     Nhan_Doi_Tac: string;
@@ -93,6 +104,25 @@ export interface OrderDeliveryNoteItemModel {
     PackageProductId?: number | null;
     QuantityProduct?: number | null;
     Ten_San_Pham_Goc?: string;
+}
+
+export interface InventoryForecastDto {
+    productId?: number | null;
+    packageProductId?: number | null;
+    productName: string;
+    currentQuantity: number;
+    averageDailyImport: number;
+    daysUntilDelivery: number;
+    estimatedQuantity: number;
+    requiredQuantity: number;
+    shortage: number;
+    hasShortage: boolean;
+}
+
+export interface InventoryForecastResponse {
+    forecasts: InventoryForecastDto[];
+    hasAnyShortage: boolean;
+    totalShortage: number;
 }
 
 export interface OrderDeliveryNotePrintModel {

@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react';
 import { getCookie, printHtmlContent, formatNumberInput, parseNumberInput } from '@/lib/ultis';
 import { financeApi, inventoryApi } from '@/api';
-import { Order, Customer, Deliver, Product, PackageProduct } from '@/types';
+import { Order, Customer, Deliver, Product, PackageProduct, InventoryForecastResponse } from '@/types';
 import { Modal, DataTable } from '@/components/shared';
 import { toast } from 'sonner';
 import { Printer, Trash2 } from 'lucide-react';
 
 // Types moved to @/types/finance.ts and @/types/inventory.ts
 
-export default function OrdersPage() {
+export default function PlaceOrderPage() {
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,6 +29,7 @@ export default function OrdersPage() {
   const [loadingPackageProducts, setLoadingPackageProducts] = useState(false);
   const [customerId, setCustomerId] = useState<number | ''>('');
   const [deliverId, setDeliverId] = useState<number | ''>('');
+  const [deliveryDate, setDeliveryDate] = useState<string>('');
   const [sale, setSale] = useState<number | ''>(0);
   const [amountCustomerPayment, setAmountCustomerPayment] = useState<number | ''>(0);
   const [shipCost, setShipCost] = useState<number | ''>(0);
@@ -55,6 +56,9 @@ export default function OrdersPage() {
   const [newDeliverPlate, setNewDeliverPlate] = useState('');
   const [submittingCustomer, setSubmittingCustomer] = useState(false);
   const [submittingDeliver, setSubmittingDeliver] = useState(false);
+  const [showForecastWarning, setShowForecastWarning] = useState(false);
+  const [forecastData, setForecastData] = useState<InventoryForecastResponse | null>(null);
+  const [pendingCreate, setPendingCreate] = useState(false);
 
   useEffect(() => {
     const r = getCookie('role');
@@ -69,15 +73,21 @@ export default function OrdersPage() {
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN');
   };
 
+  const formatDate = (value?: string) => {
+    if (!value) return '';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('vi-VN');
+  };
+
   const loadOrders = async (page: number = currentPage, size: number = pageSize) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await financeApi.getOrdersFilter(page, size);
+      const result = await financeApi.getPlaceOrdersFilter(page, size);
       setOrders(result.data);
       setTotalCount(result.totalCount);
     } catch (err: unknown) {
-      setError(getErrorMessage(err) || 'Không thể tải danh sách đơn hàng');
+      setError(getErrorMessage(err) || 'Không thể tải danh sách đặt hàng');
       console.error(err);
     } finally {
       setLoading(false);
@@ -194,6 +204,7 @@ export default function OrdersPage() {
   const resetForm = () => {
     setCustomerId('');
     setDeliverId('');
+    setDeliveryDate('');
     setSale(0);
     setAmountCustomerPayment(0);
     setShipCost(0);
@@ -287,7 +298,7 @@ export default function OrdersPage() {
 
   const handlePrintDeliveryNote = async (id: number) => {
     try {
-      const html = await financeApi.printOrderDeliveryNote(id);
+      const html = await financeApi.printPlaceOrderDeliveryNote(id);
       await printHtmlContent(html);
     } catch (err) {
       toast.error('Không thể tải phiếu xuất kho: ' + getErrorMessage(err));
@@ -295,16 +306,16 @@ export default function OrdersPage() {
   };
 
   const handleDeleteOrder = async (order: Order) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa đơn hàng #${order.id}?`)) {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa đặt hàng #${order.id}?`)) {
       return;
     }
     try {
       setLoading(true);
-      await financeApi.deleteOrder(order.id);
-      toast.success('Xóa đơn hàng thành công');
+      await financeApi.deletePlaceOrder(order.id);
+      toast.success('Xóa đặt hàng thành công');
       await loadOrders(currentPage);
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err) || 'Không thể xóa đơn hàng');
+      toast.error(getErrorMessage(err) || 'Không thể xóa đặt hàng');
     } finally {
       setLoading(false);
     }
@@ -313,6 +324,10 @@ export default function OrdersPage() {
   const handleCreate = async () => {
     if (customerId === '' || deliverId === '') {
       setError('Cần nhập CustomerId và DeliverId');
+      return;
+    }
+    if (!deliveryDate) {
+      setError('Vui lòng chọn ngày giao hàng');
       return;
     }
     const userId = getCookie('userId');
@@ -338,22 +353,62 @@ export default function OrdersPage() {
       setError('Cần ít nhất một sản phẩm');
       return;
     }
+    setError(null);
+    
+    try {
+      // Convert deliveryDate to ISO string
+      const deliveryDateISO = deliveryDate ? new Date(`${deliveryDate}T00:00:00Z`).toISOString() : undefined;
+      
+      // Tính toán forecast trước khi save
+      const forecastRequest = {
+        deliveryDate: deliveryDateISO!,
+        items: productsToOrder.map(po => ({
+          productId: po.productId || undefined,
+          packageProductId: po.packageProductId || undefined,
+          requiredQuantity: po.amount
+        }))
+      };
+      
+      const forecastResult = await financeApi.calculatePlaceOrderForecast(forecastRequest);
+      
+      // Kiểm tra xem có thiếu hàng không
+      if (forecastResult.hasAnyShortage) {
+        setForecastData(forecastResult);
+        setPendingCreate(true);
+        setShowForecastWarning(true);
+        return;
+      }
+      
+      // Nếu đủ hàng thì tiếp tục tạo đơn hàng
+      await proceedWithCreate(deliveryDateISO, productsToOrder);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Không thể tạo đặt hàng');
+    }
+  };
+
+  const proceedWithCreate = async (deliveryDateISO: string | undefined, productsToOrder: Array<{ productId: number; packageProductId?: number; amount: number; price: number; sale: number }>) => {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await financeApi.createOrder({
+      const userId = getCookie('userId');
+      if (!userId) {
+        setError('Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.');
+        return;
+      }
+      
+      const res = await financeApi.createPlaceOrder({
         customerId: Number(customerId),
         deliverId: Number(deliverId),
         sale: Number(sale || 0),
         amountCustomerPayment: Number(amountCustomerPayment || 0),
         shipCost: Number(shipCost || 0),
-        productOrders: productsToOrder,
+        placeOrderProductOrders: productsToOrder,
         createdUserId: Number(userId),
+        deliveryDate: deliveryDateISO,
       });
 
       const now = new Date();
       const customer = customers.find((c) => c.id === Number(customerId));
-      const deliver = delivers.find((d) => d.id === Number(deliverId));
 
       // Format DD/MM/YYYY HH:MM
       const formatDateTime = (date: Date): string => {
@@ -365,13 +420,30 @@ export default function OrdersPage() {
         return `${day}/${month}/${year} ${hours}:${minutes}`;
       };
 
+      // Format ngày giao hàng
+      const formatDeliveryDate = (dateStr: string | undefined): string => {
+        if (!dateStr) return 'Chưa có';
+        try {
+          const date = new Date(dateStr);
+          const day = date.getDate().toString().padStart(2, '0');
+          const month = (date.getMonth() + 1).toString().padStart(2, '0');
+          const year = date.getFullYear();
+          return `${day}/${month}/${year}`;
+        } catch {
+          return 'Chưa có';
+        }
+      };
+
+      const deliveryDateFormatted = formatDeliveryDate(deliveryDateISO);
+      const customerName = customer?.name || 'Khách hàng';
+      
       const receiptModel = {
-        Tieu_De: 'PHIẾU THU (ĐƠN HÀNG)',
+        Tieu_De: 'PHIẾU THU (ĐẶT HÀNG)',
         Nhan_Doi_Tac: 'Người nộp tiền',
         Ngay_Thang_Nam: formatDateTime(now),
-        Doi_Tac: customer?.name || 'Khách hàng',
+        Doi_Tac: customerName,
         Dia_Chi: customer?.address || '',
-        Ly_Do: `Thanh toán cho đơn hàng #${res.id}`,
+        Ly_Do: `Thanh toán cho đặt hàng #${res.id} - Người đặt hàng: ${customerName} - Ngày giao hàng: ${deliveryDateFormatted}`,
         Gia_Tri_Phieu: Number(amountCustomerPayment || 0).toLocaleString('vi-VN'),
         Ngay: now.getDate().toString().padStart(2, '0'),
         Thang: (now.getMonth() + 1).toString().padStart(2, '0'),
@@ -379,66 +451,59 @@ export default function OrdersPage() {
         Nhan_Ky_Ten: 'NGƯỜI NỘP TIỀN'
       };
 
-        const deliveryItems = productsToOrder.map((po, idx) => {
-          const pkg = po.packageProductId
-            ? packageProducts.find((k) => k.id === po.packageProductId)
-            : undefined;
-          const baseProduct = po.productId
-            ? products.find((p) => p.id === po.productId)
-            : undefined;
-          const isPackage = !!po.packageProductId;
-          return {
-            STT: idx + 1,
-            // Nếu là kiện: luôn hiển thị tên kiện (không fallback sang tên sản phẩm)
-            Ten_Hang_Hoa: isPackage ? (pkg?.name || 'Kiện') : (baseProduct?.name || 'Sản phẩm'),
-            So_Luong: po.amount,
-            ProductId: po.productId && po.productId > 0 ? po.productId : null,
-            PackageProductId: po.packageProductId ?? null,
-            QuantityProduct: pkg?.quantityProduct ?? null,
-            Ten_San_Pham_Goc: baseProduct?.name || 'Sản phẩm',
-          };
-        });
-
-      const deliveryModel = {
-        Ngay_Thang_Nam: formatDateTime(now),
-        Khach_Hang: customer?.name || 'Khách hàng',
-        Bien_So_Xe: deliver?.plateNumber || '...',
-        Doi_Tac_Giao_Hang: deliver?.name || '...',
-        SDT_Giao_Hang: deliver?.phoneNumber || '...',
-        Tong_So_Luong: productsToOrder.reduce((s, po) => s + po.amount, 0).toString(),
-        Items: deliveryItems
-      };
-
-      const [receiptHtml, deliveryHtml] = await Promise.all([
-        financeApi.printOrderReceiptModel(receiptModel),
-        financeApi.printOrderDeliveryNoteModel(deliveryModel)
-      ]);
-
+      // Chỉ in phiếu thu (fund receipt)
+      const receiptHtml = await financeApi.printPlaceOrderReceiptModel(receiptModel);
       if (receiptHtml) printHtmlContent(receiptHtml);
-      if (deliveryHtml) printHtmlContent(deliveryHtml);
 
       resetForm();
       setShowModal(false);
       await loadOrders(currentPage);
     } catch (err: unknown) {
-      setError(getErrorMessage(err) || 'Không thể tạo đơn hàng');
+      setError(getErrorMessage(err) || 'Không thể tạo đặt hàng');
     } finally {
       setSubmitting(false);
+      setPendingCreate(false);
     }
+  };
+
+  const handleConfirmForecastWarning = async () => {
+    setShowForecastWarning(false);
+    if (pendingCreate && deliveryDate) {
+      const deliveryDateISO = new Date(`${deliveryDate}T00:00:00Z`).toISOString();
+      const productsToOrder = productOrdersInput
+        .filter((p) => p.selectionKey !== '' && p.amount !== '' && p.price !== '')
+        .map((p) => {
+          const isPackage = p.selectionKey.startsWith('k:');
+          return {
+            productId: Number(p.productId),
+            packageProductId: isPackage ? Number(p.packageProductId) : undefined,
+            amount: Number(p.amount),
+            price: Number(p.price),
+            sale: Number(p.sale || 0),
+          };
+        });
+      await proceedWithCreate(deliveryDateISO, productsToOrder);
+    }
+  };
+
+  const handleCancelForecastWarning = () => {
+    setShowForecastWarning(false);
+    setPendingCreate(false);
+    setForecastData(null);
   };
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Đơn hàng</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1 font-medium">Theo dõi và quản lý các đơn hàng xuất kho</p>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Đặt hàng</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 font-medium">Theo dõi và quản lý các đơn đặt hàng</p>
         </div>
         <button
           onClick={handleOpenModal}
           className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-xl shadow-lg shadow-orange-200 hover:shadow-orange-300 font-bold active:scale-95 transition-all text-sm cursor-pointer"
         >
-          <span className="hidden sm:inline">+ Tạo đơn hàng mới</span>
+          <span className="hidden sm:inline">+ Tạo đơn đặt hàng mới</span>
           <span className="sm:hidden">+ Thêm</span>
         </button>
       </div>
@@ -446,7 +511,7 @@ export default function OrdersPage() {
       <Modal
         isOpen={showModal}
         onClose={handleCloseModal}
-        title="Tạo đơn hàng mới"
+        title="Tạo đơn đặt hàng mới"
         size="xl"
         footer={
           <>
@@ -462,7 +527,7 @@ export default function OrdersPage() {
               disabled={submitting}
               className="px-4 py-2 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 disabled:opacity-60 cursor-pointer transition-colors disabled:cursor-not-allowed"
             >
-              {submitting ? 'Đang lưu...' : 'Lưu đơn hàng'}
+              {submitting ? 'Đang lưu...' : 'Lưu đơn đặt hàng'}
             </button>
           </>
         }
@@ -544,7 +609,21 @@ export default function OrdersPage() {
               </div>
             </div>
 
-            {/* Row 2: Các trường khác */}
+            {/* Row 2: Ngày giao hàng */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Ngày giao hàng *</label>
+                <input
+                  type="date"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+            </div>
+
+            {/* Row 3: Các trường khác */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Giảm giá đơn hàng</label>
@@ -884,7 +963,7 @@ export default function OrdersPage() {
 
       <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
         <div className="flex items-center justify-between mb-2 sm:mb-4">
-          <h2 className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-wider">Danh sách đơn hàng</h2>
+          <h2 className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-wider">Danh sách đơn đặt hàng</h2>
           <button
             onClick={() => loadOrders(currentPage)}
             disabled={loading}
@@ -934,10 +1013,19 @@ export default function OrdersPage() {
             },
             {
               key: 'dateCreated',
-              header: 'Thời gian',
+              header: 'Thời gian tạo',
               render: (o) => (
                 <div className="text-sm font-bold text-gray-700">
                   {formatDateTime(o.dateCreated)}
+                </div>
+              )
+            },
+            {
+              key: 'deliveryDate',
+              header: 'Ngày giao hàng',
+              render: (o: Order & { deliveryDate?: string }) => (
+                <div className="text-sm font-bold text-orange-600">
+                  {o.deliveryDate ? formatDate(o.deliveryDate) : 'Chưa có'}
                 </div>
               )
             },
@@ -996,12 +1084,64 @@ export default function OrdersPage() {
               variant: 'danger' as const
             }
           ]}
-          emptyMessage="Chưa có dữ liệu đơn hàng"
+          emptyMessage="Chưa có dữ liệu đơn đặt hàng"
         />
 
       </div>
+
+      {/* Modal cảnh báo thiếu hàng */}
+      <Modal
+        isOpen={showForecastWarning}
+        onClose={handleCancelForecastWarning}
+        title="Cảnh báo thiếu hàng"
+        size="md"
+        footer={
+          <>
+            <button
+              onClick={handleCancelForecastWarning}
+              className="px-4 py-2 border rounded font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleConfirmForecastWarning}
+              className="px-4 py-2 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 cursor-pointer transition-colors"
+            >
+              Tiếp tục
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-sm font-semibold text-yellow-800 mb-2">
+              Có thể không đủ hàng cho đơn đặt hàng này. Bạn có muốn tiếp tục không?
+            </p>
+          </div>
+          
+          {forecastData && forecastData.forecasts && (
+            <div className="space-y-3">
+              {forecastData.forecasts
+                .filter((f) => f.hasShortage)
+                .map((forecast, idx: number) => (
+                  <div key={idx} className="border border-red-200 rounded-lg p-3 bg-red-50">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-gray-900">{forecast.productName}</span>
+                      <span className="text-red-600 font-black">
+                        Thiếu {forecast.shortage.toLocaleString()} {forecast.packageProductId ? 'kiện' : 'sản phẩm'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      <div>Yêu cầu: {forecast.requiredQuantity.toLocaleString()}</div>
+                      <div>Dự tính có: {forecast.estimatedQuantity.toLocaleString()}</div>
+                      <div>Hiện tại: {forecast.currentQuantity.toLocaleString()}</div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }
-
-

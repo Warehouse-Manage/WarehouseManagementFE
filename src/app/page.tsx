@@ -151,7 +151,7 @@ export default function MaterialsPage() {
           </Link>
           <button
             onClick={() => router.push('/vat-tu/yeu-cau')}
-            className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-orange-600 rounded-xl text-white text-xs sm:text-sm font-black hover:bg-orange-700 transition-all shadow-lg shadow-orange-200 active:scale-95"
+            className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-orange-600 rounded-xl text-white text-xs sm:text-sm font-black hover:bg-orange-700 transition-all shadow-lg shadow-orange-200 active:scale-95 cursor-pointer"
           >
             <Plus className="h-4 sm:h-5 w-4 sm:w-5" />
             <span className="hidden sm:inline">Tạo yêu cầu mới</span>
@@ -248,7 +248,7 @@ export default function MaterialsPage() {
                 render: (it) => (
                   <button
                     onClick={() => handleRequestUsage(it)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-xl text-xs font-black hover:bg-orange-700 transition-all shadow-md shadow-orange-100 active:scale-95"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-xl text-xs font-black hover:bg-orange-700 transition-all shadow-md shadow-orange-100 active:scale-95 cursor-pointer"
                   >
                     <Plus className="h-3 w-3" />
                     <span className="sm:hidden">Yêu cầu</span>
@@ -272,14 +272,14 @@ export default function MaterialsPage() {
           <div className="flex gap-3 w-full">
             <button
               onClick={() => setShowConfirmModal(false)}
-              className="flex-1 px-6 py-4 bg-gray-100 text-gray-700 font-black rounded-2xl hover:bg-gray-200 transition-all active:scale-95 shadow-sm"
+              className="flex-1 px-6 py-4 bg-gray-100 text-gray-700 font-black rounded-2xl hover:bg-gray-200 transition-all active:scale-95 shadow-sm cursor-pointer"
             >
               Hủy bỏ
             </button>
             <button
               onClick={handleConfirmRequest}
               disabled={isSubmitting}
-              className="flex-1 px-6 py-4 bg-orange-600 text-white font-black rounded-2xl hover:bg-orange-700 transition-all active:scale-95 shadow-lg shadow-orange-100 disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-4 bg-orange-600 text-white font-black rounded-2xl hover:bg-orange-700 transition-all active:scale-95 shadow-lg shadow-orange-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-2 cursor-pointer"
             >
               {isSubmitting ? (
                 <>
@@ -312,7 +312,7 @@ export default function MaterialsPage() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setRequestQuantity(Math.max(1, requestQuantity - 1))}
-                    className="h-12 w-12 bg-gray-100 rounded-xl flex items-center justify-center font-black text-xl hover:bg-gray-200 transition-all"
+                    className="h-12 w-12 bg-gray-100 rounded-xl flex items-center justify-center font-black text-xl hover:bg-gray-200 transition-all cursor-pointer"
                   >-</button>
                   <input
                     type="text"
@@ -327,7 +327,7 @@ export default function MaterialsPage() {
                   />
                   <button
                     onClick={() => setRequestQuantity(requestQuantity + 1)}
-                    className="h-12 w-12 bg-orange-600 rounded-xl flex items-center justify-center font-black text-xl text-white hover:bg-orange-700 transition-all shadow-md shadow-orange-100"
+                    className="h-12 w-12 bg-orange-600 rounded-xl flex items-center justify-center font-black text-xl text-white hover:bg-orange-700 transition-all shadow-md shadow-orange-100 cursor-pointer"
                   >+</button>
                 </div>
               </div>

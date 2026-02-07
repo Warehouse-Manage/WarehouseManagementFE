@@ -221,7 +221,7 @@ export default function ThietBiPage() {
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 transition-all shadow-md active:scale-95 flex items-center gap-2"
+          className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer"
         >
           <svg className="w-5 h-5 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -233,7 +233,7 @@ export default function ThietBiPage() {
       <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between">
           <h2 className="font-bold text-gray-900">Danh sách thiết bị</h2>
-          <button onClick={fetchDevices} className="text-xs font-bold text-orange-600 hover:text-orange-700 uppercase tracking-wider">Làm mới</button>
+          <button onClick={fetchDevices} className="text-xs font-bold text-orange-600 hover:text-orange-700 uppercase tracking-wider cursor-pointer transition-colors">Làm mới</button>
         </div>
 
         <div className="p-4">
@@ -279,7 +279,7 @@ export default function ThietBiPage() {
                           updateLocalDeviceValue(d.id, nextVal);
                           saveDeviceValue(d, nextVal);
                         }}
-                        className={`inline-flex items-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all shadow-sm border-2 ${isOn ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'}`}
+                        className={`inline-flex items-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all shadow-sm border-2 cursor-pointer ${isOn ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'}`}
                       >
                         <span className={`w-2 h-2 rounded-full mr-2 ${isOn ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></span>
                         {isOn ? 'Đang hoạt động' : 'Tạm dừng'}
@@ -322,8 +322,8 @@ export default function ThietBiPage() {
                 className: 'text-center',
                 render: (d) => (
                   <div className="flex gap-2">
-                    <button onClick={() => openEditForm(d)} className="p-2 text-orange-600 hover:bg-orange-50 rounded-xl transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                    <button onClick={() => handleDeleteDevice(d.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                    <button onClick={() => openEditForm(d)} className="p-2 text-orange-600 hover:bg-orange-50 rounded-xl transition-all cursor-pointer"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                    <button onClick={() => handleDeleteDevice(d.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                   </div>
                 )
               }
@@ -336,8 +336,8 @@ export default function ThietBiPage() {
       <Modal isOpen={showAddForm} onClose={() => setShowAddForm(false)} title="Thêm thiết bị mới" size="lg"
         footer={
           <div className="flex justify-end gap-3 w-full">
-            <button onClick={() => setShowAddForm(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all">Hủy</button>
-            <button onClick={handleAddDevice} className="rounded-xl bg-orange-600 px-8 py-2.5 text-sm font-black text-white hover:bg-orange-700 transition-all shadow-lg active:scale-95">Thêm thiết bị</button>
+            <button onClick={() => setShowAddForm(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all cursor-pointer">Hủy</button>
+            <button onClick={handleAddDevice} className="rounded-xl bg-orange-600 px-8 py-2.5 text-sm font-black text-white hover:bg-orange-700 transition-all shadow-lg active:scale-95 cursor-pointer">Thêm thiết bị</button>
           </div>
         }
       >
@@ -355,8 +355,8 @@ export default function ThietBiPage() {
       <Modal isOpen={showEditForm && !!editingDevice} onClose={() => { setShowEditForm(false); setEditingDevice(null); }} title={`Cấu hình: ${editingDevice?.name}`} size="lg"
         footer={
           <div className="flex justify-end gap-3 w-full">
-            <button onClick={() => { setShowEditForm(false); setEditingDevice(null); }} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all">Hủy</button>
-            <button onClick={handleEditDevice} className="rounded-xl bg-orange-600 px-8 py-2.5 text-sm font-black text-white hover:bg-orange-700 transition-all shadow-lg active:scale-95">Lưu thay đổi</button>
+            <button onClick={() => { setShowEditForm(false); setEditingDevice(null); }} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all cursor-pointer">Hủy</button>
+            <button onClick={handleEditDevice} className="rounded-xl bg-orange-600 px-8 py-2.5 text-sm font-black text-white hover:bg-orange-700 transition-all shadow-lg active:scale-95 cursor-pointer">Lưu thay đổi</button>
           </div>
         }
       >
