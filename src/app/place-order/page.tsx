@@ -296,12 +296,12 @@ export default function PlaceOrderPage() {
     ]);
   };
 
-  const handlePrintDeliveryNote = async (id: number) => {
+  const handlePrintOrderForm = async (id: number) => {
     try {
-      const html = await financeApi.printPlaceOrderDeliveryNote(id);
+      const html = await financeApi.printPlaceOrderForm(id);
       await printHtmlContent(html);
     } catch (err) {
-      toast.error('Không thể tải phiếu xuất kho: ' + getErrorMessage(err));
+      toast.error('Không thể tải phiếu đặt hàng: ' + getErrorMessage(err));
     }
   };
 
@@ -411,7 +411,7 @@ export default function PlaceOrderPage() {
       const customer = customers.find((c) => c.id === Number(customerId));
 
       // Format DD/MM/YYYY HH:MM
-      const formatDateTime = (date: Date): string => {
+      const formatDateTimeForReceipt = (date: Date): string => {
         const day = date.getDate().toString().padStart(2, '0');
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
         const year = date.getFullYear();
@@ -421,7 +421,7 @@ export default function PlaceOrderPage() {
       };
 
       // Format ngày giao hàng
-      const formatDeliveryDate = (dateStr: string | undefined): string => {
+      const formatDeliveryDateForReceipt = (dateStr: string | undefined): string => {
         if (!dateStr) return 'Chưa có';
         try {
           const date = new Date(dateStr);
@@ -434,13 +434,13 @@ export default function PlaceOrderPage() {
         }
       };
 
-      const deliveryDateFormatted = formatDeliveryDate(deliveryDateISO);
+      const deliveryDateFormatted = formatDeliveryDateForReceipt(deliveryDateISO);
       const customerName = customer?.name || 'Khách hàng';
-      
+
       const receiptModel = {
         Tieu_De: 'PHIẾU THU (ĐẶT HÀNG)',
         Nhan_Doi_Tac: 'Người nộp tiền',
-        Ngay_Thang_Nam: formatDateTime(now),
+        Ngay_Thang_Nam: formatDateTimeForReceipt(now),
         Doi_Tac: customerName,
         Dia_Chi: customer?.address || '',
         Ly_Do: `Thanh toán cho đặt hàng #${res.id} - Người đặt hàng: ${customerName} - Ngày giao hàng: ${deliveryDateFormatted}`,
@@ -448,12 +448,20 @@ export default function PlaceOrderPage() {
         Ngay: now.getDate().toString().padStart(2, '0'),
         Thang: (now.getMonth() + 1).toString().padStart(2, '0'),
         Nam: now.getFullYear().toString(),
-        Nhan_Ky_Ten: 'NGƯỜI NỘP TIỀN'
+        Nhan_Ky_Ten: 'NGƯỜI NỘP TIỀN',
       };
 
-      // Chỉ in phiếu thu (fund receipt)
+      // In phiếu thu
       const receiptHtml = await financeApi.printPlaceOrderReceiptModel(receiptModel);
-      if (receiptHtml) printHtmlContent(receiptHtml);
+      if (receiptHtml) {
+        await printHtmlContent(receiptHtml);
+      }
+
+      // In phiếu ĐẶT HÀNG (template mới trên BE)
+      const orderFormHtml = await financeApi.printPlaceOrderForm(res.id);
+      if (orderFormHtml) {
+        await printHtmlContent(orderFormHtml);
+      }
 
       resetForm();
       setShowModal(false);
@@ -1075,7 +1083,7 @@ export default function PlaceOrderPage() {
             {
               label: 'In đơn hàng',
               icon: <Printer className="h-4 w-4" />,
-              onClick: () => handlePrintDeliveryNote(o.id)
+              onClick: () => handlePrintOrderForm(o.id)
             },
             {
               label: 'Xóa',

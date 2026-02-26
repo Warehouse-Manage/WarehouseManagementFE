@@ -162,6 +162,10 @@ export const financeApi = {
         return api.post<string>(`/api/place-orders/delivery-note`, data);
     },
 
+    printPlaceOrderForm: async (id: number): Promise<string> => {
+        return api.get<string>(`/api/place-orders/${id}/order-form`);
+    },
+
     deletePlaceOrder: async (id: number): Promise<void> => {
         return api.delete<void>(`/api/place-orders/${id}`);
     },
