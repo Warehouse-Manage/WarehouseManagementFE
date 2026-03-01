@@ -43,11 +43,11 @@ export const inventoryApi = {
 
     // Raw Materials
     getRawMaterials: async (): Promise<RawMaterial[]> => {
-        return api.get<RawMaterial[]>('/api/nguyenlieu');
+        return api.get<RawMaterial[]>('/api/rawmaterial');
     },
 
     createRawMaterial: async (data: RawMaterialFormData): Promise<RawMaterial> => {
-        return api.post<RawMaterial>('/api/nguyenlieu', data);
+        return api.post<RawMaterial>('/api/rawmaterial', data);
     },
 
     // Nhập nguyên liệu với thông tin tài chính
@@ -61,7 +61,7 @@ export const inventoryApi = {
         partnerId: number;
         createdUserId: number;
     }): Promise<{ rawMaterial: RawMaterial; partner: unknown; fund?: unknown }> => {
-        return api.post('/api/nguyenlieu/import', data);
+        return api.post('/api/rawmaterial/import', data);
     },
 
     // Raw Material Import

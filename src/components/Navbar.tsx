@@ -73,18 +73,18 @@ export default function Navbar() {
   }, [isKeToanMenuOpen]);
 
   const isMaterials = pathname === '/' || pathname === '/';
-  const isVatTu = pathname?.startsWith('/vat-tu');
+  const isVatTu = pathname?.startsWith('/supplies');
   const isAttendance = pathname?.startsWith('/attendance');
-  const isProduction = pathname?.startsWith('/san-xuat');
+  const isProduction = pathname?.startsWith('/production');
   const isProducts = pathname?.startsWith('/products');
-  const isNguyenLieu = pathname?.startsWith('/nguyen-lieu');
+  const isNguyenLieu = pathname?.startsWith('/raw-materials');
   const isCustomers = pathname?.startsWith('/customers');
   const isDelivers = pathname?.startsWith('/delivers');
   const isOrders = pathname?.startsWith('/orders');
   const isPlaceOrder = pathname?.startsWith('/place-order');
   const isFunds = pathname?.startsWith('/funds');
-  const isDoiTac = pathname?.startsWith('/doi-tac');
-  const isNhapHang = pathname?.startsWith('/nhap-hang');
+  const isDoiTac = pathname?.startsWith('/partners');
+  const isNhapHang = pathname?.startsWith('/import-goods');
 
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {
@@ -197,7 +197,7 @@ export default function Navbar() {
               Trang chủ
             </Link>
             <Link
-              href="/vat-tu"
+              href="/supplies"
               aria-current={isVatTu ? 'page' : undefined}
               className={`${baseLink} ${linkSize} whitespace-nowrap ${isVatTu ? active : inactive}`}
             >
@@ -215,7 +215,7 @@ export default function Navbar() {
             {(role === 'Admin' || role === 'accountance') && (
               <>
                 <Link
-                  href="/san-xuat"
+                  href="/production"
                   aria-current={isProduction ? 'page' : undefined}
                   className={`${baseLink} ${linkSize} whitespace-nowrap ${isProduction ? active : inactive}`}
                 >
@@ -270,21 +270,21 @@ export default function Navbar() {
               {/* Cột trái: Nhập hàng, nguyên liệu, đối tác, sản phẩm */}
               <div className="min-w-[140px]">
                 <Link
-                  href="/nhap-hang"
+                  href="/import-goods"
                   onClick={() => setIsKeToanMenuOpen(false)}
                   className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isNhapHang ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
                 >
                   Nhập hàng
                 </Link>
                 <Link
-                  href="/nguyen-lieu"
+                  href="/raw-materials"
                   onClick={() => setIsKeToanMenuOpen(false)}
                   className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isNguyenLieu ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
                 >
                   Nguyên liệu
                 </Link>
                 <Link
-                  href="/doi-tac"
+                  href="/partners"
                   onClick={() => setIsKeToanMenuOpen(false)}
                   className={`flex items-center px-4 py-2.5 text-sm transition-colors ${isDoiTac ? 'bg-orange-50 text-orange-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
                 >
@@ -452,7 +452,7 @@ export default function Navbar() {
               Trang chủ
             </Link>
             <Link
-              href="/vat-tu"
+              href="/supplies"
               onClick={() => setIsMobileMenuOpen(false)}
               className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isVatTu
                 ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
@@ -484,7 +484,7 @@ export default function Navbar() {
                   Sản phẩm
                 </Link>
                 <Link
-                  href="/nguyen-lieu"
+                  href="/raw-materials"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isNguyenLieu
                     ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
@@ -544,7 +544,7 @@ export default function Navbar() {
                   Sổ quỹ
                 </Link>
                 <Link
-                  href="/doi-tac"
+                  href="/partners"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isDoiTac
                     ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
@@ -554,7 +554,7 @@ export default function Navbar() {
                   Đối tác
                 </Link>
                 <Link
-                  href="/nhap-hang"
+                  href="/import-goods"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isNhapHang
                     ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
@@ -568,7 +568,7 @@ export default function Navbar() {
             {(role === 'Admin' || role === 'accountance') && (
               <>
                 <Link
-                  href="/san-xuat"
+                  href="/production"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isProduction
                     ? 'bg-orange-500 text-white shadow-md shadow-orange-200'

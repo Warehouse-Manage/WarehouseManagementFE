@@ -5,7 +5,8 @@ import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { financeApi, workerApi, userApi } from '@/api';
 import { Fund, Deliver, Worker, Customer, User } from '@/types';
 import { toast } from 'sonner';
-import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
+import { DataTable, FormField } from '@/components/shared';
+import FundFormModal from './modal/FundFormModal';
 import { Printer, Edit, Trash2 } from 'lucide-react';
 import Select from 'react-select';
 
@@ -358,92 +359,48 @@ export default function FundsPage() {
         </div>
       </div>
 
-      <Modal
+      <FundFormModal
         isOpen={showForm}
         onClose={resetForm}
-        title={editingId ? 'Sửa bản ghi' : 'Thêm bản ghi sổ quỹ'}
-        size="lg"
-        footer={
-          <>
-            <button
-              onClick={resetForm}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-            >
-              Hủy
-            </button>
-            <button
-              onClick={editingId ? handleUpdate : handleCreate}
-              disabled={submitting}
-              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors cursor-pointer disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Đang lưu...' : editingId ? 'Cập nhật' : 'Lưu'}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-6">
-          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
-
-          <DynamicForm
-            fields={fundFormFields}
-            values={{
-              type,
-              description,
-              amount,
-              category,
-              objectType,
-              objectName
-            }}
-            onChange={(name, value) => {
-              if (name === 'type') {
-                setType(value as 'Thu' | 'Chi');
-                setCategory('');
-                setObjectType('');
-                setObjectName('');
-                setObjectId('');
-                setSuggestions([]);
-              } else if (name === 'amount') setAmount(value as number);
-              else if (name === 'description') setDescription(value as string);
-              else if (name === 'category') setCategory(value as string);
-              else if (name === 'objectType') {
-                setObjectType(value as string);
-                if (!value) setObjectName('');
-                setObjectId('');
-                setSuggestions([]);
-                loadSuggestions(value as string);
-              } else if (name === 'objectName') setObjectName(value as string);
-            }}
-            columns={2}
-          />
-
-          {objectType && (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase tracking-wider text-blue-600">Gợi ý đối tượng</h3>
-                {loadingSuggestions && <span className="text-[10px] text-blue-400 italic">Đang tải...</span>}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {suggestions.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => {
-                      setObjectId(s.id);
-                      setObjectName(s.name);
-                    }}
-                    className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
-                  >
-                    {s.name}
-                  </button>
-                ))}
-                {!loadingSuggestions && suggestions.length === 0 && (
-                  <span className="text-xs text-gray-400">Không tìm thấy gợi ý nào</span>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </Modal>
+        editingId={editingId}
+        fundFormFields={fundFormFields}
+        formValues={{
+          type,
+          description,
+          amount,
+          category,
+          objectType,
+          objectName
+        }}
+        error={error}
+        submitting={submitting}
+        suggestions={suggestions}
+        loadingSuggestions={loadingSuggestions}
+        onFieldChange={(name, value) => {
+          if (name === 'type') {
+            setType(value as 'Thu' | 'Chi');
+            setCategory('');
+            setObjectType('');
+            setObjectName('');
+            setObjectId('');
+            setSuggestions([]);
+          } else if (name === 'amount') setAmount(value as number);
+          else if (name === 'description') setDescription(value as string);
+          else if (name === 'category') setCategory(value as string);
+          else if (name === 'objectType') {
+            setObjectType(value as string);
+            if (!value) setObjectName('');
+            setObjectId('');
+            setSuggestions([]);
+            loadSuggestions(value as string);
+          } else if (name === 'objectName') setObjectName(value as string);
+        }}
+        onSuggestionClick={(s) => {
+          setObjectId(s.id);
+          setObjectName(s.name);
+        }}
+        onSubmit={editingId ? handleUpdate : handleCreate}
+      />
 
       <div className="border rounded-2xl p-3 sm:p-5 bg-white shadow-sm overflow-hidden">
         <div className="flex items-center justify-between mb-4 sm:mb-6">

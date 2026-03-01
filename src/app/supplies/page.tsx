@@ -3,11 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function LegacyDevicesRedirect() {
+export default function VatTuPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/production/equipment');
+    router.replace('/supplies/requests');
   }, [router]);
 
   return (

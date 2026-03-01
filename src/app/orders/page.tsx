@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCookie, printHtmlContent, formatNumberInput, parseNumberInput } from '@/lib/ultis';
+import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { financeApi, inventoryApi } from '@/api';
 import { Order, Customer, Deliver, Product, PackageProduct } from '@/types';
-import { Modal, DataTable } from '@/components/shared';
+import { DataTable } from '@/components/shared';
 import { toast } from 'sonner';
 import { Printer, Trash2 } from 'lucide-react';
+import CreateOrderModal from './modal/CreateOrderModal';
+import CustomerModal from './modal/CustomerModal';
+import DeliverModal from './modal/DeliverModal';
 
 // Types moved to @/types/finance.ts and @/types/inventory.ts
 
@@ -443,313 +446,56 @@ export default function OrdersPage() {
         </button>
       </div>
 
-      <Modal
+      <CreateOrderModal
         isOpen={showModal}
         onClose={handleCloseModal}
-        title="Tạo đơn hàng mới"
-        size="xl"
-        footer={
-          <>
-            <button
-              onClick={handleCloseModal}
-              className="px-4 py-2 border rounded font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
-              disabled={submitting}
-            >
-              Hủy
-            </button>
-            <button
-              onClick={handleCreate}
-              disabled={submitting}
-              className="px-4 py-2 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 disabled:opacity-60 cursor-pointer transition-colors disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Đang lưu...' : 'Lưu đơn hàng'}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-6">
-          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
+        error={error}
+        submitting={submitting}
+        customers={customers}
+        delivers={delivers}
+        products={products}
+        packageProducts={packageProducts}
+        loadingCustomers={loadingCustomers}
+        loadingDelivers={loadingDelivers}
+        loadingProducts={loadingProducts}
+        loadingPackageProducts={loadingPackageProducts}
+        customerId={customerId}
+        deliverId={deliverId}
+        sale={sale}
+        amountCustomerPayment={amountCustomerPayment}
+        shipCost={shipCost}
+        shipcod={shipcod}
+        productOrdersInput={productOrdersInput}
+        onCustomerIdChange={setCustomerId}
+        onDeliverIdChange={setDeliverId}
+        onSaleChange={setSale}
+        onAmountCustomerPaymentChange={setAmountCustomerPayment}
+        onShipCostChange={setShipCost}
+        onOpenCustomerModal={() => {
+          setNewCustomerName('');
+          setNewCustomerAddress('');
+          setNewCustomerPhone('');
+          setError(null);
+          setShowCustomerModal(true);
+        }}
+        onOpenDeliverModal={() => {
+          setNewDeliverName('');
+          setNewDeliverPhone('');
+          setNewDeliverPlate('');
+          setError(null);
+          setShowDeliverModal(true);
+        }}
+        onAddProductOrderRow={addProductOrderRow}
+        onRemoveProductOrderRow={(idx) => setProductOrdersInput(prev => prev.filter((_, i) => i !== idx))}
+        onUpdateProductOrderKey={updateProductOrderKey}
+        onUpdateProductOrderField={updateProductOrderField}
+        calculateProductTotal={calculateProductTotal}
+        calculateGrandTotal={calculateGrandTotal}
+        calculateOrderTotal={calculateOrderTotal}
+        onSubmit={handleCreate}
+      />
 
-          <div className="space-y-4">
-            {/* Row 1: Khách hàng và Người giao hàng */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="w-full">
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Khách hàng *</label>
-                <div className="flex items-stretch gap-2">
-                  <select
-                    className="flex-1 min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                    value={customerId}
-                    onChange={(e) => setCustomerId(e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={loadingCustomers}
-                  >
-                    <option value="">-- Chọn khách hàng --</option>
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} - {c.phoneNumber}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setNewCustomerName('');
-                      setNewCustomerAddress('');
-                      setNewCustomerPhone('');
-                      setError(null);
-                      setShowCustomerModal(true);
-                    }}
-                    className="shrink-0 w-10 h-[42px] rounded-lg bg-orange-500 text-white hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-colors font-bold text-xl leading-none flex items-center justify-center cursor-pointer"
-                    title="Thêm khách hàng mới"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div className="w-full">
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Người giao hàng *</label>
-                <div className="flex items-stretch gap-2">
-                  <select
-                    className="flex-1 min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                    value={deliverId}
-                    onChange={(e) => setDeliverId(e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={loadingDelivers}
-                  >
-                    <option value="">-- Chọn người giao hàng --</option>
-                    {delivers.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name} - {d.plateNumber}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setNewDeliverName('');
-                      setNewDeliverPhone('');
-                      setNewDeliverPlate('');
-                      setError(null);
-                      setShowDeliverModal(true);
-                    }}
-                    className="shrink-0 w-10 h-[42px] rounded-lg bg-orange-500 text-white hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-colors font-bold text-xl leading-none flex items-center justify-center cursor-pointer"
-                    title="Thêm người giao hàng mới"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Row 2: Các trường khác */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Giảm giá đơn hàng</label>
-                <input
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                  placeholder="0"
-                  inputMode="decimal"
-                  value={formatNumberInput(sale)}
-                  onChange={(e) => setSale(parseNumberInput(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Khách trả</label>
-                <input
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                  placeholder="0"
-                  inputMode="decimal"
-                  value={formatNumberInput(amountCustomerPayment)}
-                  onChange={(e) => setAmountCustomerPayment(parseNumberInput(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Phí giao hàng</label>
-                <input
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                  placeholder="0"
-                  inputMode="decimal"
-                  value={formatNumberInput(shipCost)}
-                  onChange={(e) => setShipCost(parseNumberInput(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Ship COD / Còn lại</label>
-                <input
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 font-bold text-orange-600"
-                  placeholder="0"
-                  type="text"
-                  value={formatNumberInput(shipcod)}
-                  readOnly
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3 border-t pt-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black uppercase tracking-wider text-gray-700">Danh sách sản phẩm</h3>
-              <button
-                onClick={addProductOrderRow}
-                className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Thêm sản phẩm
-              </button>
-            </div>
-
-            <div className="space-y-4 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
-              {productOrdersInput.map((p, idx) => {
-                const total = calculateProductTotal(p);
-                // Tính giá/viên để hiển thị: nếu là kiện thì chia cho quantityProduct, nếu là sản phẩm thì dùng trực tiếp
-                const isPackage = p.selectionKey.startsWith('k:');
-                const selectedPackage = isPackage ? packageProducts.find((pk) => pk.id === Number(p.packageProductId)) : undefined;
-                const displayPrice = isPackage && selectedPackage && selectedPackage.quantityProduct > 0
-                  ? Number(p.price || 0) / selectedPackage.quantityProduct
-                  : Number(p.price || 0);
-                return (
-                  <div key={idx} className="relative rounded-xl border border-gray-200 bg-gray-50 p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="lg:col-span-1">
-                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Sản phẩm</label>
-                        <select
-                          className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
-                          value={p.selectionKey}
-                          onChange={(e) => {
-                            const key = e.target.value;
-                            updateProductOrderKey(idx, key);
-
-                            if (!key) {
-                              updateProductOrderField(idx, 'productId', '');
-                              updateProductOrderField(idx, 'packageProductId', '');
-                              return;
-                            }
-
-                            if (key.startsWith('p:')) {
-                              const selectedProductId = Number(key.slice(2));
-                              const selectedProduct = products.find((pr) => pr.id === selectedProductId);
-                              updateProductOrderField(idx, 'productId', selectedProductId);
-                              updateProductOrderField(idx, 'packageProductId', '');
-                              if (selectedProduct) {
-                                updateProductOrderField(idx, 'price', selectedProduct.price);
-                              }
-                              return;
-                            }
-
-                            if (key.startsWith('k:')) {
-                              const selectedPackageId = Number(key.slice(2));
-                              const selectedPackage = packageProducts.find((pk) => pk.id === selectedPackageId);
-                              if (!selectedPackage) return;
-                              const baseProduct = products.find((pr) => pr.id === selectedPackage.productId);
-                              updateProductOrderField(idx, 'packageProductId', selectedPackageId);
-                              updateProductOrderField(idx, 'productId', selectedPackage.productId);
-                              if (baseProduct) {
-                                updateProductOrderField(
-                                  idx,
-                                  'price',
-                                  baseProduct.price * selectedPackage.quantityProduct
-                                );
-                              }
-                            }
-                          }}
-                          disabled={loadingProducts || loadingPackageProducts}
-                        >
-                          <option value="">-- Chọn --</option>
-                          <optgroup label="Sản phẩm">
-                            {products.map((pr) => (
-                              <option key={`p-${pr.id}`} value={`p:${pr.id}`}>
-                                {pr.name} ({pr.price.toLocaleString()}đ)
-                              </option>
-                            ))}
-                          </optgroup>
-                          <optgroup label="Kiện">
-                            {packageProducts.map((pk) => {
-                              const baseProduct = products.find((pr) => pr.id === pk.productId);
-                              const label = `${pk.name} - ${baseProduct?.name || `#${pk.productId}`} (${pk.quantityProduct} viên/kiện)`;
-                              const packagePrice = baseProduct ? baseProduct.price * pk.quantityProduct : 0;
-                              return (
-                                <option key={`k-${pk.id}`} value={`k:${pk.id}`}>
-                                  {label} ({packagePrice.toLocaleString()}đ/kiện)
-                                </option>
-                              );
-                            })}
-                          </optgroup>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Số lượng</label>
-                        <input
-                          className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
-                          placeholder="0"
-                          inputMode="decimal"
-                          value={formatNumberInput(p.amount)}
-                          onChange={(e) => updateProductOrderField(idx, 'amount', parseNumberInput(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Giá sản phẩm</label>
-                        <input
-                          className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
-                          placeholder="0"
-                          inputMode="decimal"
-                          value={formatNumberInput(displayPrice)}
-                          onChange={(e) => {
-                            const newPricePerUnit = parseNumberInput(e.target.value);
-                            if (newPricePerUnit === '') return;
-                            // Nếu là kiện thì nhân lại với quantityProduct, nếu là sản phẩm thì dùng trực tiếp
-                            if (isPackage && selectedPackage && selectedPackage.quantityProduct > 0) {
-                              updateProductOrderField(idx, 'price', Number(newPricePerUnit) * selectedPackage.quantityProduct);
-                            } else {
-                              updateProductOrderField(idx, 'price', Number(newPricePerUnit));
-                            }
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Thành tiền</label>
-                        <div className="font-bold text-sm text-orange-600 pt-1.5">
-                          {total > 0 ? total.toLocaleString() + 'đ' : '0đ'}
-                        </div>
-                      </div>
-                    </div>
-                    {productOrdersInput.length > 1 && (
-                      <button
-                        onClick={() => setProductOrdersInput(prev => prev.filter((_, i) => i !== idx))}
-                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-200 transition-colors cursor-pointer"
-                      >
-                        <span className="text-sm">×</span>
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-4">
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
-                <div className="text-gray-600">
-                  <p>Tổng tiền hàng: <span className="font-bold text-gray-900">{calculateGrandTotal().toLocaleString()}đ</span></p>
-                  <p>Giảm giá đơn hàng: <span className="font-bold text-red-600">-{Number(sale || 0).toLocaleString()}đ</span></p>
-                </div>
-                <div className="text-center sm:text-right">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Tổng cộng sau giảm</p>
-                  <p className="text-2xl font-black text-orange-600 leading-none">
-                    {calculateOrderTotal().toLocaleString()}đ
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal thêm khách hàng */}
-      <Modal
+      <CustomerModal
         isOpen={showCustomerModal}
         onClose={() => {
           setShowCustomerModal(false);
@@ -757,66 +503,18 @@ export default function OrdersPage() {
           setNewCustomerAddress('');
           setNewCustomerPhone('');
         }}
-        title="Thêm khách hàng mới"
-        size="md"
-        footer={
-          <>
-            <button
-              onClick={() => {
-                setShowCustomerModal(false);
-                setNewCustomerName('');
-                setNewCustomerAddress('');
-                setNewCustomerPhone('');
-              }}
-              className="px-4 py-2 border rounded font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
-              disabled={submittingCustomer}
-            >
-              Hủy
-            </button>
-            <button
-              onClick={handleCreateCustomer}
-              disabled={submittingCustomer}
-              className="px-4 py-2 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 disabled:opacity-60 cursor-pointer transition-colors disabled:cursor-not-allowed"
-            >
-              {submittingCustomer ? 'Đang lưu...' : 'Lưu'}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tên khách hàng *</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-              placeholder="Nhập tên khách hàng..."
-              value={newCustomerName}
-              onChange={(e) => setNewCustomerName(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Địa chỉ *</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-              placeholder="Nhập địa chỉ..."
-              value={newCustomerAddress}
-              onChange={(e) => setNewCustomerAddress(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Số điện thoại *</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-              placeholder="Nhập số điện thoại..."
-              value={newCustomerPhone}
-              onChange={(e) => setNewCustomerPhone(e.target.value)}
-            />
-          </div>
-        </div>
-      </Modal>
+        newCustomerName={newCustomerName}
+        newCustomerAddress={newCustomerAddress}
+        newCustomerPhone={newCustomerPhone}
+        error={error}
+        submitting={submittingCustomer}
+        onNameChange={setNewCustomerName}
+        onAddressChange={setNewCustomerAddress}
+        onPhoneChange={setNewCustomerPhone}
+        onSubmit={handleCreateCustomer}
+      />
 
-      {/* Modal thêm người giao hàng */}
-      <Modal
+      <DeliverModal
         isOpen={showDeliverModal}
         onClose={() => {
           setShowDeliverModal(false);
@@ -824,63 +522,16 @@ export default function OrdersPage() {
           setNewDeliverPhone('');
           setNewDeliverPlate('');
         }}
-        title="Thêm người giao hàng mới"
-        size="md"
-        footer={
-          <>
-            <button
-              onClick={() => {
-                setShowDeliverModal(false);
-                setNewDeliverName('');
-                setNewDeliverPhone('');
-                setNewDeliverPlate('');
-              }}
-              className="px-4 py-2 border rounded font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
-              disabled={submittingDeliver}
-            >
-              Hủy
-            </button>
-            <button
-              onClick={handleCreateDeliver}
-              disabled={submittingDeliver}
-              className="px-4 py-2 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 disabled:opacity-60 cursor-pointer transition-colors disabled:cursor-not-allowed"
-            >
-              {submittingDeliver ? 'Đang lưu...' : 'Lưu'}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tên người giao hàng *</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-              placeholder="Nhập tên..."
-              value={newDeliverName}
-              onChange={(e) => setNewDeliverName(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Số điện thoại *</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-              placeholder="Nhập số điện thoại..."
-              value={newDeliverPhone}
-              onChange={(e) => setNewDeliverPhone(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Biển số xe *</label>
-            <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-              placeholder="Nhập biển số xe..."
-              value={newDeliverPlate}
-              onChange={(e) => setNewDeliverPlate(e.target.value)}
-            />
-          </div>
-        </div>
-      </Modal>
+        newDeliverName={newDeliverName}
+        newDeliverPhone={newDeliverPhone}
+        newDeliverPlate={newDeliverPlate}
+        error={error}
+        submitting={submittingDeliver}
+        onNameChange={setNewDeliverName}
+        onPhoneChange={setNewDeliverPhone}
+        onPlateChange={setNewDeliverPlate}
+        onSubmit={handleCreateDeliver}
+      />
 
       <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
         <div className="flex items-center justify-between mb-2 sm:mb-4">
