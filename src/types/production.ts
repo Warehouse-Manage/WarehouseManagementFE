@@ -13,8 +13,8 @@ export interface Device {
     lowLimit: number;
     highLimit: number;
     value: string | null;
-    starts: string | null;
-    ends: string | null;
+    start: string | null;
+    end: string | null;
     isAuto: boolean | null;
     deviceUnit?: DeviceUnit;
 }
@@ -27,8 +27,8 @@ export interface DeviceApiResponse {
     lowLimit: number;
     highLimit: number;
     value: string | null;
-    starts: string | null;
-    ends: string | null;
+    start: string | null;
+    end: string | null;
     isAuto: string | null | boolean;
     deviceUnit?: DeviceUnit;
 }
@@ -55,8 +55,8 @@ export interface DeviceFormData {
     lowLimit: number;
     highLimit: number;
     value: string;
-    starts: string | null;
-    ends: string | null;
+    start: string | null;
+    end: string | null;
     isAuto: boolean;
 }
 
