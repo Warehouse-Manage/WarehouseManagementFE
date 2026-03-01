@@ -9,10 +9,12 @@ import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ProductFormModal from './modal/ProductFormModal';
 import PackageFormModal from './modal/PackageFormModal';
+import { useConfirm } from '@/hooks/useConfirm';
 
 // Type Product moved to @/types/inventory.ts
 
 export default function ProductsPage() {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [activeTab, setActiveTab] = useState<'product' | 'package'>('product');
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
   const [products, setProducts] = useState<Product[]>([]);
@@ -214,7 +216,13 @@ export default function ProductsPage() {
   };
 
   const handleDeleteProduct = async (id: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) return;
+    const confirmed = await confirm({
+      message: 'Bạn có chắc chắn muốn xóa sản phẩm này?',
+      variant: 'danger',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
     try {
       await inventoryApi.deleteProduct(id);
       toast.success('Xóa sản phẩm thành công');
@@ -225,7 +233,13 @@ export default function ProductsPage() {
   };
 
   const handleDeletePackage = async (id: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa kiện này?')) return;
+    const confirmed = await confirm({
+      message: 'Bạn có chắc chắn muốn xóa kiện này?',
+      variant: 'danger',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
     try {
       await inventoryApi.deletePackageProduct(id);
       toast.success('Xóa kiện thành công');
@@ -488,6 +502,7 @@ export default function ProductsPage() {
             )}
           </div>
         </main>
+        {ConfirmDialog}
       </div>
     </div>
   );

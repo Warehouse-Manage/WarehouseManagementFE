@@ -9,10 +9,12 @@ import { CreditCard, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import DeliverFormModal from './modal/DeliverFormModal';
 import PaymentModal from './modal/PaymentModal';
+import { useConfirm } from '@/hooks/useConfirm';
 
 // Type Deliver moved to @/types/finance.ts
 
 export default function DeliversPage() {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
   const [delivers, setDelivers] = useState<Deliver[]>([]);
   const [loading, setLoading] = useState(false);
@@ -197,9 +199,13 @@ export default function DeliversPage() {
   };
 
   const handleDeleteDeliver = async (deliver: Deliver) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa người giao hàng "${deliver.name}"?`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      message: `Bạn có chắc chắn muốn xóa người giao hàng "${deliver.name}"?`,
+      variant: 'danger',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
     try {
       setLoading(true);
       await financeApi.deleteDeliver(deliver.id);
@@ -360,6 +366,7 @@ export default function DeliversPage() {
         onLoadMonthlyTotal={loadMonthlyTotal}
         onSubmit={handlePayment}
       />
+      {ConfirmDialog}
     </div>
   );
 }

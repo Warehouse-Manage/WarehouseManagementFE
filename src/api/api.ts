@@ -27,8 +27,32 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
         if (response.status === 401) {
             // Optional: Redirect to login or clear token
         }
-        const errorText = await response.text();
-        throw new Error(errorText || `HTTP ${response.status}`);
+        let errorMessage = `HTTP ${response.status}`;
+        
+        try {
+            const contentType = response.headers.get('content-type');
+            const errorText = await response.text();
+            
+            // Thử parse JSON nếu có thể
+            if (contentType && contentType.includes('application/json') || errorText.trim().startsWith('{')) {
+                try {
+                    const errorData = JSON.parse(errorText);
+                    // Backend trả về { message: "..." } hoặc có thể có các format khác
+                    errorMessage = errorData.message || errorData.error || errorText;
+                } catch {
+                    // Nếu parse JSON thất bại, dùng errorText
+                    errorMessage = errorText || `HTTP ${response.status}`;
+                }
+            } else {
+                // Nếu không phải JSON, dùng errorText hoặc status code
+                errorMessage = errorText || `HTTP ${response.status}`;
+            }
+        } catch {
+            // Nếu có lỗi khi đọc response, dùng status code
+            errorMessage = `HTTP ${response.status}`;
+        }
+        
+        throw new Error(errorMessage);
     }
 
     const contentType = response.headers.get('content-type');
