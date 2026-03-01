@@ -10,10 +10,12 @@ import { Printer, Trash2 } from 'lucide-react';
 import CreateOrderModal from './modal/CreateOrderModal';
 import CustomerModal from './modal/CustomerModal';
 import DeliverModal from './modal/DeliverModal';
+import { useConfirm } from '@/hooks/useConfirm';
 
 // Types moved to @/types/finance.ts and @/types/inventory.ts
 
 export default function OrdersPage() {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
@@ -298,9 +300,13 @@ export default function OrdersPage() {
   };
 
   const handleDeleteOrder = async (order: Order) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa đơn hàng #${order.id}?`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      message: `Bạn có chắc chắn muốn xóa đơn hàng #${order.id}?`,
+      variant: 'danger',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
     try {
       setLoading(true);
       await financeApi.deleteOrder(order.id);
@@ -315,7 +321,7 @@ export default function OrdersPage() {
 
   const handleCreate = async () => {
     if (customerId === '' || deliverId === '') {
-      setError('Cần nhập CustomerId và DeliverId');
+      setError('Cần chọn Khách hàng và Người giao hàng');
       return;
     }
     const userId = getCookie('userId');
@@ -649,7 +655,7 @@ export default function OrdersPage() {
           ]}
           emptyMessage="Chưa có dữ liệu đơn hàng"
         />
-
+        {ConfirmDialog}
       </div>
     </div>
   );

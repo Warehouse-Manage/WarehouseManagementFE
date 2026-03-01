@@ -7,10 +7,12 @@ import { Customer } from '@/types';
 import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
 import { Edit, Trash2, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
+import { useConfirm } from '@/hooks/useConfirm';
 
 // Type Customer moved to @/types/finance.ts
 
 export default function CustomersPage() {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -147,9 +149,13 @@ export default function CustomersPage() {
   };
 
   const handleDeleteCustomer = async (customer: Customer) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa khách hàng "${customer.name}"?`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      message: `Bạn có chắc chắn muốn xóa khách hàng "${customer.name}"?`,
+      variant: 'danger',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
     try {
       setLoading(true);
       toast.success('Xóa khách hàng thành công');
@@ -402,6 +408,7 @@ export default function CustomersPage() {
           </div>
         </div>
       </Modal>
+      {ConfirmDialog}
     </div>
   );
 }

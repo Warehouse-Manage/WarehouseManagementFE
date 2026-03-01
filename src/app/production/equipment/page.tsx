@@ -9,8 +9,10 @@ import { Device, DeviceUnit, DeviceFormData } from '@/types';
 import { DataTable } from '@/components/shared';
 import AddDeviceModal from './modal/AddDeviceModal';
 import EditDeviceModal from './modal/EditDeviceModal';
+import { useConfirm } from '@/hooks/useConfirm';
 
 export default function ThietBiPage() {
+  const { confirm, ConfirmDialog } = useConfirm();
   const router = useRouter();
   const [devices, setDevices] = useState<Device[]>([]);
   const [deviceUnits, setDeviceUnits] = useState<DeviceUnit[]>([]);
@@ -147,9 +149,13 @@ export default function ThietBiPage() {
   };
 
   const handleDeleteDevice = async (id: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa thiết bị này?')) {
-      return;
-    }
+    const confirmed = await confirm({
+      message: 'Bạn có chắc chắn muốn xóa thiết bị này?',
+      variant: 'danger',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
 
     try {
       await productionApi.deleteDevice(id);
@@ -336,6 +342,7 @@ export default function ThietBiPage() {
         onDeviceChange={(field, value) => setEditingDevice((prev) => prev ? ({ ...prev, [field]: value } as Device) : null)}
         onSave={handleEditDevice}
       />
+      {ConfirmDialog}
     </div>
   );
 }

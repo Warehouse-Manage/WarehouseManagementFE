@@ -9,10 +9,12 @@ import { DataTable, FormField } from '@/components/shared';
 import FundFormModal from './modal/FundFormModal';
 import { Printer, Edit, Trash2 } from 'lucide-react';
 import Select from 'react-select';
+import { useConfirm } from '@/hooks/useConfirm';
 
 // Type Fund moved to @/types/finance.ts
 
 export default function FundsPage() {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
   const [funds, setFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(false);
@@ -278,12 +280,20 @@ export default function FundsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa bản ghi này?')) return;
+    const confirmed = await confirm({
+      message: 'Bạn có chắc chắn muốn xóa bản ghi này?',
+      variant: 'danger',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
     try {
       await financeApi.deleteFund(id);
       await loadFunds(currentPage);
+      toast.success('Xóa bản ghi thành công');
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể xóa bản ghi sổ quỹ');
+      toast.error(getErrorMessage(err) || 'Không thể xóa bản ghi sổ quỹ');
     }
   };
 
@@ -511,6 +521,7 @@ export default function FundsPage() {
           ]}
           emptyMessage="Chưa có dữ liệu sổ quỹ"
         />
+        {ConfirmDialog}
       </div>
     </div>
   );
