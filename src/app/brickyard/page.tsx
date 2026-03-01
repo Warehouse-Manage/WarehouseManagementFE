@@ -7,7 +7,7 @@ export default function LegacyBrickYardRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/san-xuat/lo-gach');
+    router.replace('/production/bricks');
   }, [router]);
 
   return (

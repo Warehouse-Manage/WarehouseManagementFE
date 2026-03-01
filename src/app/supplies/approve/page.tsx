@@ -4,17 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
 import { toast } from 'sonner';
-
-
 import { Request, RequestItem, ApiRequest, ApiRequestItem, ApiShortItem } from '@/types';
 import { materialApi } from '@/api/materialApi';
 import { DataTable } from '@/components/shared';
-import { ArrowLeft, Check, X, FileText, Package, Calendar, User, Building2, AlertTriangle } from 'lucide-react';
-import Link from 'next/link';
+import { CheckCircle, XCircle, Eye } from 'lucide-react';
 import RequestDetailModal from './modal/RequestDetailModal';
 import ApprovalModal from './modal/ApprovalModal';
 
-export default function ApprovalsPage() {
+export default function DuyetPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -99,12 +96,11 @@ export default function ApprovalsPage() {
   }, [userId, userName]);
 
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
-  const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [editingRequest, setEditingRequest] = useState<Request | null>(null);
   const [editedItems, setEditedItems] = useState<RequestItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [totalDiscountAmount, setTotalDiscountAmount] = useState<number | ''>(0);
+  const [totalDiscountAmount, setTotalDiscountAmount] = useState(0);
 
   const handleApprove = async (requestId: number) => {
     const request = requests.find(r => r.id === requestId);
@@ -185,12 +181,10 @@ export default function ApprovalsPage() {
 
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
-    const discount = Number(totalDiscountAmount || 0);
-    return Math.max(0, subtotal - discount);
+    return Math.max(0, subtotal - totalDiscountAmount);
   };
 
   const handleReject = async (requestId: number) => {
-    setActionLoading(requestId);
     try {
       const rejectionData = {
         approverId: userId ? parseInt(userId) : 1, // Use actual user ID from cookie
@@ -207,8 +201,9 @@ export default function ApprovalsPage() {
       ));
 
       toast.success('Đã từ chối yêu cầu!');
-    } finally {
-      setActionLoading(null);
+    } catch (error) {
+      console.error('Lỗi khi từ chối yêu cầu:', error);
+      toast.error('Có lỗi xảy ra, vui lòng thử lại!');
     }
   };
 
@@ -229,7 +224,6 @@ export default function ApprovalsPage() {
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
 
-
   // Show loading screen while checking authentication
   if (isCheckingAuth) {
     return (
@@ -245,142 +239,90 @@ export default function ApprovalsPage() {
     );
   }
 
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600">
-            <Check className="h-6 w-6" strokeWidth={3} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Duyệt Yêu Cầu</h1>
-            <p className="text-gray-500 font-medium">Quản lý và phê duyệt đề nghị vật tư</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/supplies"
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Vật Tư
-          </Link>
-          <div className="bg-orange-600 px-4 py-2.5 rounded-xl shadow-lg shadow-orange-200">
-            <span className="text-sm font-black text-white">{requests.length} Yêu cầu</span>
-          </div>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <h1 className="text-xl sm:text-2xl font-black text-gray-800">Duyệt yêu cầu mua vật tư</h1>
+        <div className="text-sm text-gray-600">
+          Tổng: {requests.length} yêu cầu
         </div>
       </div>
 
-      {/* Danh sách yêu cầu */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 text-red-700 font-bold mb-4 shadow-sm animate-in slide-in-from-top duration-300">
-          <AlertTriangle className="h-5 w-5 text-red-500" />
-          <p>{error}</p>
-        </div>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 font-semibold">{error}</div>
       )}
 
       <DataTable
         data={requests}
         isLoading={loading}
-        emptyMessage="Không có yêu cầu nào cần xử lý"
         columns={[
           {
             key: 'id',
-            header: 'Mã số',
-            className: 'w-24 font-black text-gray-400',
-            render: (it) => <span>#{(it as Request).id}</span>
+            header: 'Yêu cầu',
+            className: 'font-bold text-gray-900',
+            render: (r) => <span>#{r.id}</span>
           },
           {
-            key: 'info',
-            header: 'Thông tin đề nghị',
-            render: (it: unknown) => {
-              const req = it as Request;
-              return (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <User className="h-3 w-3 text-gray-400" />
-                    <span className="font-bold text-gray-900">{req.requester}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Building2 className="h-3 w-3" />
-                    <span>{req.department}</span>
-                    <span className="mx-1">•</span>
-                    <Calendar className="h-3 w-3" />
-                    <span>{formatDate(req.date)}</span>
-                  </div>
-                </div>
-              );
-            }
-          },
-          {
-            key: 'items',
-            header: 'Vật tư',
-            className: 'w-32',
-            render: (it) => (
-              <div className="flex items-center gap-2 text-orange-600 font-black">
-                <Package className="h-4 w-4" />
-                <span>{(it as Request).totalItems} mục</span>
+            key: 'requester',
+            header: 'Người đề nghị',
+            className: 'font-medium',
+            render: (r) => (
+              <div>
+                <div className="text-gray-900">{r.requester}</div>
+                <div className="text-xs text-gray-500">{r.department}</div>
               </div>
             )
           },
           {
-            key: 'total',
-            header: 'Ước tính',
-            className: 'w-40 text-right',
-            render: (it: unknown) => {
-              const req = it as Request;
-              return req.totalPrice ? (
-                <span className="font-black text-green-600">{req.totalPrice.toLocaleString('vi-VN')} đ</span>
-              ) : <span className="text-gray-400 italic">N/A</span>;
-            }
+            key: 'date',
+            header: 'Ngày đề nghị',
+            className: 'text-gray-600',
+            render: (r) => <span>{formatDate(r.date)}</span>
           },
           {
             key: 'status',
             header: 'Trạng thái',
-            className: 'w-32 text-center',
-            render: (it) => getStatusBadge((it as Request).status)
+            render: (r) => getStatusBadge(r.status)
           },
           {
-            key: 'actions',
-            header: '',
-            className: 'w-48 text-right',
-            render: (it: unknown) => {
-              const req = it as Request;
-              return (
-                <div className="flex items-center justify-end gap-2">
-                  {req.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => handleApprove(req.id)}
-                        disabled={actionLoading === req.id}
-                        className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors shadow-sm cursor-pointer disabled:cursor-not-allowed"
-                        title="Duyệt và mua"
-                      >
-                        <Check className="h-4 w-4" strokeWidth={3} />
-                      </button>
-                      <button
-                        onClick={() => handleReject(req.id)}
-                        disabled={actionLoading === req.id}
-                        className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors shadow-sm cursor-pointer disabled:cursor-not-allowed"
-                        title="Từ chối"
-                      >
-                        <X className="h-4 w-4" strokeWidth={3} />
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={() => setSelectedRequest(req)}
-                    className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors shadow-sm cursor-pointer"
-                    title="Xem chi tiết"
-                  >
-                    <FileText className="h-4 w-4" />
-                  </button>
-                </div>
-              );
-            }
-          }
+            key: 'totalPrice',
+            header: 'Tổng tiền',
+            headerClassName: 'text-right',
+            className: 'text-right',
+            render: (r) => r.totalPrice ? (
+              <span className="font-black text-green-600">
+                {r.totalPrice.toLocaleString('vi-VN')} đ
+              </span>
+            ) : <span className="text-gray-400">---</span>
+          },
         ]}
+        actions={(r) => [
+          {
+            label: 'Duyệt',
+            icon: <CheckCircle className="h-4 w-4" />,
+            onClick: () => handleApprove(r.id),
+            variant: 'default' as const
+          },
+          {
+            label: 'Từ chối',
+            icon: <XCircle className="h-4 w-4" />,
+            onClick: () => handleReject(r.id),
+            variant: 'danger' as const
+          },
+          {
+            label: 'Chi tiết',
+            icon: <Eye className="h-4 w-4" />,
+            onClick: () => setSelectedRequest(r),
+            variant: 'default' as const
+          }
+        ].filter(action => {
+          if (action.label === 'Duyệt' || action.label === 'Từ chối') {
+            return r.status === 'pending';
+          }
+          return true;
+        })}
+        emptyMessage="Không có yêu cầu mua vật tư nào"
       />
 
       <RequestDetailModal

@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCookie, formatNumberInput, parseNumberInput } from '@/lib/ultis';
+import { getCookie } from '@/lib/ultis';
 import { inventoryApi } from '@/api';
 import { Product } from '@/types';
-import { Modal, DataTable, DynamicForm, FormField } from '@/components/shared';
+import { DataTable, FormField } from '@/components/shared';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import ProductFormModal from './modal/ProductFormModal';
+import PackageFormModal from './modal/PackageFormModal';
 
 // Type Product moved to @/types/inventory.ts
 
@@ -312,138 +314,42 @@ export default function ProductsPage() {
             )}
           </div>
 
-      <Modal
+      <ProductFormModal
         isOpen={showForm}
         onClose={() => setShowForm(false)}
-        title="Thêm sản phẩm mới"
-        size="lg"
-        footer={
-          <>
-            <button
-              onClick={() => setShowForm(false)}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-            >
-              Hủy
-            </button>
-            <button
-              onClick={handleCreate}
-              disabled={submitting}
-              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors cursor-pointer disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Đang lưu...' : 'Lưu'}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
-          <DynamicForm
-            fields={productFormFields}
-            values={{ name, price, quantity }}
-            onChange={(field, value) => {
-              if (field === 'name') setName(value as string);
-              if (field === 'price') setPrice(value as number);
-              if (field === 'quantity') setQuantity(value as number);
-            }}
-            columns={1}
-          />
-        </div>
-      </Modal>
+        productFormFields={productFormFields}
+        formValues={{ name, price, quantity }}
+        error={error}
+        submitting={submitting}
+        onFieldChange={(field, value) => {
+          if (field === 'name') setName(value as string);
+          if (field === 'price') setPrice(value as number);
+          if (field === 'quantity') setQuantity(value as number);
+        }}
+        onSubmit={handleCreate}
+      />
 
-      {/* Modal thêm kiện */}
-      <Modal
+      <PackageFormModal
         isOpen={showPackageForm}
         onClose={() => {
           setShowPackageForm(false);
           setEditingPackageId(null);
         }}
-        title={editingPackageId ? 'Sửa kiện' : 'Thêm kiện mới'}
-        size="lg"
-        footer={
-          <>
-            <button
-              onClick={() => {
-                setShowPackageForm(false);
-                setEditingPackageId(null);
-              }}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-            >
-              Hủy
-            </button>
-            <button
-              onClick={handleCreatePackage}
-              disabled={submittingPackage || loadingPackageDetail}
-              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors cursor-pointer disabled:cursor-not-allowed"
-            >
-              {submittingPackage ? 'Đang lưu...' : 'Lưu'}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {error && (
-            <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">
-              {error}
-            </div>
-          )}
-          {loadingPackageDetail && (
-            <div className="text-sm font-semibold text-gray-500 bg-gray-50 p-3 rounded border border-gray-100">
-              Đang tải chi tiết kiện...
-            </div>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Tên kiện *</label>
-              <input
-                type="text"
-                value={pkgName}
-                onChange={(e) => setPkgName(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                placeholder="Nhập tên kiện..."
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Sản phẩm *</label>
-              <select
-                value={pkgProductId}
-                onChange={(e) => setPkgProductId(e.target.value === '' ? '' : Number(e.target.value))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 bg-white"
-              >
-                <option value="">Chọn sản phẩm...</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Số lượng sản phẩm / kiện</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                min={0}
-                value={formatNumberInput(pkgUnitsPerPackage)}
-                onChange={(e) => setPkgUnitsPerPackage(parseNumberInput(e.target.value))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 text-right"
-                placeholder="Ví dụ: 100"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Số lượng ban đầu (kiện)</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                min={0}
-                value={formatNumberInput(pkgInitialPackages)}
-                onChange={(e) => setPkgInitialPackages(parseNumberInput(e.target.value))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 text-right"
-                placeholder="Ví dụ: 10"
-              />
-            </div>
-          </div>
-        </div>
-      </Modal>
+        editingPackageId={editingPackageId}
+        products={products}
+        pkgName={pkgName}
+        pkgProductId={pkgProductId}
+        pkgUnitsPerPackage={pkgUnitsPerPackage}
+        pkgInitialPackages={pkgInitialPackages}
+        error={error}
+        loadingPackageDetail={loadingPackageDetail}
+        submittingPackage={submittingPackage}
+        onPkgNameChange={setPkgName}
+        onPkgProductIdChange={setPkgProductId}
+        onPkgUnitsPerPackageChange={setPkgUnitsPerPackage}
+        onPkgInitialPackagesChange={setPkgInitialPackages}
+        onSubmit={handleCreatePackage}
+      />
 
           <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
