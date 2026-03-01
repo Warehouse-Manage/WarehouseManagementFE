@@ -27,8 +27,8 @@ const getDeviceFormFields = (units: DeviceUnit[]): FormField[] => [
   { name: 'highLimit', label: 'Giới hạn trên', type: 'number', placeholder: '100' },
   { name: 'value', label: 'Giá trị hiện tại', type: 'text', placeholder: 'Nhập giá trị...' },
   { name: 'isAuto', label: 'Tự động bật/tắt theo lịch', type: 'checkbox' },
-  { name: 'start', label: 'Giờ bắt đầu', type: 'time' },
-  { name: 'end', label: 'Giờ kết thúc', type: 'time' },
+  { name: 'starts', label: 'Giờ bắt đầu', type: 'time' },
+  { name: 'ends', label: 'Giờ kết thúc', type: 'time' },
 ];
 
 export default function AddDeviceModal({
