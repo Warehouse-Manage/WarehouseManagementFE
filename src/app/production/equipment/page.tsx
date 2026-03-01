@@ -26,8 +26,8 @@ export default function ThietBiPage() {
     lowLimit: 0,
     highLimit: 0,
     value: '',
-    start: '',
-    end: '',
+    starts: '',
+    ends: '',
     isAuto: false
   });
 
@@ -96,8 +96,8 @@ export default function ThietBiPage() {
         lowLimit: Number(newDevice.lowLimit),
         highLimit: Number(newDevice.highLimit),
         value: newDevice.value,
-        start: newDevice.start || null,
-        end: newDevice.end || null,
+        starts: newDevice.starts || null,
+        ends: newDevice.ends || null,
         isAuto: !!newDevice.isAuto
       });
 
@@ -109,8 +109,8 @@ export default function ThietBiPage() {
         lowLimit: 0,
         highLimit: 0,
         value: '',
-        start: '',
-        end: '',
+        starts: '',
+        ends: '',
         isAuto: false
       });
       fetchDevices();
@@ -132,8 +132,8 @@ export default function ThietBiPage() {
         lowLimit: Number(editingDevice.lowLimit),
         highLimit: Number(editingDevice.highLimit),
         value: editingDevice.value,
-        start: editingDevice.start || null,
-        end: editingDevice.end || null,
+        starts: editingDevice.starts || null,
+        ends: editingDevice.ends || null,
         isAuto: !!editingDevice.isAuto
       });
 
