@@ -89,7 +89,6 @@ export default function LoginPage() {
 
         localStorage.setItem('token', data.token);
 
-        console.log('Đăng nhập thành công:', data);
         toast.success('Đăng nhập thành công!');
         window.location.href = '/';
       } else {

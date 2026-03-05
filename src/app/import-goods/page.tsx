@@ -199,7 +199,6 @@ export default function NhapHangPage() {
     setError(null);
     try {
       const result = await inventoryReceiptApi.getInventoryReceiptsFilter(page, size);
-      console.log(result.data);
       
       // Map dữ liệu từ API về format hiển thị
       const mappedData: NhapHangItem[] = result.data.map((receipt) => {
