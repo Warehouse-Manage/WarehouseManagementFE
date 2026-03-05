@@ -17,6 +17,7 @@ export default function FundsPage() {
   const { confirm, ConfirmDialog } = useConfirm();
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
   const [funds, setFunds] = useState<Fund[]>([]);
+  const [allFunds, setAllFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState<'Thu' | 'Chi' | ''>('');
@@ -151,9 +152,14 @@ export default function FundsPage() {
       const params: Record<string, string> = {};
       if (filterType) params.type = filterType;
 
-      const result = await financeApi.getFundsFilter(page, size, params);
-      setFunds(result.data);
-      setTotalCount(result.totalCount);
+      const [pagedResult, allResult] = await Promise.all([
+        financeApi.getFundsFilter(page, size, params),
+        financeApi.getFunds(params)
+      ]);
+
+      setFunds(pagedResult.data);
+      setTotalCount(pagedResult.totalCount);
+      setAllFunds(allResult);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tải danh sách sổ quỹ');
       console.error(err);
@@ -297,9 +303,9 @@ export default function FundsPage() {
     }
   };
 
-  // Note: Tổng thu/chi chỉ tính trên trang hiện tại, không phải toàn bộ dữ liệu
+  // Note: Tổng thu/chi tính trên toàn bộ dữ liệu (tất cả trang), không chỉ trang hiện tại
   const calculateTotal = (type: string) => {
-    return funds
+    return allFunds
       .filter(f => f.type === type)
       .reduce((sum, f) => sum + f.amount, 0);
   };

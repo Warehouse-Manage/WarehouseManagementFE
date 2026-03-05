@@ -1757,9 +1757,22 @@ export default function AttendancePage() {
                                         </button>
 
                                         <input
-                                          readOnly
+                                          type="number"
+                                          inputMode="decimal"
+                                          step="0.5"
+                                          min="0"
+                                          max="2"
                                           value={workDate?.workQuantity || 0}
-                                          className="h-7 w-10 border-y border-gray-300 bg-white text-center text-xs"
+                                          onChange={(e) => {
+                                            const qty = Math.max(0, Math.min(2, parseFloat(e.target.value) || 0));
+                                            toggleWorkerAttendance(
+                                              worker.id,
+                                              createForm.selectedDate,
+                                              qty,
+                                              workDate?.workOvertime || 0
+                                            );
+                                          }}
+                                          className="h-7 w-10 border-y border-gray-300 bg-white text-center text-xs focus:border-orange-500 focus:outline-none"
                                         />
 
                                         <button
@@ -1787,9 +1800,21 @@ export default function AttendancePage() {
 
                                       {/* OT */}
                                       <input
-                                        readOnly
+                                        type="number"
+                                        inputMode="decimal"
+                                        step="1"
+                                        min="0"
                                         value={workDate?.workOvertime || 0}
-                                        className="h-7 w-10 rounded border border-gray-300 text-center text-xs"
+                                        onChange={(e) => {
+                                          const ot = Math.max(0, parseFloat(e.target.value) || 0);
+                                          toggleWorkerAttendance(
+                                            worker.id,
+                                            createForm.selectedDate,
+                                            workDate?.workQuantity || 0,
+                                            ot
+                                          );
+                                        }}
+                                        className="h-7 w-10 rounded border border-gray-300 text-center text-xs focus:border-orange-500 focus:outline-none"
                                       />
                                       <span className="text-xs text-gray-500">h</span>
                                     </div>
