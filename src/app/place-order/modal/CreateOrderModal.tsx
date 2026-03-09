@@ -29,6 +29,8 @@ interface CreateOrderModalProps {
   customerId: number | '';
   deliverId: number | '';
   deliveryDate: string;
+  deliveryAddress: string;
+  allowAdditionalQuantity: boolean;
   sale: number | '';
   amountCustomerPayment: number | '';
   shipCost: number | '';
@@ -37,6 +39,8 @@ interface CreateOrderModalProps {
   onCustomerIdChange: (id: number | '') => void;
   onDeliverIdChange: (id: number | '') => void;
   onDeliveryDateChange: (date: string) => void;
+  onDeliveryAddressChange: (value: string) => void;
+  onAllowAdditionalQuantityChange: (value: boolean) => void;
   onSaleChange: (value: number | '') => void;
   onAmountCustomerPaymentChange: (value: number | '') => void;
   onShipCostChange: (value: number | '') => void;
@@ -68,6 +72,8 @@ export default function CreateOrderModal({
   customerId,
   deliverId,
   deliveryDate,
+  deliveryAddress,
+  allowAdditionalQuantity,
   sale,
   amountCustomerPayment,
   shipCost,
@@ -76,6 +82,8 @@ export default function CreateOrderModal({
   onCustomerIdChange,
   onDeliverIdChange,
   onDeliveryDateChange,
+  onDeliveryAddressChange,
+  onAllowAdditionalQuantityChange,
   onSaleChange,
   onAmountCustomerPaymentChange,
   onShipCostChange,
@@ -184,7 +192,7 @@ export default function CreateOrderModal({
             </div>
           </div>
 
-          {/* Row 2: Ngày giao hàng */}
+          {/* Row 2: Ngày giao hàng & Địa chỉ giao nhận */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Ngày giao hàng *</label>
@@ -195,6 +203,34 @@ export default function CreateOrderModal({
                 onChange={(e) => onDeliveryDateChange(e.target.value)}
                 min={new Date().toISOString().split('T')[0]}
               />
+            </div>
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Địa chỉ giao nhận</label>
+              <input
+                type="text"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                placeholder="Nhập địa chỉ giao nhận cụ thể"
+                value={deliveryAddress}
+                onChange={(e) => onDeliveryAddressChange(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Row 2.5: Tùy chọn cho phép thêm số lượng */}
+          <div className="flex items-start gap-2 pt-1">
+            <input
+              id="allow-additional-quantity"
+              type="checkbox"
+              className="h-4 w-4 rounded border-gray-300 accent-orange-600 cursor-pointer"              checked={allowAdditionalQuantity}
+              onChange={(e) => onAllowAdditionalQuantityChange(e.target.checked)}
+            />
+            <div>
+              <label
+                htmlFor="allow-additional-quantity"
+                className="block text-xs font-semibold text-gray-700 cursor-pointer"
+              >
+                Thêm số lượng
+              </label>
             </div>
           </div>
 

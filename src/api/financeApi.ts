@@ -150,16 +150,8 @@ export const financeApi = {
         return api.get<string>(`/api/place-orders/${id}/receipt`);
     },
 
-    printPlaceOrderDeliveryNote: async (id: number): Promise<string> => {
-        return api.get<string>(`/api/place-orders/${id}/delivery-note`);
-    },
-
     printPlaceOrderReceiptModel: async (data: OrderReceiptPrintModel): Promise<string> => {
         return api.post<string>(`/api/place-orders/receipt`, data);
-    },
-
-    printPlaceOrderDeliveryNoteModel: async (data: OrderDeliveryNotePrintModel): Promise<string> => {
-        return api.post<string>(`/api/place-orders/delivery-note`, data);
     },
 
     printPlaceOrderForm: async (id: number): Promise<string> => {
