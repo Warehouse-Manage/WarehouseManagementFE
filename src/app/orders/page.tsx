@@ -413,7 +413,7 @@ export default function OrdersPage() {
         Khach_Hang: customer?.name || 'Khách hàng',
         Bien_So_Xe: deliver?.plateNumber || '...',
         Doi_Tac_Giao_Hang: deliver?.name || '...',
-        SDT_Giao_Hang: deliver?.phoneNumber || '...',
+        SDT_Khach_Hang: customer?.phoneNumber || '...',
         Tong_So_Luong: productsToOrder.reduce((s, po) => s + po.amount, 0).toString(),
         Items: deliveryItems
       };

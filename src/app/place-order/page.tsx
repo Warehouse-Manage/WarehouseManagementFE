@@ -36,6 +36,8 @@ export default function PlaceOrderPage() {
   const [customerId, setCustomerId] = useState<number | ''>('');
   const [deliverId, setDeliverId] = useState<number | ''>('');
   const [deliveryDate, setDeliveryDate] = useState<string>('');
+  const [deliveryAddress, setDeliveryAddress] = useState<string>('');
+  const [allowAdditionalQuantity, setAllowAdditionalQuantity] = useState<boolean>(true);
   const [sale, setSale] = useState<number | ''>(0);
   const [amountCustomerPayment, setAmountCustomerPayment] = useState<number | ''>(0);
   const [shipCost, setShipCost] = useState<number | ''>(0);
@@ -211,6 +213,8 @@ export default function PlaceOrderPage() {
     setCustomerId('');
     setDeliverId('');
     setDeliveryDate('');
+    setDeliveryAddress('');
+    setAllowAdditionalQuantity(true);
     setSale(0);
     setAmountCustomerPayment(0);
     setShipCost(0);
@@ -415,6 +419,8 @@ export default function PlaceOrderPage() {
         placeOrderProductOrders: productsToOrder,
         createdUserId: Number(userId),
         deliveryDate: deliveryDateISO,
+        deliveryAddress,
+        allowAdditionalQuantity,
       });
 
       const now = new Date();
@@ -531,6 +537,10 @@ export default function PlaceOrderPage() {
         onClose={handleCloseModal}
         error={error}
         submitting={submitting}
+        deliveryAddress={deliveryAddress}
+        allowAdditionalQuantity={allowAdditionalQuantity}
+        onDeliveryAddressChange={setDeliveryAddress}
+        onAllowAdditionalQuantityChange={setAllowAdditionalQuantity}
         customers={customers}
         delivers={delivers}
         products={products}

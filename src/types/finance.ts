@@ -80,6 +80,8 @@ export interface PlaceOrderFormData {
     placeOrderProductOrders: ProductOrderDetail[];
     createdUserId: number;
     deliveryDate?: string;
+    deliveryAddress?: string;
+    allowAdditionalQuantity?: boolean;
 }
 
 export interface OrderReceiptPrintModel {
@@ -130,7 +132,7 @@ export interface OrderDeliveryNotePrintModel {
     Khach_Hang: string;
     Bien_So_Xe: string;
     Doi_Tac_Giao_Hang: string;
-    SDT_Giao_Hang: string;
+    SDT_Khach_Hang: string;
     Tong_So_Luong: string;
     Items: OrderDeliveryNoteItemModel[];
 }
