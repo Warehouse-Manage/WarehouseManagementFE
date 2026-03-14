@@ -1218,10 +1218,6 @@ export default function AttendancePage() {
                 <span className="ml-2 font-semibold text-green-600">{formatCurrency(attendance.monthlySalary)}</span>
               </div>
               <div>
-                <span className="text-gray-600">Số ngày làm việc:</span>
-                <span className="ml-2 font-semibold">{attendance.daysOff?.filter(wd => wd.workQuantity > 0).length || 0}</span>
-              </div>
-              <div>
                 <span className="text-gray-600">Tổng công:</span>
                 <span className="ml-2 font-semibold">{attendance.daysOff?.reduce((sum, wd) => sum + wd.workQuantity, 0) || 0}</span>
               </div>
@@ -1380,9 +1376,6 @@ export default function AttendancePage() {
                 <div>
                   Lương tháng hiện tại: <span className="text-green-600">{formatCurrency(markAttendance.monthlySalary)}</span>
                 </div>
-                <div>
-                  Số ngày làm việc: <span className="text-gray-900">{markAttendance.daysOff?.length || 0}</span>
-                </div>
               </div>
             )}
 
@@ -1488,9 +1481,6 @@ export default function AttendancePage() {
               <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 flex flex-wrap gap-4 text-sm font-semibold text-gray-700">
                 <div>
                   Lương cơ bản: <span className="text-gray-900">{formatCurrency(currentUserWorker.salary)}</span>
-                </div>
-                <div>
-                  Số ngày làm việc: <span className="text-gray-900">{markWorkDates.length}</span>
                 </div>
                 <div>
                   Lương dự kiến: <span className="text-green-600">{formatCurrency(markPreviewSalary)}</span>
@@ -2033,21 +2023,57 @@ export default function AttendancePage() {
                       )
                     },
                     {
-                      key: 'workDays',
-                      header: 'Số ngày làm',
+                      key: 'workQuantity',
+                      header: 'Số công',
                       mobileHidden: true,
                       className: 'text-center',
                       headerClassName: 'text-center',
-                      render: (a) => markForm.month ? (() => {
-                        const workDatesInPeriod = (a.daysOff || []).filter(wd => {
-                          return isDateInSalaryPeriod(normalizeDateString(wd.workDate), markForm.month);
-                        });
-                        return `${workDatesInPeriod.length} ngày`;
-                      })() : `${a.daysOff?.length || 0} ngày`
+                      render: (a) => {
+                        // Calculate total workQuantity from all daysOff (already filtered by month via API)
+                        const totalWorkQuantity = (a.daysOff || []).reduce((sum, wd) => sum + (wd.workQuantity || 0), 0);
+                        return `${totalWorkQuantity}`;
+                      }
+                    },
+                    {
+                      key: 'overtime',
+                      header: 'OT',
+                      mobileHidden: true,
+                      className: 'text-center',
+                      headerClassName: 'text-center',
+                      render: (a) => {
+                        // Calculate total overtime from all daysOff (already filtered by month via API)
+                        const totalOvertime = (a.daysOff || []).reduce((sum, wd) => sum + (wd.workOvertime || 0), 0);
+                        return `${totalOvertime}h`;
+                      }
                     }
                   ]}
                   onRowClick={(a) => loadWorkerDetail(a.workerId)}
                 />
+              )}
+
+              {allAttendances.length > 0 && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm font-semibold">
+                    <div className="text-center md:text-left">
+                      <span className="text-gray-600">Tổng lương tháng: </span>
+                      <span className="text-green-600 font-black">
+                        {formatCurrency(allAttendances.reduce((sum, a) => sum + a.monthlySalary, 0))}
+                      </span>
+                    </div>
+                    <div className="text-center md:text-left">
+                      <span className="text-gray-600">Tổng đã trả: </span>
+                      <span className="text-blue-600 font-black">
+                        {formatCurrency(allAttendances.reduce((sum, a) => sum + a.salaryPaid, 0))}
+                      </span>
+                    </div>
+                    <div className="text-center md:text-left">
+                      <span className="text-gray-600">Tổng còn lại: </span>
+                      <span className="text-orange-600 font-black">
+                        {formatCurrency(allAttendances.reduce((sum, a) => sum + (a.monthlySalary - a.salaryPaid), 0))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {allAttendances.length === 0 && !isLoadingAllAttendances && markForm.month && (
@@ -2081,17 +2107,6 @@ export default function AttendancePage() {
                   </div>
                   <div>
                     Đã trả: <span className="text-blue-600">{formatCurrency(markAttendance.salaryPaid)}</span>
-                  </div>
-                  <div>
-                    Số ngày làm việc: <span className="text-gray-900">
-                      {markForm.month ? (() => {
-                        // Count work dates in salary period from markWorkDates
-                        const workDatesInPeriod = markWorkDates.filter(wd => {
-                          return isDateInSalaryPeriod(normalizeDateString(wd.workDate), markForm.month);
-                        });
-                        return workDatesInPeriod.length;
-                      })() : markWorkDates.length}
-                    </span>
                   </div>
                 </div>
               )}
@@ -2181,16 +2196,6 @@ export default function AttendancePage() {
                 <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 flex flex-wrap gap-4 text-sm font-semibold text-gray-700">
                   <div>
                     Lương cơ bản: <span className="text-gray-900">{formatCurrency(selectedMarkWorker.salary)}</span>
-                  </div>
-                  <div>
-                    Số ngày làm việc: <span className="text-gray-900">
-                      {markForm.month ? (() => {
-                        const workDatesInPeriod = markWorkDates.filter(wd => {
-                          return isDateInSalaryPeriod(normalizeDateString(wd.workDate), markForm.month);
-                        });
-                        return workDatesInPeriod.length;
-                      })() : markWorkDates.length}
-                    </span>
                   </div>
                   <div>
                     Lương dự kiến: <span className="text-green-600">{formatCurrency(markPreviewSalary)}</span>
