@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { financeApi, inventoryApi } from '@/api';
-import { Order, Customer, Deliver, Product, PackageProduct } from '@/types';
+import { Order, Customer, Deliver, Product, PackageProduct, UpdateOrderFormData, OrderDetailsResponse } from '@/types';
 import { DataTable } from '@/components/shared';
 import { toast } from 'sonner';
-import { Printer, Trash2 } from 'lucide-react';
+import { Pencil, Printer, Trash2 } from 'lucide-react';
 import CreateOrderModal from './modal/CreateOrderModal';
 import CustomerModal from './modal/CustomerModal';
 import DeliverModal from './modal/DeliverModal';
@@ -50,6 +50,7 @@ export default function OrdersPage() {
   >([{ productId: '', packageProductId: '', selectionKey: '', amount: '', price: '', sale: 0 }]);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showDeliverModal, setShowDeliverModal] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState('');
@@ -205,6 +206,7 @@ export default function OrdersPage() {
     setShipcod(0);
     setProductOrdersInput([{ productId: '', packageProductId: '', selectionKey: '', amount: '', price: '', sale: 0 }]);
     setError(null);
+    setEditingOrderId(null);
   };
 
   const handleOpenModal = () => {
@@ -215,6 +217,42 @@ export default function OrdersPage() {
   const handleCloseModal = () => {
     setShowModal(false);
     resetForm();
+  };
+
+  const hydrateFormFromOrder = (order: OrderDetailsResponse) => {
+    setCustomerId(order.customerId);
+    setDeliverId(order.deliverId);
+    setSale(order.sale);
+    setAmountCustomerPayment(order.amountCustomerPayment);
+    setShipCost(order.shipCost ?? 0);
+    setProductOrdersInput(
+      (order.productOrders || []).map((po) => {
+        const isPackage = !!po.packageProductId;
+        return {
+          productId: po.productId ?? '',
+          packageProductId: po.packageProductId ?? '',
+          selectionKey: isPackage ? `k:${po.packageProductId}` : `p:${po.productId}`,
+          amount: po.amount,
+          price: po.price,
+          sale: po.sale ?? 0
+        };
+      })
+    );
+  };
+
+  const handleEditOrder = async (orderId: number) => {
+    setError(null);
+    setLoading(true);
+    try {
+      const orderDetail = await financeApi.getOrderById(orderId);
+      setEditingOrderId(orderId);
+      hydrateFormFromOrder(orderDetail);
+      setShowModal(true);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Không thể tải đơn hàng');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreateCustomer = async () => {
@@ -293,7 +331,7 @@ export default function OrdersPage() {
   const handlePrintDeliveryNote = async (id: number) => {
     try {
       const html = await financeApi.printOrderDeliveryNote(id);
-      await printHtmlContent(html);
+      printHtmlContent(html);
     } catch (err) {
       toast.error('Không thể tải phiếu xuất kho: ' + getErrorMessage(err));
     }
@@ -319,17 +357,8 @@ export default function OrdersPage() {
     }
   };
 
-  const handleCreate = async () => {
-    if (customerId === '' || deliverId === '') {
-      setError('Cần chọn Khách hàng và Người giao hàng');
-      return;
-    }
-    const userId = getCookie('userId');
-    if (!userId) {
-      setError('Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.');
-      return;
-    }
-    const productsToOrder = productOrdersInput
+  const buildProductsPayload = () => {
+    return productOrdersInput
       .filter((p) => p.selectionKey !== '' && p.amount !== '' && p.price !== '')
       .map((p) => {
         const isPackage = p.selectionKey.startsWith('k:');
@@ -343,6 +372,19 @@ export default function OrdersPage() {
           sale: Number(p.sale || 0),
         };
       });
+  };
+
+  const handleSubmitOrder = async () => {
+    if (customerId === '' || deliverId === '') {
+      setError('Cần chọn Khách hàng và Người giao hàng');
+      return;
+    }
+    const userId = getCookie('userId');
+    if (!userId) {
+      setError('Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.');
+      return;
+    }
+    const productsToOrder = buildProductsPayload();
     if (!productsToOrder.length) {
       setError('Cần ít nhất một sản phẩm');
       return;
@@ -350,6 +392,23 @@ export default function OrdersPage() {
     setSubmitting(true);
     setError(null);
     try {
+      if (editingOrderId) {
+        const payload: UpdateOrderFormData = {
+          customerId: Number(customerId),
+          deliverId: Number(deliverId),
+          sale: Number(sale || 0),
+          amountCustomerPayment: Number(amountCustomerPayment || 0),
+          shipCost: Number(shipCost || 0),
+          productOrders: productsToOrder,
+        };
+        await financeApi.updateOrder(editingOrderId, payload);
+        toast.success('Cập nhật đơn hàng thành công');
+        resetForm();
+        setShowModal(false);
+        await loadOrders(currentPage);
+        return;
+      }
+
       const res = await financeApi.createOrder({
         customerId: Number(customerId),
         deliverId: Number(deliverId),
@@ -430,7 +489,7 @@ export default function OrdersPage() {
       setShowModal(false);
       await loadOrders(currentPage);
     } catch (err: unknown) {
-      setError(getErrorMessage(err) || 'Không thể tạo đơn hàng');
+      setError(getErrorMessage(err) || (editingOrderId ? 'Không thể cập nhật đơn hàng' : 'Không thể tạo đơn hàng'));
     } finally {
       setSubmitting(false);
     }
@@ -498,7 +557,9 @@ export default function OrdersPage() {
         calculateProductTotal={calculateProductTotal}
         calculateGrandTotal={calculateGrandTotal}
         calculateOrderTotal={calculateOrderTotal}
-        onSubmit={handleCreate}
+        title={editingOrderId ? 'Cập nhật đơn hàng' : 'Tạo đơn hàng mới'}
+        submitLabel={editingOrderId ? 'Cập nhật đơn hàng' : 'Lưu đơn hàng'}
+        onSubmit={handleSubmitOrder}
       />
 
       <CustomerModal
@@ -641,6 +702,11 @@ export default function OrdersPage() {
             }
           ]}
           actions={(o) => [
+            {
+              label: 'Sửa',
+              icon: <Pencil className="h-4 w-4" />,
+              onClick: () => handleEditOrder(o.id)
+            },
             {
               label: 'In đơn hàng',
               icon: <Printer className="h-4 w-4" />,

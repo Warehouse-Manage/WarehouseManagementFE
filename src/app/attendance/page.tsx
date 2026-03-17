@@ -84,15 +84,15 @@ const printLatestSalaryFundForWorker = async (workerId: number) => {
   }
 };
 
-// Helper function to get days from 15th of selected month to 15th of next month
+// Helper function to get days from 16th of selected month to 15th of next month
 const getOverviewDays = (monthValue: string): Array<{ day: number; dateValue: string; month: string }> => {
   if (!monthValue) return [];
   const [year, month] = monthValue.split('-').map(Number);
   if (!year || !month) return [];
 
   const days: Array<{ day: number; dateValue: string; month: string }> = [];
-  const startDate = new Date(year, month - 1, 15);
-  const endDate = new Date(year, month, 15); // 15th of next month
+  const startDate = new Date(year, month - 1, 16);
+  const endDate = new Date(year, month, 16); // 15th of next month
   const currentDate = new Date(startDate);
 
   while (currentDate < endDate) {
@@ -109,7 +109,7 @@ const getOverviewDays = (monthValue: string): Array<{ day: number; dateValue: st
   return days;
 };
 
-// Helper function to get salary period (from 15th of previous month to 14th of current month)
+// Helper function to get salary period (from 16th of previous month to 15th of current month)
 const getSalaryPeriod = (monthValue: string) => {
   if (!monthValue) return { startDate: '', endDate: '' };
   const [year, month] = monthValue.split('-').map(Number);
@@ -123,12 +123,11 @@ const getSalaryPeriod = (monthValue: string) => {
     // Start date: 16th of current month
     startDate = `${year}-${String(month).padStart(2, '0')}-16`;
     // End date: 15th of next month
-    const nextMonth = new Date(year, month, 15); // month is 1-indexed in Date constructor
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const nextMonth = new Date(year, month, 15);
     endDate = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-15`;
   } else {
     // Start date: 16th of previous month
-    const prevMonth = new Date(year, month - 2, 16); // month - 2 because month is 1-indexed in Date constructor
+    const prevMonth = new Date(year, month - 2, 16);
     startDate = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-16`;
     // End date: 15th of current month
     endDate = `${year}-${String(month).padStart(2, '0')}-15`;
@@ -178,9 +177,9 @@ const buildCalendarDays = (monthValue: string): CalendarDay[] => {
   const [year, month] = monthValue.split('-').map(Number);
   if (!year || !month) return [];
 
-  // Calculate the period: 15th of selected month to 15th of next month
-  const startDate = new Date(year, month - 1, 15);
-  const endDate = new Date(year, month, 15); // 15th of next month
+  // Calculate the period: 16th of selected month to 15th of next month
+  const startDate = new Date(year, month - 1, 16);
+  const endDate = new Date(year, month, 16); // 15th of next month
 
   const days: CalendarDay[] = [];
   const currentDate = new Date(startDate);
@@ -191,7 +190,7 @@ const buildCalendarDays = (monthValue: string): CalendarDay[] => {
     days.push({ label: '', dateValue: '', inMonth: false });
   }
 
-  // Generate days from 15th of selected month to 15th of next month
+  // Generate days from 16th of selected month to 15th of next month
   while (currentDate < endDate) {
     const dateValue = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
     days.push({
@@ -637,7 +636,7 @@ export default function AttendancePage() {
 
   const markPreviewSalary = useMemo(() => {
     if (!selectedMarkWorker || !markForm.month) return null;
-    // Salary period is from 15th of previous month to 14th of current month (30 days)
+    // Salary period is from 16th of previous month to 15th of current month
     const daysInSalaryPeriod = 30;
     const dailySalary = selectedMarkWorker.salary / daysInSalaryPeriod;
     // Filter work dates to only include those in the salary period
