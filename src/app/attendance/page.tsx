@@ -812,7 +812,7 @@ export default function AttendancePage() {
       setMarkAttendance(attendanceData);
 
       // Get work dates from nearest 16th to today
-      const startDate = getNearest16thDate();
+      const startDate = `${yearStart}-${monthStart}-16`;
       const endDate = getTodayDate();
 
       const workDatesData = await attendanceApi.getWorkerWorkDates(workerId, startDate, endDate);
