@@ -276,6 +276,8 @@ export default function AttendancePage() {
   const parsedSalaryPaymentAmount = useMemo(() => parseNumberInput(salaryPaymentAmount), [salaryPaymentAmount]);
   const [isPayingSalary, setIsPayingSalary] = useState(false);
   const [allAttendances, setAllAttendances] = useState<Attendance[]>([]);
+  const [monthChosen, setMonthChosen] = useState<string>();
+  const [yearChosen, setYearChosen] = useState<string>();
   const [isLoadingAllAttendances, setIsLoadingAllAttendances] = useState(false);
   const [selectedWorkerForDetail, setSelectedWorkerForDetail] = useState<number | null>(null);
   const [workerSearch, setWorkerSearch] = useState('');
@@ -780,6 +782,8 @@ export default function AttendancePage() {
     try {
       const data = await attendanceApi.getAttendances(year, Number(month));
       setAllAttendances(data);
+      setMonthChosen(month);
+      setYearChosen(year);
     } catch (error: unknown) {
       console.error('Không thể tải danh sách chấm công:', error);
       setMarkToast({
@@ -791,7 +795,7 @@ export default function AttendancePage() {
     }
   };
 
-  const loadWorkerDetail = async (workerId: number) => {
+  const loadWorkerDetail = async (workerId: number, monthStart: string, yearStart: string) => {
     if (!markForm.month) {
       setMarkToast({ type: 'error', message: 'Vui lòng chọn tháng.' });
       return;
@@ -840,11 +844,11 @@ export default function AttendancePage() {
     }
   };
 
-  const fetchAttendanceForMarking = async () => {
+  const fetchAttendanceForMarking = async (month: string, year: string) => {
     if (!selectedWorkerForDetail || !markForm.month) {
       return;
     }
-    await loadWorkerDetail(selectedWorkerForDetail);
+    await loadWorkerDetail(selectedWorkerForDetail, month, year);
   };
 
   const saveMarkedAttendance = async () => {
@@ -946,7 +950,7 @@ export default function AttendancePage() {
       setMarkToast({ type: 'success', message: 'Đã thanh toán lương và tạo bản ghi trong sổ quỹ.' });
 
       // Refresh attendance data
-      await fetchAttendanceForMarking();
+      await fetchAttendanceForMarking(monthChosen ?? "", yearChosen ?? "");
       // Refresh all attendances list
       await fetchAllAttendancesForMonth();
 
@@ -1359,7 +1363,7 @@ export default function AttendancePage() {
               </div>
               <div className="flex items-end">
                 <button
-                  onClick={fetchAttendanceForMarking}
+                  onClick={() => fetchAttendanceForMarking(monthChosen ?? "", yearChosen ?? "")}
                   className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
                   disabled={!selectedWorkerForDetail || !markForm.month || isLoadingAttendance}
                 >
@@ -2047,7 +2051,7 @@ export default function AttendancePage() {
                       }
                     }
                   ]}
-                  onRowClick={(a) => loadWorkerDetail(a.workerId)}
+                  onRowClick={(a) => loadWorkerDetail(a.workerId, monthChosen ?? "", yearChosen ?? "")}
                 />
               )}
 
