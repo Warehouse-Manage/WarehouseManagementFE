@@ -71,6 +71,28 @@ export interface OrderFormData {
     createdUserId: number;
 }
 
+export interface UpdateOrderFormData {
+    customerId?: number;
+    deliverId?: number;
+    sale?: number;
+    amountCustomerPayment?: number;
+    shipCost?: number;
+    productOrders?: ProductOrderDetail[];
+}
+
+export interface OrderDetailsResponse {
+    id: number;
+    customerId: number;
+    customerName?: string;
+    deliverId: number;
+    deliverName?: string;
+    sale: number;
+    amountCustomerPayment: number;
+    shipCost: number;
+    dateCreated: string;
+    productOrders: ProductOrderDetail[];
+}
+
 export interface PlaceOrderFormData {
     customerId: number;
     deliverId: number;

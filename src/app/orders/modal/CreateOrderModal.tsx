@@ -16,6 +16,8 @@ interface ProductOrderInput {
 interface CreateOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
+  title?: string;
+  submitLabel?: string;
   error: string | null;
   submitting: boolean;
   customers: Customer[];
@@ -53,6 +55,8 @@ interface CreateOrderModalProps {
 export default function CreateOrderModal({
   isOpen,
   onClose,
+  title,
+  submitLabel,
   error,
   submitting,
   customers,
@@ -90,7 +94,7 @@ export default function CreateOrderModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Tạo đơn hàng mới"
+      title={title ?? 'Tạo đơn hàng mới'}
       size="xl"
       footer={
         <>
@@ -106,7 +110,7 @@ export default function CreateOrderModal({
             disabled={submitting}
             className="px-4 py-2 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 disabled:opacity-60 cursor-pointer transition-colors disabled:cursor-not-allowed"
           >
-            {submitting ? 'Đang lưu...' : 'Lưu đơn hàng'}
+            {submitting ? 'Đang lưu...' : (submitLabel ?? 'Lưu đơn hàng')}
           </button>
         </>
       }
