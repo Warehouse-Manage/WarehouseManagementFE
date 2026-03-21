@@ -22,6 +22,8 @@ interface DataTableProps<T> {
     actions?: (item: T) => ActionItem[];
     className?: string;
     disableCardView?: boolean;
+    enableFilter?: boolean;
+    filterContent?: React.ReactNode;
     enablePagination?: boolean;
     totalCount?: number;
     currentPage?: number;
@@ -40,6 +42,8 @@ export function DataTable<T extends { id?: number | string }>({
     actions,
     className = '',
     disableCardView = false,
+    enableFilter = false,
+    filterContent,
     enablePagination = false,
     totalCount = 0,
     currentPage = 1,
@@ -51,6 +55,12 @@ export function DataTable<T extends { id?: number | string }>({
     const totalPages = enablePagination ? Math.ceil(totalCount / pageSize) : 1;
     return (
         <div className={`space-y-4 ${className}`}>
+            {enableFilter && (
+                <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                    {filterContent}
+                </div>
+            )}
+
             {/* Desktop Table View */}
             <div className={`${disableCardView ? 'block' : 'hidden md:block'} overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm`}>
                 <table className="min-w-full divide-y divide-gray-200">
