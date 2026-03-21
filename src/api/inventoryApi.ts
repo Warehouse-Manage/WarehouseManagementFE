@@ -20,6 +20,10 @@ export const inventoryApi = {
         return api.post<Product>('/api/products', data);
     },
 
+    updateProductQuantity: async (id: number, data: { quantity: number }): Promise<Product> => {
+        return api.put<Product>(`/api/products/${id}/quantity`, data);
+    },
+
     deleteProduct: async (id: number): Promise<void> => {
         return api.delete<void>(`/api/products/${id}`);
     },

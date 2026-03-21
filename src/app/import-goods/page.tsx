@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, type ReactNode } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { DataTable, FormField } from '@/components/shared';
 import ImportProductModal from './modal/ImportProductModal';
 import ImportRawMaterialModal from './modal/ImportRawMaterialModal';
 import { inventoryApi, inventoryReceiptApi, partnerApi, financeApi } from '@/api';
-import { Product, PackageProduct, RawMaterial, Partner, RawMaterialImport } from '@/types';
+import { Product, PackageProduct, RawMaterial, Partner, RawMaterialImport, InventoryReceipt } from '@/types';
 import { toast } from 'sonner';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface NhapHangItem {
   id: number;
@@ -19,6 +20,43 @@ interface NhapHangItem {
   productId?: number;
   packageProductId?: number;
 }
+
+type ChartGranularity = 'day' | 'month';
+
+interface ChartPoint {
+  label: string;
+  value: number;
+}
+
+const CHART_PAGE_SIZE = 10;
+
+const monthOptions = Array.from({ length: 12 }, (_, index) => ({
+  value: String(index + 1),
+  label: `Thang ${index + 1}`,
+}));
+
+const getDaysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
+
+const createYearOptions = (years: number[]) =>
+  years.map((year) => ({
+    value: String(year),
+    label: String(year),
+  }));
+
+const extractYears = <T,>(source: T[], getDate: (item: T) => string | undefined) => {
+  const years = new Set<number>([new Date().getFullYear()]);
+
+  source.forEach((item) => {
+    const value = getDate(item);
+    if (!value) return;
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      years.add(date.getFullYear());
+    }
+  });
+
+  return Array.from(years).sort((a, b) => b - a);
+};
 
 export default function NhapHangPage() {
   const [activeTab, setActiveTab] = useState<'sanpham' | 'nguyenlieu'>('sanpham');
@@ -62,6 +100,18 @@ export default function NhapHangPage() {
     partnerId: '',
   });
   const [submittingNguyenLieu, setSubmittingNguyenLieu] = useState(false);
+  const [productChartGranularity, setProductChartGranularity] = useState<'day' | 'month'>('day');
+  const [rawMaterialChartGranularity, setRawMaterialChartGranularity] = useState<'day' | 'month'>('day');
+  const [chartInventoryReceipts, setChartInventoryReceipts] = useState<InventoryReceipt[]>([]);
+  const [chartRawMaterialImports, setChartRawMaterialImports] = useState<RawMaterialImport[]>([]);
+  const today = new Date();
+  const [productChartYear, setProductChartYear] = useState(String(today.getFullYear()));
+  const [productChartMonth, setProductChartMonth] = useState(String(today.getMonth() + 1));
+  const [rawMaterialChartYear, setRawMaterialChartYear] = useState(String(today.getFullYear()));
+  const [rawMaterialChartMonth, setRawMaterialChartMonth] = useState(String(today.getMonth() + 1));
+  const [selectedChartRawMaterialId, setSelectedChartRawMaterialId] = useState('');
+  const [productChartPage, setProductChartPage] = useState(0);
+  const [rawMaterialChartPage, setRawMaterialChartPage] = useState(0);
 
   useEffect(() => {
     const r = getCookie('role');
@@ -114,10 +164,23 @@ export default function NhapHangPage() {
 
   useEffect(() => {
     const loadAll = async () => {
-      await Promise.all([loadProducts(), loadPackageProducts(), loadRawMaterials(), loadPartners()]);
+      await Promise.all([
+        loadProducts(),
+        loadPackageProducts(),
+        loadRawMaterials(),
+        loadPartners(),
+        loadChartInventoryReceipts(),
+        loadChartRawMaterialImports(),
+      ]);
     };
     loadAll();
   }, []);
+
+  useEffect(() => {
+    if (!selectedChartRawMaterialId && rawMaterials.length > 0) {
+      setSelectedChartRawMaterialId(String(rawMaterials[0].id));
+    }
+  }, [rawMaterials, selectedChartRawMaterialId]);
 
   // Load rawMaterialImports khi vào tab nguyên liệu
   useEffect(() => {
@@ -175,6 +238,24 @@ export default function NhapHangPage() {
       setPartners(data);
     } catch (err: unknown) {
       console.error('Failed to load partners:', err);
+    }
+  };
+
+  const loadChartInventoryReceipts = async () => {
+    try {
+      const data = await inventoryReceiptApi.getInventoryReceipts();
+      setChartInventoryReceipts(data);
+    } catch (err: unknown) {
+      console.error('Failed to load chart inventory receipts:', err);
+    }
+  };
+
+  const loadChartRawMaterialImports = async () => {
+    try {
+      const data = await inventoryApi.getRawMaterialImports();
+      setChartRawMaterialImports(data);
+    } catch (err: unknown) {
+      console.error('Failed to load chart raw material imports:', err);
     }
   };
 
@@ -315,7 +396,7 @@ export default function NhapHangPage() {
       handleCloseModal();
       
       // Reload danh sách
-      await loadItems(currentPageInventoryReceipt);
+      await Promise.all([loadItems(currentPageInventoryReceipt), loadChartInventoryReceipts()]);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       toast.error(errorMessage || `Có lỗi xảy ra khi ${editingItem ? 'cập nhật' : 'thêm'} nhập hàng`);
@@ -446,7 +527,7 @@ export default function NhapHangPage() {
       });
       
       // Reload danh sách
-      await loadRawMaterialImports(currentPageRawMaterialImport);
+      await Promise.all([loadRawMaterialImports(currentPageRawMaterialImport), loadChartRawMaterialImports()]);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       toast.error(errorMessage || `Có lỗi xảy ra khi ${editingRawMaterialImport ? 'cập nhật' : 'nhập'} nguyên liệu`);
@@ -548,11 +629,6 @@ export default function NhapHangPage() {
     },
   ], [selectedUnit, rawMaterials, partners]);
 
-  // Show blank page if role is not 'Admin' or 'accountance'
-  if (role !== 'Admin' && role !== 'accountance') {
-    return null;
-  }
-
   const columns = [
     {
       key: 'tenHang',
@@ -638,6 +714,278 @@ export default function NhapHangPage() {
     },
   ];
 
+  const buildChartData = <T,>(
+    source: T[],
+    getDate: (item: T) => string | undefined,
+    getValue: (item: T) => number,
+    granularity: ChartGranularity,
+    selectedYear: number,
+    selectedMonth: number
+  ): ChartPoint[] => {
+    if (granularity === 'day') {
+      const totalDays = getDaysInMonth(selectedYear, selectedMonth);
+      const values = Array.from({ length: totalDays }, () => 0);
+
+      source.forEach((item) => {
+        const value = getDate(item);
+        if (!value) return;
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return;
+        if (date.getFullYear() !== selectedYear || date.getMonth() + 1 !== selectedMonth) return;
+
+        values[date.getDate() - 1] += getValue(item);
+      });
+
+      return values.map((value, index) => ({
+        label: `Ngay ${index + 1}`,
+        value,
+      }));
+    }
+
+    const values = Array.from({ length: 12 }, () => 0);
+
+    source.forEach((item) => {
+      const value = getDate(item);
+      if (!value) return;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return;
+      if (date.getFullYear() !== selectedYear) return;
+
+      values[date.getMonth()] += getValue(item);
+    });
+
+    return values.map((value, index) => ({
+      label: `Thang ${index + 1}`,
+      value,
+    }));
+  };
+
+  const getVisibleChartData = (data: ChartPoint[], page: number) => {
+    const start = page * CHART_PAGE_SIZE;
+    return data.slice(start, start + CHART_PAGE_SIZE);
+  };
+
+  const productChartSource = useMemo(
+    () => chartInventoryReceipts.filter((item) => Boolean(item.packageProductId)),
+    [chartInventoryReceipts]
+  );
+
+  const productYearOptions = useMemo(
+    () => createYearOptions(extractYears(productChartSource, (item) => item.createdDate)),
+    [productChartSource]
+  );
+
+  const productChartData = useMemo(
+    () =>
+      buildChartData(
+        productChartSource,
+        (item) => item.createdDate,
+        (item) => item.quantity,
+        productChartGranularity,
+        Number(productChartYear),
+        Number(productChartMonth)
+      ),
+    [productChartSource, productChartGranularity, productChartYear, productChartMonth]
+  );
+
+  const selectedChartRawMaterial = useMemo(
+    () => rawMaterials.find((item) => String(item.id) === selectedChartRawMaterialId),
+    [rawMaterials, selectedChartRawMaterialId]
+  );
+
+  const rawMaterialChartSource = useMemo(() => {
+    if (!selectedChartRawMaterialId) return [];
+    return chartRawMaterialImports.filter((item) => item.rawMaterialId === Number(selectedChartRawMaterialId));
+  }, [chartRawMaterialImports, selectedChartRawMaterialId]);
+
+  const rawMaterialYearOptions = useMemo(
+    () => createYearOptions(extractYears(rawMaterialChartSource, (item) => item.dateCreated)),
+    [rawMaterialChartSource]
+  );
+
+  const rawMaterialChartData = useMemo(
+    () =>
+      buildChartData(
+        rawMaterialChartSource,
+        (item) => item.dateCreated,
+        (item) => item.quantity,
+        rawMaterialChartGranularity,
+        Number(rawMaterialChartYear),
+        Number(rawMaterialChartMonth)
+      ),
+    [rawMaterialChartSource, rawMaterialChartGranularity, rawMaterialChartYear, rawMaterialChartMonth]
+  );
+
+  const productChartTotalPages = Math.max(1, Math.ceil(productChartData.length / CHART_PAGE_SIZE));
+  const rawMaterialChartTotalPages = Math.max(1, Math.ceil(rawMaterialChartData.length / CHART_PAGE_SIZE));
+
+  useEffect(() => {
+    setProductChartPage(0);
+  }, [productChartGranularity, productChartYear, productChartMonth]);
+
+  useEffect(() => {
+    setRawMaterialChartPage(0);
+  }, [rawMaterialChartGranularity, rawMaterialChartYear, rawMaterialChartMonth, selectedChartRawMaterialId]);
+
+  useEffect(() => {
+    setProductChartPage((current) => Math.min(current, productChartTotalPages - 1));
+  }, [productChartTotalPages]);
+
+  useEffect(() => {
+    setRawMaterialChartPage((current) => Math.min(current, rawMaterialChartTotalPages - 1));
+  }, [rawMaterialChartTotalPages]);
+
+  const SimpleBarChart = ({
+    title,
+    data,
+    colorClass,
+    granularity,
+    onGranularityChange,
+    unitLabel,
+    selectedYear,
+    onYearChange,
+    yearOptions,
+    selectedMonth,
+    onMonthChange,
+    page,
+    totalPages,
+    onPrevPage,
+    onNextPage,
+    extraFilters,
+  }: {
+    title: string;
+    data: ChartPoint[];
+    colorClass: string;
+    granularity: ChartGranularity;
+    onGranularityChange: (value: ChartGranularity) => void;
+    unitLabel: string;
+    selectedYear: string;
+    onYearChange: (value: string) => void;
+    yearOptions: { value: string; label: string }[];
+    selectedMonth: string;
+    onMonthChange: (value: string) => void;
+    page: number;
+    totalPages: number;
+    onPrevPage: () => void;
+    onNextPage: () => void;
+    extraFilters?: ReactNode;
+  }) => {
+    const visibleData = getVisibleChartData(data, page);
+    const maxValue = Math.max(...data.map((d) => d.value), 0);
+
+    return (
+      <div className="mb-5 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="mb-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <h3 className="text-sm font-bold text-gray-900 sm:text-base">{title}</h3>
+            <div className="inline-flex overflow-hidden self-start rounded-lg border border-gray-200">
+            <button
+              onClick={() => onGranularityChange('day')}
+              className={`cursor-pointer px-3 py-1.5 text-xs font-semibold ${granularity === 'day' ? activeTab === 'sanpham' ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+            >
+              Theo ngày
+            </button>
+            <button
+              onClick={() => onGranularityChange('month')}
+              className={`cursor-pointer px-3 py-1.5 text-xs font-semibold ${granularity === 'month' ? activeTab === 'sanpham' ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+            >
+              Theo tháng
+            </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+            <div className="flex flex-wrap gap-3">
+              <div className="min-w-[120px]">
+                <label className="mb-1 block text-xs font-semibold text-gray-600">Nam</label>
+                <select
+                  value={selectedYear}
+                  onChange={(event) => onYearChange(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                >
+                  {yearOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {granularity === 'day' && (
+                <div className="min-w-[120px]">
+                  <label className="mb-1 block text-xs font-semibold text-gray-600">Thang</label>
+                  <select
+                    value={selectedMonth}
+                    onChange={(event) => onMonthChange(event.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                  >
+                    {monthOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {extraFilters}
+            </div>
+
+            <div className="flex items-center gap-2 self-start xl:self-end">
+              <button
+                type="button"
+                onClick={onPrevPage}
+                disabled={page === 0}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <div className="min-w-[84px] text-center text-xs font-medium text-gray-500">
+                {`${page + 1} / ${totalPages}`}
+              </div>
+              <button
+                type="button"
+                onClick={onNextPage}
+                disabled={page >= totalPages - 1}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {data.length === 0 ? (
+          <div className="text-sm text-gray-500">Chưa có dữ liệu để hiển thị biểu đồ.</div>
+        ) : (
+          <>
+            <div className="h-64 overflow-hidden">
+              <div className="flex h-full items-end gap-3 border-b border-l border-gray-200 px-3 pb-3">
+                {visibleData.map((row) => {
+                  const height = maxValue > 0 ? (row.value / maxValue) * 100 : 0;
+                  return (
+                    <div key={row.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
+                      <span className="text-[11px] font-semibold text-gray-700">
+                        {row.value.toLocaleString('vi-VN')}
+                      </span>
+                      <div className={`w-full rounded-t-md ${colorClass}`} style={{ height: `${Math.max(height, 2)}%` }} />
+                      <span className="text-center text-[10px] text-gray-500">{row.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="mt-2 text-xs text-gray-500">Đơn vị: {unitLabel}</div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
+  }
+
   return (
     <div className="container mx-auto p-4 sm:p-6">
       <div className="mb-6">
@@ -688,6 +1036,24 @@ export default function NhapHangPage() {
               Thêm nhập hàng
             </button>
           </div>
+
+          <SimpleBarChart
+            title="Biểu đồ nhập hàng (Sản phẩm)"
+            data={productChartData}
+            colorClass="bg-orange-500"
+            granularity={productChartGranularity}
+            onGranularityChange={setProductChartGranularity}
+            selectedYear={productChartYear}
+            onYearChange={setProductChartYear}
+            yearOptions={productYearOptions}
+            selectedMonth={productChartMonth}
+            onMonthChange={setProductChartMonth}
+            page={productChartPage}
+            totalPages={productChartTotalPages}
+            onPrevPage={() => setProductChartPage((current) => Math.max(0, current - 1))}
+            onNextPage={() => setProductChartPage((current) => Math.min(productChartTotalPages - 1, current + 1))}
+            unitLabel="kiện"
+          />
 
           <DataTable
             data={items}
@@ -747,6 +1113,42 @@ export default function NhapHangPage() {
               Nhập nguyên liệu
             </button>
           </div>
+
+          <SimpleBarChart
+            title="Biểu đồ nhập hàng (Nguyên liệu)"
+            data={rawMaterialChartData}
+            colorClass="bg-blue-500"
+            granularity={rawMaterialChartGranularity}
+            onGranularityChange={setRawMaterialChartGranularity}
+            selectedYear={rawMaterialChartYear}
+            onYearChange={setRawMaterialChartYear}
+            yearOptions={rawMaterialYearOptions}
+            selectedMonth={rawMaterialChartMonth}
+            onMonthChange={setRawMaterialChartMonth}
+            page={rawMaterialChartPage}
+            totalPages={rawMaterialChartTotalPages}
+            onPrevPage={() => setRawMaterialChartPage((current) => Math.max(0, current - 1))}
+            onNextPage={() => setRawMaterialChartPage((current) => Math.min(rawMaterialChartTotalPages - 1, current + 1))}
+            extraFilters={
+              <div className="min-w-[180px]">
+                <label className="mb-1 block text-xs font-semibold text-gray-600">
+                  Nguyen lieu {selectedChartRawMaterial ? `(${selectedChartRawMaterial.unit})` : ''}
+                </label>
+                <select
+                  value={selectedChartRawMaterialId}
+                  onChange={(event) => setSelectedChartRawMaterialId(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
+                >
+                  {rawMaterials.map((material) => (
+                    <option key={material.id} value={material.id}>
+                      {material.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            }
+            unitLabel={selectedChartRawMaterial?.unit || 'đơn vị'}
+          />
 
           <DataTable
             data={rawMaterialImports}

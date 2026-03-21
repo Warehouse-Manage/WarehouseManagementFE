@@ -25,6 +25,10 @@ export default function ProductsPage() {
   const [quantity, setQuantity] = useState<number | ''>('');
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showUpdateQuantityForm, setShowUpdateQuantityForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [updateQuantity, setUpdateQuantity] = useState<number | ''>('');
+  const [submittingUpdateQuantity, setSubmittingUpdateQuantity] = useState(false);
 
   // Local state cho "Kiện"
   type PackageRow = {
@@ -215,6 +219,38 @@ export default function ProductsPage() {
     }
   };
 
+  const openUpdateQuantityModal = (product: Product) => {
+    setEditingProduct(product);
+    setUpdateQuantity(product.quantity ?? 0);
+    setError(null);
+    setShowUpdateQuantityForm(true);
+  };
+
+  const handleUpdateQuantity = async () => {
+    if (!editingProduct) return;
+
+    const nextQuantity = Number(updateQuantity);
+    if (Number.isNaN(nextQuantity) || nextQuantity < 0) {
+      setError('Số lượng tồn kho phải lớn hơn hoặc bằng 0');
+      return;
+    }
+
+    setSubmittingUpdateQuantity(true);
+    setError(null);
+    try {
+      await inventoryApi.updateProductQuantity(editingProduct.id, { quantity: nextQuantity });
+      toast.success('Cập nhật tồn kho thành công');
+      setShowUpdateQuantityForm(false);
+      setEditingProduct(null);
+      setUpdateQuantity('');
+      await loadProducts();
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Không thể cập nhật tồn kho');
+    } finally {
+      setSubmittingUpdateQuantity(false);
+    }
+  };
+
   const handleDeleteProduct = async (id: number) => {
     const confirmed = await confirm({
       message: 'Bạn có chắc chắn muốn xóa sản phẩm này?',
@@ -365,6 +401,31 @@ export default function ProductsPage() {
         onSubmit={handleCreatePackage}
       />
 
+      <ProductFormModal
+        isOpen={showUpdateQuantityForm}
+        onClose={() => {
+          setShowUpdateQuantityForm(false);
+          setEditingProduct(null);
+          setUpdateQuantity('');
+        }}
+        productFormFields={[
+          {
+            name: 'quantity',
+            label: 'Số lượng tồn kho mới',
+            type: 'number',
+            required: true,
+            placeholder: 'Nhập số lượng tồn kho...'
+          }
+        ]}
+        formValues={{ name: '', price: '', quantity: updateQuantity }}
+        error={error}
+        submitting={submittingUpdateQuantity}
+        onFieldChange={(field, value) => {
+          if (field === 'quantity') setUpdateQuantity(value as number);
+        }}
+        onSubmit={handleUpdateQuantity}
+      />
+
           <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
               <h2 className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-wider">
@@ -435,6 +496,15 @@ export default function ProductsPage() {
                   }
                 ]}
                 actions={(p) => [
+                  {
+                    label: 'Cập nhật tồn kho',
+                    icon: (
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    ),
+                    onClick: () => openUpdateQuantityModal(p)
+                  },
                   {
                     label: 'Xóa',
                     icon: <Trash2 className="h-4 w-4" />,

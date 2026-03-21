@@ -23,6 +23,9 @@ export default function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [filterCustomerName, setFilterCustomerName] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
   // apiHost removed, handled in API modules
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [delivers, setDelivers] = useState<Deliver[]>([]);
@@ -75,11 +78,15 @@ export default function OrdersPage() {
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN');
   };
 
-  const loadOrders = async (page: number = currentPage, size: number = pageSize) => {
+  const loadOrders = async (
+    page: number = currentPage,
+    size: number = pageSize,
+    filters?: { searchTerm?: string; startDate?: string; endDate?: string }
+  ) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await financeApi.getOrdersFilter(page, size);
+      const result = await financeApi.getOrdersFilter(page, size, filters);
       setOrders(result.data);
       setTotalCount(result.totalCount);
     } catch (err: unknown) {
@@ -138,8 +145,25 @@ export default function OrdersPage() {
     }
   };
 
+  const buildOrderFilters = () => {
+    const filters: { searchTerm?: string; startDate?: string; endDate?: string } = {};
+    if (filterCustomerName.trim()) filters.searchTerm = filterCustomerName.trim();
+
+    if (filterDateFrom) {
+      const start = new Date(`${filterDateFrom}T00:00:00`);
+      filters.startDate = start.toISOString();
+    }
+
+    if (filterDateTo) {
+      const end = new Date(`${filterDateTo}T23:59:59.999`);
+      filters.endDate = end.toISOString();
+    }
+
+    return filters;
+  };
+
   useEffect(() => {
-    loadOrders(1);
+    loadOrders(1, pageSize, buildOrderFilters());
     loadCustomers();
     loadDelivers();
     loadProducts();
@@ -604,7 +628,7 @@ export default function OrdersPage() {
         <div className="flex items-center justify-between mb-2 sm:mb-4">
           <h2 className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-wider">Danh sách đơn hàng</h2>
           <button
-            onClick={() => loadOrders(currentPage)}
+            onClick={() => loadOrders(currentPage, pageSize, buildOrderFilters())}
             disabled={loading}
             className="p-2 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 active:bg-gray-100 transition-all flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
           >
@@ -616,6 +640,63 @@ export default function OrdersPage() {
         </div>
 
         <DataTable
+          enableFilter
+          filterContent={
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+              <div className="md:col-span-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Khách hàng</label>
+                <input
+                  value={filterCustomerName}
+                  onChange={(e) => setFilterCustomerName(e.target.value)}
+                  placeholder="Nhập tên khách hàng..."
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Từ ngày</label>
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Đến ngày</label>
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+              <div className="md:col-span-4 flex flex-wrap gap-2 justify-end">
+                <button
+                  onClick={() => {
+                    setCurrentPage(1);
+                    loadOrders(1, pageSize, buildOrderFilters());
+                  }}
+                  disabled={loading}
+                  className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Lọc
+                </button>
+                <button
+                  onClick={() => {
+                    setFilterCustomerName('');
+                    setFilterDateFrom('');
+                    setFilterDateTo('');
+                    setCurrentPage(1);
+                    loadOrders(1, pageSize, {});
+                  }}
+                  disabled={loading}
+                  className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Xóa lọc
+                </button>
+              </div>
+            </div>
+          }
           data={orders}
           isLoading={loading}
           enablePagination={true}
@@ -624,12 +705,12 @@ export default function OrdersPage() {
           pageSize={pageSize}
           onPageChange={(page) => {
             setCurrentPage(page);
-            loadOrders(page);
+            loadOrders(page, pageSize, buildOrderFilters());
           }}
           onPageSizeChange={(newPageSize) => {
             setPageSize(newPageSize);
             setCurrentPage(1);
-            loadOrders(1, newPageSize);
+            loadOrders(1, newPageSize, buildOrderFilters());
           }}
           columns={[
             {
