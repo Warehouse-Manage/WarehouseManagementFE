@@ -82,7 +82,7 @@ export const TableRowActions: React.FC<TableRowActionsProps> = ({ actions }) => 
     }, [isOpen]);
 
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
+        const handlePointerDownOutside = (event: PointerEvent) => {
             const target = event.target as Node;
             if (menuRef.current && !menuRef.current.contains(target) && 
                 buttonRef.current && !buttonRef.current.contains(target)) {
@@ -91,10 +91,10 @@ export const TableRowActions: React.FC<TableRowActionsProps> = ({ actions }) => 
         };
 
         if (isOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('pointerdown', handlePointerDownOutside);
         }
         return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('pointerdown', handlePointerDownOutside);
         };
     }, [isOpen]);
 
@@ -103,7 +103,7 @@ export const TableRowActions: React.FC<TableRowActionsProps> = ({ actions }) => 
         return null;
     }
 
-    const handleToggle = (e: React.MouseEvent) => {
+    const handleToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation();
         if (!isOpen && buttonRef.current) {
             // Tính toán vị trí TRƯỚC khi mở menu
@@ -126,7 +126,7 @@ export const TableRowActions: React.FC<TableRowActionsProps> = ({ actions }) => 
                 left: left,
             });
         }
-        setIsOpen(!isOpen);
+        setIsOpen((prev) => !prev);
     };
 
     return (
@@ -135,6 +135,7 @@ export const TableRowActions: React.FC<TableRowActionsProps> = ({ actions }) => 
                 ref={buttonRef}
                 type="button"
                 onClick={handleToggle}
+                onPointerDown={(e) => e.stopPropagation()}
                 className="flex items-center justify-center h-8 w-8 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all active:scale-90"
             >
                 <MoreVertical className="h-4 w-4" />
@@ -152,16 +153,19 @@ export const TableRowActions: React.FC<TableRowActionsProps> = ({ actions }) => 
                     }}
                     onClick={(e) => e.stopPropagation()}
                     onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
                 >
                     <div className="py-1">
                         {actions.map((action, index) => (
                             <button
                                 key={index}
+                                type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setIsOpen(false);
                                     action.onClick();
                                 }}
+                                onPointerDown={(e) => e.stopPropagation()}
                                 className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors ${action.variant === 'danger'
                                     ? 'text-red-600 hover:bg-red-50'
                                     : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'

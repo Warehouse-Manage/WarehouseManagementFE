@@ -149,8 +149,8 @@ export function DataTable<T extends { id?: number | string }>({
                         data.map((item, index) => (
                             <div
                                 key={item.id || index}
-                                onClick={() => onRowClick && onRowClick(item)}
-                                className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm active:scale-[0.98] transition-all"
+                                onClick={onRowClick ? () => onRowClick(item) : undefined}
+                                className={`bg-white p-4 rounded-2xl border border-gray-200 shadow-sm transition-all ${onRowClick ? 'active:scale-[0.98] cursor-pointer' : ''}`}
                             >
                                 <div className="space-y-3">
                                     {/* Header of card - Main columns */}
@@ -163,7 +163,11 @@ export function DataTable<T extends { id?: number | string }>({
                                             ))}
                                         </div>
                                         {actions && (
-                                            <div className="flex-shrink-0">
+                                            <div
+                                                className="flex-shrink-0"
+                                                onClick={(e) => e.stopPropagation()}
+                                                onPointerDown={(e) => e.stopPropagation()}
+                                            >
                                                 <TableRowActions actions={actions(item)} />
                                             </div>
                                         )}
