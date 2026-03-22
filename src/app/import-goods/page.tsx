@@ -26,9 +26,26 @@ type ChartGranularity = 'day' | 'month';
 interface ChartPoint {
   label: string;
   value: number;
+  bars?: {
+    label: string;
+    value: number;
+    colorClass: string;
+  }[];
 }
 
 const CHART_PAGE_SIZE = 10;
+const PRODUCT_CHART_SERIES = [
+  {
+    key: 'brick-b-425',
+    label: 'Kiện gạch B 425 viên',
+    colorClass: 'bg-orange-500',
+  },
+  {
+    key: 'brick-a-425',
+    label: 'Kiện A 425',
+    colorClass: 'bg-orange-300',
+  },
+] as const;
 
 const monthOptions = Array.from({ length: 12 }, (_, index) => ({
   value: String(index + 1),
@@ -36,6 +53,23 @@ const monthOptions = Array.from({ length: 12 }, (_, index) => ({
 }));
 
 const getDaysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
+
+const normalizeText = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+const isBrickB425Package = (value: string) => {
+  const normalized = normalizeText(value);
+  return normalized.includes('b 425') && (normalized.includes('vien') || normalized.includes('gach'));
+};
+
+const isBrickA425Package = (value: string) => {
+  const normalized = normalizeText(value);
+  return normalized.includes('a 425');
+};
 
 const createYearOptions = (years: number[]) =>
   years.map((year) => ({
@@ -770,22 +804,66 @@ export default function NhapHangPage() {
     [chartInventoryReceipts]
   );
 
+  const productChartSeries = useMemo(() => {
+    const brickB425Ids = packageProducts.filter((pkg) => isBrickB425Package(pkg.name)).map((pkg) => pkg.id);
+    const brickA425Ids = packageProducts.filter((pkg) => isBrickA425Package(pkg.name)).map((pkg) => pkg.id);
+
+    return PRODUCT_CHART_SERIES.map((series) => ({
+      ...series,
+      packageIds: series.key === 'brick-b-425' ? brickB425Ids : brickA425Ids,
+    }));
+  }, [packageProducts]);
+
   const productYearOptions = useMemo(
     () => createYearOptions(extractYears(productChartSource, (item) => item.createdDate)),
     [productChartSource]
   );
 
   const productChartData = useMemo(
-    () =>
-      buildChartData(
-        productChartSource,
-        (item) => item.createdDate,
-        (item) => item.quantity,
-        productChartGranularity,
-        Number(productChartYear),
-        Number(productChartMonth)
-      ),
-    [productChartSource, productChartGranularity, productChartYear, productChartMonth]
+    () => {
+      const groupedValues =
+        productChartGranularity === 'day'
+          ? Array.from({ length: getDaysInMonth(Number(productChartYear), Number(productChartMonth)) }, () =>
+              productChartSeries.map(() => 0)
+            )
+          : Array.from({ length: 12 }, () => productChartSeries.map(() => 0));
+
+      const packageToSeriesIndex = new Map<number, number>();
+      productChartSeries.forEach((series, seriesIndex) => {
+        series.packageIds.forEach((packageId) => {
+          packageToSeriesIndex.set(packageId, seriesIndex);
+        });
+      });
+
+      productChartSource.forEach((item) => {
+        if (!item.packageProductId) return;
+
+        const seriesIndex = packageToSeriesIndex.get(item.packageProductId);
+        if (seriesIndex === undefined) return;
+
+        const date = new Date(item.createdDate);
+        if (Number.isNaN(date.getTime()) || date.getFullYear() !== Number(productChartYear)) return;
+
+        if (productChartGranularity === 'day') {
+          if (date.getMonth() + 1 !== Number(productChartMonth)) return;
+          groupedValues[date.getDate() - 1][seriesIndex] += item.quantity;
+          return;
+        }
+
+        groupedValues[date.getMonth()][seriesIndex] += item.quantity;
+      });
+
+      return groupedValues.map((values, index) => ({
+        label: productChartGranularity === 'day' ? `Ngay ${index + 1}` : `Thang ${index + 1}`,
+        value: values.reduce((sum, current) => sum + current, 0),
+        bars: productChartSeries.map((series, seriesIndex) => ({
+          label: series.label,
+          value: values[seriesIndex],
+          colorClass: series.colorClass,
+        })),
+      }));
+    },
+    [productChartSource, productChartGranularity, productChartYear, productChartMonth, productChartSeries]
   );
 
   const selectedChartRawMaterial = useMemo(
@@ -871,7 +949,12 @@ export default function NhapHangPage() {
     extraFilters?: ReactNode;
   }) => {
     const visibleData = getVisibleChartData(data, page);
-    const maxValue = Math.max(...data.map((d) => d.value), 0);
+    const hasGroupedBars = data.some((row) => row.bars && row.bars.length > 0);
+    const legendItems = data.find((row) => row.bars && row.bars.length > 0)?.bars ?? [];
+    const maxValue = Math.max(
+      ...data.flatMap((row) => (row.bars && row.bars.length > 0 ? row.bars.map((bar) => bar.value) : [row.value])),
+      0
+    );
 
     return (
       <div className="mb-5 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -959,16 +1042,42 @@ export default function NhapHangPage() {
           <div className="text-sm text-gray-500">Chưa có dữ liệu để hiển thị biểu đồ.</div>
         ) : (
           <>
+            {hasGroupedBars && legendItems.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-3 text-xs text-gray-600">
+                {legendItems.map((item) => (
+                  <div key={item.label} className="inline-flex items-center gap-2">
+                    <span className={`h-3 w-3 rounded-sm ${item.colorClass}`} />
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="h-64 overflow-hidden">
               <div className="flex h-full items-end gap-3 border-b border-l border-gray-200 px-3 pb-3">
                 {visibleData.map((row) => {
-                  const height = maxValue > 0 ? (row.value / maxValue) * 100 : 0;
+                  const bars = row.bars && row.bars.length > 0 ? row.bars : [{ label: title, value: row.value, colorClass }];
                   return (
                     <div key={row.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
-                      <span className="text-[11px] font-semibold text-gray-700">
-                        {row.value.toLocaleString('vi-VN')}
-                      </span>
-                      <div className={`w-full rounded-t-md ${colorClass}`} style={{ height: `${Math.max(height, 2)}%` }} />
+                      <div className="mb-1 flex flex-wrap items-center justify-center gap-2 text-[11px] font-semibold text-gray-700">
+                        {bars.map((bar) => (
+                          <span key={bar.label} className="whitespace-nowrap">
+                            {bar.value.toLocaleString('vi-VN')}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex min-h-0 w-full flex-1 items-end justify-center gap-1 self-stretch">
+                        {bars.map((bar) => {
+                          const height = maxValue > 0 ? (bar.value / maxValue) * 100 : 0;
+                          return (
+                            <div
+                              key={bar.label}
+                              className={`min-h-[4px] flex-1 rounded-t-md ${bar.colorClass}`}
+                              style={{ height: `${Math.max(height, 2)}%` }}
+                              title={`${bar.label}: ${bar.value.toLocaleString('vi-VN')} ${unitLabel}`}
+                            />
+                          );
+                        })}
+                      </div>
                       <span className="text-center text-[10px] text-gray-500">{row.label}</span>
                     </div>
                   );

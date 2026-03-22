@@ -6,7 +6,7 @@ import { financeApi, inventoryApi } from '@/api';
 import { Order, Customer, Deliver, Product, PackageProduct, UpdateOrderFormData, OrderDetailsResponse } from '@/types';
 import { DataTable } from '@/components/shared';
 import { toast } from 'sonner';
-import { Pencil, Printer, Trash2 } from 'lucide-react';
+import { CalendarDays, Pencil, Printer, Trash2 } from 'lucide-react';
 import CreateOrderModal from './modal/CreateOrderModal';
 import CustomerModal from './modal/CustomerModal';
 import DeliverModal from './modal/DeliverModal';
@@ -76,6 +76,18 @@ export default function OrdersPage() {
     if (!value) return '';
     const d = new Date(value);
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN');
+  };
+
+  const formatDateFilterDisplay = (value: string) => {
+    if (!value) return '';
+
+    const parts = value.split('-');
+    if (parts.length !== 3) return value;
+
+    const [year, month, day] = parts;
+    if (year.length !== 4 || month.length !== 2 || day.length !== 2) return value;
+
+    return `${day}/${month}/${year}`;
   };
 
   const loadOrders = async (
@@ -654,21 +666,43 @@ export default function OrdersPage() {
               </div>
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Từ ngày</label>
-                <input
-                  type="date"
-                  value={filterDateFrom}
-                  onChange={(e) => setFilterDateFrom(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formatDateFilterDisplay(filterDateFrom)}
+                    readOnly
+                    placeholder="dd/mm/yyyy"
+                    className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  />
+                  <CalendarDays className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="date"
+                    value={filterDateFrom}
+                    onChange={(e) => setFilterDateFrom(e.target.value)}
+                    aria-label="Tá»« ngÃ y"
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Đến ngày</label>
-                <input
-                  type="date"
-                  value={filterDateTo}
-                  onChange={(e) => setFilterDateTo(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formatDateFilterDisplay(filterDateTo)}
+                    readOnly
+                    placeholder="dd/mm/yyyy"
+                    className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  />
+                  <CalendarDays className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="date"
+                    value={filterDateTo}
+                    onChange={(e) => setFilterDateTo(e.target.value)}
+                    aria-label="Äáº¿n ngÃ y"
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                </div>
               </div>
               <div className="md:col-span-4 flex flex-wrap gap-2 justify-end">
                 <button
