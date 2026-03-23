@@ -95,10 +95,9 @@ export interface OrderDetailsResponse {
 
 export interface PlaceOrderFormData {
     customerId: number;
-    deliverId: number;
+    deliverId?: number | null;
     sale: number;
     amountCustomerPayment: number;
-    shipCost: number;
     placeOrderProductOrders: ProductOrderDetail[];
     createdUserId: number;
     deliveryDate?: string;

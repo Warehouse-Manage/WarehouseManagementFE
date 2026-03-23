@@ -33,8 +33,6 @@ interface CreateOrderModalProps {
   allowAdditionalQuantity: boolean;
   sale: number | '';
   amountCustomerPayment: number | '';
-  shipCost: number | '';
-  shipcod: number | '';
   productOrdersInput: ProductOrderInput[];
   onCustomerIdChange: (id: number | '') => void;
   onDeliverIdChange: (id: number | '') => void;
@@ -43,7 +41,6 @@ interface CreateOrderModalProps {
   onAllowAdditionalQuantityChange: (value: boolean) => void;
   onSaleChange: (value: number | '') => void;
   onAmountCustomerPaymentChange: (value: number | '') => void;
-  onShipCostChange: (value: number | '') => void;
   onOpenCustomerModal: () => void;
   onOpenDeliverModal: () => void;
   onAddProductOrderRow: () => void;
@@ -76,8 +73,6 @@ export default function CreateOrderModal({
   allowAdditionalQuantity,
   sale,
   amountCustomerPayment,
-  shipCost,
-  shipcod,
   productOrdersInput,
   onCustomerIdChange,
   onDeliverIdChange,
@@ -86,7 +81,6 @@ export default function CreateOrderModal({
   onAllowAdditionalQuantityChange,
   onSaleChange,
   onAmountCustomerPaymentChange,
-  onShipCostChange,
   onOpenCustomerModal,
   onOpenDeliverModal,
   onAddProductOrderRow,
@@ -127,7 +121,6 @@ export default function CreateOrderModal({
         {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
 
         <div className="space-y-4">
-          {/* Row 1: Khách hàng và Người giao hàng */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="w-full">
               <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Khách hàng *</label>
@@ -161,7 +154,7 @@ export default function CreateOrderModal({
             </div>
 
             <div className="w-full">
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Người giao hàng *</label>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Người giao hàng</label>
               <div className="flex items-stretch gap-2">
                 <select
                   className="flex-1 min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
@@ -192,7 +185,6 @@ export default function CreateOrderModal({
             </div>
           </div>
 
-          {/* Row 2: Ngày giao hàng & Địa chỉ giao nhận */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Ngày giao hàng *</label>
@@ -216,12 +208,12 @@ export default function CreateOrderModal({
             </div>
           </div>
 
-          {/* Row 2.5: Tùy chọn cho phép thêm số lượng */}
           <div className="flex items-start gap-2 pt-1">
             <input
               id="allow-additional-quantity"
               type="checkbox"
-              className="h-4 w-4 rounded border-gray-300 accent-orange-600 cursor-pointer"              checked={allowAdditionalQuantity}
+              className="h-4 w-4 rounded border-gray-300 accent-orange-600 cursor-pointer"
+              checked={allowAdditionalQuantity}
               onChange={(e) => onAllowAdditionalQuantityChange(e.target.checked)}
             />
             <div>
@@ -234,8 +226,7 @@ export default function CreateOrderModal({
             </div>
           </div>
 
-          {/* Row 3: Các trường khác */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Giảm giá đơn hàng</label>
               <input
@@ -254,26 +245,6 @@ export default function CreateOrderModal({
                 inputMode="decimal"
                 value={formatNumberInput(amountCustomerPayment)}
                 onChange={(e) => onAmountCustomerPaymentChange(parseNumberInput(e.target.value))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Phí giao hàng</label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                placeholder="0"
-                inputMode="decimal"
-                value={formatNumberInput(shipCost)}
-                onChange={(e) => onShipCostChange(parseNumberInput(e.target.value))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Ship COD / Còn lại</label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 font-bold text-orange-600"
-                placeholder="0"
-                type="text"
-                value={formatNumberInput(shipcod)}
-                readOnly
               />
             </div>
           </div>
@@ -301,6 +272,7 @@ export default function CreateOrderModal({
               const displayPrice = isPackage && selectedPackage && selectedPackage.quantityProduct > 0
                 ? Number(p.price || 0) / selectedPackage.quantityProduct
                 : Number(p.price || 0);
+
               return (
                 <div key={idx} className="relative rounded-xl border border-gray-200 bg-gray-50 p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -401,7 +373,7 @@ export default function CreateOrderModal({
                     <div>
                       <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Thành tiền</label>
                       <div className="font-bold text-sm text-orange-600 pt-1.5">
-                        {total > 0 ? total.toLocaleString() + 'đ' : '0đ'}
+                        {total > 0 ? `${total.toLocaleString()}đ` : '0đ'}
                       </div>
                     </div>
                   </div>
@@ -410,7 +382,7 @@ export default function CreateOrderModal({
                       onClick={() => onRemoveProductOrderRow(idx)}
                       className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-200 transition-colors cursor-pointer"
                     >
-                      <span className="text-sm">×</span>
+                      <span className="text-sm">x</span>
                     </button>
                   )}
                 </div>

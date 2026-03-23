@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import NotificationRequest from './Notification';
 import { getCookie } from '@/lib/ultis';
 
@@ -13,7 +13,7 @@ export default function Navbar() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isKeToanMenuOpen, setIsKeToanMenuOpen] = useState(false);
-  const [keToanMenuPosition, setKeToanMenuPosition] = useState({ top: 0, left: 0 });
+  const [keToanMenuPosition, setKeToanMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [userInitial, setUserInitial] = useState('U');
   const [role, setRole] = useState<string | null>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
@@ -31,36 +31,32 @@ export default function Navbar() {
   }, []);
 
   // Tính toán vị trí dropdown khi mở
-  useEffect(() => {
-    if (isKeToanMenuOpen && keToanMenuButtonRef.current) {
-      const rect = keToanMenuButtonRef.current.getBoundingClientRect();
-      setKeToanMenuPosition({
-        top: rect.bottom + 4,
-        left: rect.left,
-      });
-    }
+  const updateKeToanMenuPosition = () => {
+    if (!keToanMenuButtonRef.current) return;
+
+    const rect = keToanMenuButtonRef.current.getBoundingClientRect();
+    setKeToanMenuPosition({
+      top: rect.bottom + 4,
+      left: rect.left - 190,
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!isKeToanMenuOpen) return;
+
+    updateKeToanMenuPosition();
   }, [isKeToanMenuOpen]);
 
   // Cập nhật vị trí khi resize hoặc scroll
   useEffect(() => {
     if (!isKeToanMenuOpen) return;
     
-    const updatePosition = () => {
-      if (keToanMenuButtonRef.current) {
-        const rect = keToanMenuButtonRef.current.getBoundingClientRect();
-        setKeToanMenuPosition({
-          top: rect.bottom + 4,
-          left: rect.left,
-        });
-      }
-    };
-
     const handleResize = () => {
-      updatePosition();
+      updateKeToanMenuPosition();
     };
 
     const handleScroll = () => {
-      updatePosition();
+      updateKeToanMenuPosition();
     };
 
     window.addEventListener('resize', handleResize);
@@ -230,6 +226,9 @@ export default function Navbar() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      if (!isKeToanMenuOpen) {
+                        updateKeToanMenuPosition();
+                      }
                       setIsKeToanMenuOpen((prev) => !prev);
                     }}
                     className={`${baseLink} ${linkSize} whitespace-nowrap flex items-center gap-1 ${
@@ -255,13 +254,13 @@ export default function Navbar() {
         </div>
 
         {/* Kế toán dropdown menu - render outside overflow container */}
-        {isKeToanMenuOpen && (
+        {isKeToanMenuOpen && keToanMenuPosition && (
           <div 
             ref={keToanMenuRef}
             className="fixed bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 z-[100] py-2"
             style={{ 
               top: `${keToanMenuPosition.top}px`,
-              left: `${keToanMenuPosition.left-190}px`
+              left: `${keToanMenuPosition.left}px`
             }}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}

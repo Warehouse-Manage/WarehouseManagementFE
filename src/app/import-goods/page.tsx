@@ -54,6 +54,19 @@ const monthOptions = Array.from({ length: 12 }, (_, index) => ({
 
 const getDaysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
 
+const getChartPageForDate = (granularity: ChartGranularity, year: number, month: number, targetDate: Date) => {
+  const targetYear = targetDate.getFullYear();
+  if (year !== targetYear) return 0;
+
+  if (granularity === 'month') {
+    return Math.floor(targetDate.getMonth() / CHART_PAGE_SIZE);
+  }
+
+  if (month !== targetDate.getMonth() + 1) return 0;
+
+  return Math.floor((targetDate.getDate() - 1) / CHART_PAGE_SIZE);
+};
+
 const normalizeText = (value: string) =>
   value
     .normalize('NFD')
@@ -93,6 +106,7 @@ const extractYears = <T,>(source: T[], getDate: (item: T) => string | undefined)
 };
 
 export default function NhapHangPage() {
+  const today = useMemo(() => new Date(), []);
   const [activeTab, setActiveTab] = useState<'sanpham' | 'nguyenlieu'>('sanpham');
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
   
@@ -138,7 +152,6 @@ export default function NhapHangPage() {
   const [rawMaterialChartGranularity, setRawMaterialChartGranularity] = useState<'day' | 'month'>('day');
   const [chartInventoryReceipts, setChartInventoryReceipts] = useState<InventoryReceipt[]>([]);
   const [chartRawMaterialImports, setChartRawMaterialImports] = useState<RawMaterialImport[]>([]);
-  const today = new Date();
   const [productChartYear, setProductChartYear] = useState(String(today.getFullYear()));
   const [productChartMonth, setProductChartMonth] = useState(String(today.getMonth() + 1));
   const [rawMaterialChartYear, setRawMaterialChartYear] = useState(String(today.getFullYear()));
@@ -898,12 +911,26 @@ export default function NhapHangPage() {
   const rawMaterialChartTotalPages = Math.max(1, Math.ceil(rawMaterialChartData.length / CHART_PAGE_SIZE));
 
   useEffect(() => {
-    setProductChartPage(0);
-  }, [productChartGranularity, productChartYear, productChartMonth]);
+    setProductChartPage(
+      getChartPageForDate(
+        productChartGranularity,
+        Number(productChartYear),
+        Number(productChartMonth),
+        today
+      )
+    );
+  }, [productChartGranularity, productChartYear, productChartMonth, today]);
 
   useEffect(() => {
-    setRawMaterialChartPage(0);
-  }, [rawMaterialChartGranularity, rawMaterialChartYear, rawMaterialChartMonth, selectedChartRawMaterialId]);
+    setRawMaterialChartPage(
+      getChartPageForDate(
+        rawMaterialChartGranularity,
+        Number(rawMaterialChartYear),
+        Number(rawMaterialChartMonth),
+        today
+      )
+    );
+  }, [rawMaterialChartGranularity, rawMaterialChartYear, rawMaterialChartMonth, selectedChartRawMaterialId, today]);
 
   useEffect(() => {
     setProductChartPage((current) => Math.min(current, productChartTotalPages - 1));
