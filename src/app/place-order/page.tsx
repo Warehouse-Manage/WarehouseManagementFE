@@ -40,8 +40,6 @@ export default function PlaceOrderPage() {
   const [allowAdditionalQuantity, setAllowAdditionalQuantity] = useState<boolean>(true);
   const [sale, setSale] = useState<number | ''>(0);
   const [amountCustomerPayment, setAmountCustomerPayment] = useState<number | ''>(0);
-  const [shipCost, setShipCost] = useState<number | ''>(0);
-  const [shipcod, setShipcod] = useState<number | ''>(0);
   const [productOrdersInput, setProductOrdersInput] = useState<
     {
       productId: number | '';
@@ -197,13 +195,6 @@ export default function PlaceOrderPage() {
     return productTotal - orderSale;
   };
 
-  // Auto-update shipcod (remaining) based on totals and customer payment
-  useEffect(() => {
-    const remaining = calculateOrderTotal() - Number(amountCustomerPayment || 0);
-    setShipcod(remaining);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productOrdersInput, sale, amountCustomerPayment]);
-
   // Show blank page if role is not 'Admin' or 'accountance'
   if (role !== 'Admin' && role !== 'accountance') {
     return null;
@@ -217,8 +208,6 @@ export default function PlaceOrderPage() {
     setAllowAdditionalQuantity(true);
     setSale(0);
     setAmountCustomerPayment(0);
-    setShipCost(0);
-    setShipcod(0);
     setProductOrdersInput([{ productId: '', packageProductId: '', selectionKey: '', amount: '', price: '', sale: 0 }]);
     setError(null);
   };
@@ -336,8 +325,8 @@ export default function PlaceOrderPage() {
   };
 
   const handleCreate = async () => {
-    if (customerId === '' || deliverId === '') {
-      setError('Cần chọn Khách hàng và Người giao hàng');
+    if (customerId === '') {
+      setError('Cần chọn Khách hàng');
       return;
     }
     if (!deliveryDate) {
@@ -412,10 +401,9 @@ export default function PlaceOrderPage() {
       
       const res = await financeApi.createPlaceOrder({
         customerId: Number(customerId),
-        deliverId: Number(deliverId),
+        deliverId: deliverId === '' ? null : Number(deliverId),
         sale: Number(sale || 0),
         amountCustomerPayment: Number(amountCustomerPayment || 0),
-        shipCost: Number(shipCost || 0),
         placeOrderProductOrders: productsToOrder,
         createdUserId: Number(userId),
         deliveryDate: deliveryDateISO,
@@ -458,7 +446,7 @@ export default function PlaceOrderPage() {
         Nhan_Doi_Tac: 'Người nộp tiền',
         Ngay_Thang_Nam: formatDateTimeForReceipt(now),
         Doi_Tac: customerName,
-        Dia_Chi: customer?.address || '',
+        Dia_Chi: deliveryAddress || '',
         Ly_Do: `Thanh toán cho đặt hàng #${res.id} - Người đặt hàng: ${customerName} - Ngày giao hàng: ${deliveryDateFormatted}`,
         Gia_Tri_Phieu: Number(amountCustomerPayment || 0).toLocaleString('vi-VN'),
         Ngay: now.getDate().toString().padStart(2, '0'),
@@ -554,15 +542,12 @@ export default function PlaceOrderPage() {
         deliveryDate={deliveryDate}
         sale={sale}
         amountCustomerPayment={amountCustomerPayment}
-        shipCost={shipCost}
-        shipcod={shipcod}
         productOrdersInput={productOrdersInput}
         onCustomerIdChange={setCustomerId}
         onDeliverIdChange={setDeliverId}
         onDeliveryDateChange={setDeliveryDate}
         onSaleChange={setSale}
         onAmountCustomerPaymentChange={setAmountCustomerPayment}
-        onShipCostChange={setShipCost}
         onOpenCustomerModal={() => {
           setNewCustomerName('');
           setNewCustomerAddress('');

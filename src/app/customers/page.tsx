@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getCookie } from '@/lib/ultis';
 import { financeApi } from '@/api';
 import { Customer } from '@/types';
@@ -86,11 +86,6 @@ export default function CustomersPage() {
     loadCustomers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Show blank page if role is not 'Admin' or 'accountance'
-  if (role !== 'Admin' && role !== 'accountance') {
-    return null;
-  }
 
   const handleOpenCreate = () => {
     setEditingCustomer(null);
@@ -209,6 +204,31 @@ export default function CustomersPage() {
     }
   };
 
+  const totalDebtReceivable = useMemo(
+    () =>
+      Object.values(customerDebts).reduce((sum, debt) => {
+        if (debt > 0) return sum + debt;
+        return sum;
+      }, 0),
+    [customerDebts]
+  );
+
+  const totalDebtPayable = useMemo(
+    () =>
+      Object.values(customerDebts).reduce((sum, debt) => {
+        if (debt < 0) return sum + Math.abs(debt);
+        return sum;
+      }, 0),
+    [customerDebts]
+  );
+
+  const netDebtBalance = totalDebtReceivable - totalDebtPayable;
+
+  // Show blank page if role is not 'Admin' or 'accountance'
+  if (role !== 'Admin' && role !== 'accountance') {
+    return null;
+  }
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -223,6 +243,23 @@ export default function CustomersPage() {
           <span className="hidden sm:inline">+ Thêm khách hàng mới</span>
           <span className="sm:hidden">+ Thêm</span>
         </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
+        <div className="border border-green-100 rounded-2xl p-4 bg-green-50 shadow-sm shadow-green-100">
+          <div className="text-[10px] font-black uppercase text-green-600 tracking-wider mb-1">Nợ phải thu</div>
+          <div className="text-2xl font-black text-green-700">{totalDebtReceivable.toLocaleString('vi-VN')}đ</div>
+        </div>
+        <div className="border border-red-100 rounded-2xl p-4 bg-red-50 shadow-sm shadow-red-100">
+          <div className="text-[10px] font-black uppercase text-red-600 tracking-wider mb-1">Nợ phải trả</div>
+          <div className="text-2xl font-black text-red-700">{totalDebtPayable.toLocaleString('vi-VN')}đ</div>
+        </div>
+        <div className="border border-blue-100 rounded-2xl p-4 bg-blue-50 shadow-sm shadow-blue-100">
+          <div className="text-[10px] font-black uppercase text-blue-600 tracking-wider mb-1">Tổng cộng</div>
+          <div className={`text-2xl font-black ${netDebtBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+            {netDebtBalance.toLocaleString('vi-VN')}đ
+          </div>
+        </div>
       </div>
 
       <Modal
