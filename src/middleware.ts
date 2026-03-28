@@ -4,6 +4,17 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const role = request.cookies.get('role')?.value;
+  const isWarehouseManager = role === 'warehouse manager';
+
+  if (
+    isWarehouseManager &&
+    pathname !== '/import-goods' &&
+    !pathname.startsWith('/import-goods/') &&
+    !pathname.startsWith('/login')
+  ) {
+    const url = new URL('/import-goods', request.url);
+    return NextResponse.redirect(url);
+  }
   
   // Các route không cần authentication - cho phép truy cập tất cả các trang chính
   const publicRoutes = ['/login', '/', '/requests', '/approvals'];
