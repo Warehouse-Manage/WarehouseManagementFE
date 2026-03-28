@@ -237,6 +237,7 @@ export default function CreateUserPage() {
                 <option value="user">Người dùng</option>
                 <option value="Admin">Quản trị viên</option>
                 <option value="approver">Người duyệt</option>
+                <option value="warehouse manager">Quản lý kho</option>
               </select>
               {errors.role && <p className="mt-1 text-sm text-red-600">{errors.role}</p>}
             </div>

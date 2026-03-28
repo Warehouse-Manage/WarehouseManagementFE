@@ -117,6 +117,7 @@ export default function NhapHangPage() {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingItem, setEditingItem] = useState<NhapHangItem | null>(null);
+  const [productModalMode, setProductModalMode] = useState<'package' | 'product'>('package');
   const [products, setProducts] = useState<Product[]>([]);
   const [packageProducts, setPackageProducts] = useState<PackageProduct[]>([]);
   const [, setLoadingProducts] = useState(false);
@@ -208,6 +209,27 @@ export default function NhapHangPage() {
       min: 1
     },
   ];
+
+  const productOptions = useMemo(
+    () =>
+      products.map((product) => ({
+        label: product.name,
+        value: `p:${product.id}`,
+      })),
+    [products]
+  );
+
+  const packageOptions = useMemo(
+    () =>
+      packageProducts.map((pkg) => {
+        const product = products.find((item) => item.id === pkg.productId);
+        return {
+          label: `${pkg.name} (${product?.name || ''})`,
+          value: `k:${pkg.id}`,
+        };
+      }),
+    [packageProducts, products]
+  );
 
   useEffect(() => {
     const loadAll = async () => {
@@ -374,6 +396,7 @@ export default function NhapHangPage() {
 
   const handleEdit = (item: NhapHangItem) => {
     setEditingItem(item);
+    setProductModalMode(item.selectionKey?.startsWith('p:') ? 'product' : 'package');
     setFormData({
       selectionKey: item.selectionKey || '',
       soLuong: item.soLuong.toString(),
@@ -381,9 +404,20 @@ export default function NhapHangPage() {
     setShowModal(true);
   };
 
+  const handleOpenCreateModal = () => {
+    setEditingItem(null);
+    setProductModalMode('package');
+    setFormData({
+      selectionKey: '',
+      soLuong: '',
+    });
+    setShowModal(true);
+  };
+
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingItem(null);
+    setProductModalMode('package');
     setFormData({ selectionKey: '', soLuong: '' });
   };
 
@@ -1118,7 +1152,7 @@ export default function NhapHangPage() {
     );
   };
 
-  if (role !== 'Admin' && role !== 'accountance') {
+  if (role !== 'Admin' && role !== 'accountance' && role !== 'warehouse manager') {
     return null;
   }
 
@@ -1163,7 +1197,7 @@ export default function NhapHangPage() {
         <>
           <div className="mb-4 flex justify-end">
             <button
-              onClick={() => setShowModal(true)}
+              onClick={handleOpenCreateModal}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 cursor-pointer"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1323,8 +1357,11 @@ export default function NhapHangPage() {
         isOpen={showModal}
         onClose={handleCloseModal}
         editingItem={editingItem}
+        initialMode={productModalMode}
         formFields={formFields}
         formData={formData}
+        productOptions={productOptions}
+        packageOptions={packageOptions}
         submitting={submitting}
         onFormChange={(name, value) => {
           setFormData((prev) => ({ ...prev, [name]: value }));

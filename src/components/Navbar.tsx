@@ -81,6 +81,8 @@ export default function Navbar() {
   const isFunds = pathname?.startsWith('/funds');
   const isDoiTac = pathname?.startsWith('/partners');
   const isNhapHang = pathname?.startsWith('/import-goods');
+  const isWarehouseManager = role === 'warehouse manager';
+  const canAccessAccounting = role === 'Admin' || role === 'accountance';
 
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {
@@ -184,6 +186,17 @@ export default function Navbar() {
         {/* Desktop Navigation - hidden on mobile */}
         <div className="hidden md:flex flex-1 justify-center items-center gap-1 max-w-4xl overflow-x-auto scrollbar-hide">
           <div className="flex items-center gap-1">
+            {isWarehouseManager && (
+              <Link
+                href="/import-goods"
+                aria-current={isNhapHang ? 'page' : undefined}
+                className={`${baseLink} ${linkSize} whitespace-nowrap ${isNhapHang ? active : inactive}`}
+              >
+                Nhập hàng
+              </Link>
+            )}
+            {!isWarehouseManager && (
+            <>
             {/* Main tabs - always visible */}
             <Link
               href="/"
@@ -208,7 +221,7 @@ export default function Navbar() {
             </Link>
             
             {/* Admin/Accountance tabs */}
-            {(role === 'Admin' || role === 'accountance') && (
+            {canAccessAccounting && (
               <>
                 <Link
                   href="/production"
@@ -250,11 +263,13 @@ export default function Navbar() {
                 </div>
               </>
             )}
+            </>
+            )}
           </div>
         </div>
 
         {/* Kế toán dropdown menu - render outside overflow container */}
-        {isKeToanMenuOpen && keToanMenuPosition && (
+        {canAccessAccounting && isKeToanMenuOpen && keToanMenuPosition && (
           <div 
             ref={keToanMenuRef}
             className="fixed bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 z-[100] py-2"
@@ -358,7 +373,7 @@ export default function Navbar() {
           </button>
 
           {/* Đơn hàng - sát nút thông báo */}
-          {(role === 'Admin' || role === 'accountance') && (
+          {canAccessAccounting && (
             <Link
               href="/orders"
               className={`${baseLink} ${linkSize} whitespace-nowrap hidden md:block bg-orange-400 text-white font-semibold hover:bg-orange-500`}
@@ -440,6 +455,19 @@ export default function Navbar() {
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-gray-100 bg-white/95 backdrop-blur-lg animate-in slide-in-from-top duration-300" ref={mobileMenuRef}>
           <div className="px-3 pt-2 pb-6 space-y-1">
+            {isWarehouseManager ? (
+              <Link
+                href="/import-goods"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isNhapHang
+                  ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
+                  : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+              >
+                Nhập hàng
+              </Link>
+            ) : (
+              <>
             <Link
               href="/"
               onClick={() => setIsMobileMenuOpen(false)}
@@ -470,7 +498,7 @@ export default function Navbar() {
             >
               Chấm công
             </Link>
-            {(role === 'Admin' || role === 'accountance') && (
+            {canAccessAccounting && (
               <>
                 <Link
                   href="/products"
@@ -564,7 +592,7 @@ export default function Navbar() {
                 </Link>
               </>
             )}
-            {(role === 'Admin' || role === 'accountance') && (
+            {canAccessAccounting && (
               <>
                 <Link
                   href="/production"
@@ -576,6 +604,8 @@ export default function Navbar() {
                 >
                   Sản xuất
                 </Link>
+              </>
+            )}
               </>
             )}
           </div>

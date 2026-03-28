@@ -90,7 +90,8 @@ export default function LoginPage() {
         localStorage.setItem('token', data.token);
 
         toast.success('Đăng nhập thành công!');
-        window.location.href = '/';
+        const redirectPath = data.user.role === 'warehouse manager' ? '/import-goods' : '/';
+        window.location.href = redirectPath;
       } else {
         toast.error(data.message || 'Đăng nhập thất bại');
       }
