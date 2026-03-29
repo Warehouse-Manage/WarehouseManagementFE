@@ -137,7 +137,7 @@ export default function MaterialsPage() {
           </div>
           <div>
             <h1 className="text-xl sm:text-3xl font-black text-gray-900 tracking-tight text-center lg:text-left">Danh Mục Vật Tư</h1>
-            <p className="text-gray-500 font-medium text-center lg:text-left hidden sm:block">Quản lý kho và yêu cầu vật tư hệ thống 1</p>
+            <p className="text-gray-500 font-medium text-center lg:text-left hidden sm:block">Quản lý kho và yêu cầu vật tư hệ thống</p>
           </div>
         </div>
 
