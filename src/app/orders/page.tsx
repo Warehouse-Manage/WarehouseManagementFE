@@ -93,9 +93,10 @@ export default function OrdersPage() {
   const loadOrders = async (
     page: number = currentPage,
     size: number = pageSize,
-    filters?: { searchTerm?: string; startDate?: string; endDate?: string }
+    filters?: { searchTerm?: string; startDate?: string; endDate?: string },
+    silent: boolean = false
   ) => {
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const result = await financeApi.getOrdersFilter(page, size, filters);
@@ -105,7 +106,7 @@ export default function OrdersPage() {
       setError(getErrorMessage(err) || 'Không thể tải danh sách đơn hàng');
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -385,7 +386,7 @@ export default function OrdersPage() {
       setLoading(true);
       await financeApi.deleteOrder(order.id);
       toast.success('Xóa đơn hàng thành công');
-      await loadOrders(currentPage);
+      await loadOrders(currentPage, pageSize, buildOrderFilters(), true);
     } catch (err: unknown) {
       toast.error(getErrorMessage(err) || 'Không thể xóa đơn hàng');
     } finally {
@@ -441,7 +442,7 @@ export default function OrdersPage() {
         toast.success('Cập nhật đơn hàng thành công');
         resetForm();
         setShowModal(false);
-        await loadOrders(currentPage);
+        await loadOrders(currentPage, pageSize, buildOrderFilters(), true);
         return;
       }
 
@@ -523,7 +524,7 @@ export default function OrdersPage() {
 
       resetForm();
       setShowModal(false);
-      await loadOrders(currentPage);
+      await loadOrders(currentPage, pageSize, buildOrderFilters(), true);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || (editingOrderId ? 'Không thể cập nhật đơn hàng' : 'Không thể tạo đơn hàng'));
     } finally {
