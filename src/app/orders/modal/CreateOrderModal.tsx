@@ -1,6 +1,7 @@
 'use client';
 
 import { Modal } from '@/components/shared';
+import Select from 'react-select';
 import { Customer, Deliver, Product, PackageProduct } from '@/types';
 import { formatNumberInput, parseNumberInput } from '@/lib/ultis';
 
@@ -124,19 +125,44 @@ export default function CreateOrderModal({
             <div className="w-full">
               <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Khách hàng *</label>
               <div className="flex items-stretch gap-2">
-                <select
-                  className="flex-1 min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                  value={customerId}
-                  onChange={(e) => onCustomerIdChange(e.target.value === '' ? '' : Number(e.target.value))}
-                  disabled={loadingCustomers}
-                >
-                  <option value="">-- Chọn khách hàng --</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} - {c.phoneNumber}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  className="flex-1 min-w-0 text-sm"
+                  placeholder="-- Chọn khách hàng --"
+                  options={customers.map((c) => ({
+                    value: c.id,
+                    label: `${c.name} - ${c.phoneNumber}`
+                  }))}
+                  value={
+                    customerId
+                      ? {
+                          value: customerId,
+                          label: customers.find((c) => c.id === customerId)?.name + ' - ' + customers.find((c) => c.id === customerId)?.phoneNumber
+                        }
+                      : null
+                  }
+                  onChange={(option) => onCustomerIdChange(option ? option.value : '')}
+                  isLoading={loadingCustomers}
+                  styles={{
+                    control: (base, state) => ({
+                      ...base,
+                      borderRadius: '0.5rem',
+                      borderColor: state.isFocused ? '#f97316' : '#d1d5db',
+                      boxShadow: state.isFocused ? '0 0 0 2px #ffedd5' : 'none',
+                      '&:hover': {
+                        borderColor: '#f97316'
+                      },
+                      minHeight: '42px'
+                    }),
+                    option: (base, state) => ({
+                      ...base,
+                      backgroundColor: state.isSelected ? '#f97316' : state.isFocused ? '#ffedd5' : 'white',
+                      color: state.isSelected ? 'white' : 'black',
+                      '&:active': {
+                        backgroundColor: '#f97316'
+                      }
+                    })
+                  }}
+                />
                 <button
                   type="button"
                   onClick={(e) => {
@@ -155,19 +181,44 @@ export default function CreateOrderModal({
             <div className="w-full">
               <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Người giao hàng *</label>
               <div className="flex items-stretch gap-2">
-                <select
-                  className="flex-1 min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                  value={deliverId}
-                  onChange={(e) => onDeliverIdChange(e.target.value === '' ? '' : Number(e.target.value))}
-                  disabled={loadingDelivers}
-                >
-                  <option value="">-- Chọn người giao hàng --</option>
-                  {delivers.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} - {d.plateNumber}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  className="flex-1 min-w-0 text-sm"
+                  placeholder="-- Chọn người giao hàng --"
+                  options={delivers.map((d) => ({
+                    value: d.id,
+                    label: `${d.name} - ${d.plateNumber}`
+                  }))}
+                  value={
+                    deliverId
+                      ? {
+                          value: deliverId,
+                          label: delivers.find((d) => d.id === deliverId)?.name + ' - ' + delivers.find((d) => d.id === deliverId)?.plateNumber
+                        }
+                      : null
+                  }
+                  onChange={(option) => onDeliverIdChange(option ? option.value : '')}
+                  isLoading={loadingDelivers}
+                  styles={{
+                    control: (base, state) => ({
+                      ...base,
+                      borderRadius: '0.5rem',
+                      borderColor: state.isFocused ? '#f97316' : '#d1d5db',
+                      boxShadow: state.isFocused ? '0 0 0 2px #ffedd5' : 'none',
+                      '&:hover': {
+                        borderColor: '#f97316'
+                      },
+                      minHeight: '42px'
+                    }),
+                    option: (base, state) => ({
+                      ...base,
+                      backgroundColor: state.isSelected ? '#f97316' : state.isFocused ? '#ffedd5' : 'white',
+                      color: state.isSelected ? 'white' : 'black',
+                      '&:active': {
+                        backgroundColor: '#f97316'
+                      }
+                    })
+                  }}
+                />
                 <button
                   type="button"
                   onClick={(e) => {
@@ -256,11 +307,52 @@ export default function CreateOrderModal({
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="lg:col-span-1">
                       <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Sản phẩm</label>
-                      <select
-                        className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:outline-none"
-                        value={p.selectionKey}
-                        onChange={(e) => {
-                          const key = e.target.value;
+                      <Select
+                        className="w-full text-[11px]"
+                        placeholder="-- Chọn --"
+                        options={[
+                          {
+                            label: 'Sản phẩm',
+                            options: products.map((pr) => ({
+                              value: `p:${pr.id}`,
+                              label: `${pr.name} (${pr.price.toLocaleString()}đ)`
+                            }))
+                          },
+                          {
+                            label: 'Kiện',
+                            options: packageProducts.map((pk) => {
+                              const baseProduct = products.find((pr) => pr.id === pk.productId);
+                              const label = `${pk.name} - ${baseProduct?.name || `#${pk.productId}`} (${pk.quantityProduct} viên/kiện)`;
+                              const packagePrice = baseProduct ? baseProduct.price * pk.quantityProduct : 0;
+                              return {
+                                value: `k:${pk.id}`,
+                                label: `${label} (${packagePrice.toLocaleString()}đ/kiện)`
+                              };
+                            })
+                          }
+                        ]}
+                        value={
+                          p.selectionKey
+                            ? (() => {
+                                const key = p.selectionKey;
+                                if (key.startsWith('p:')) {
+                                  const pr = products.find((pr) => pr.id === Number(key.slice(2)));
+                                  return pr ? { value: key, label: `${pr.name} (${pr.price.toLocaleString()}đ)` } : null;
+                                }
+                                if (key.startsWith('k:')) {
+                                  const pk = packageProducts.find((pk) => pk.id === Number(key.slice(2)));
+                                  if (!pk) return null;
+                                  const baseProduct = products.find((pr) => pr.id === pk.productId);
+                                  const label = `${pk.name} - ${baseProduct?.name || `#${pk.productId}`} (${pk.quantityProduct} viên/kiện)`;
+                                  const packagePrice = baseProduct ? baseProduct.price * pk.quantityProduct : 0;
+                                  return { value: key, label: `${label} (${packagePrice.toLocaleString()}đ/kiện)` };
+                                }
+                                return null;
+                              })()
+                            : null
+                        }
+                        onChange={(option) => {
+                          const key = option ? option.value : '';
                           onUpdateProductOrderKey(idx, key);
 
                           if (!key) {
@@ -296,29 +388,38 @@ export default function CreateOrderModal({
                             }
                           }
                         }}
-                        disabled={loadingProducts || loadingPackageProducts}
-                      >
-                        <option value="">-- Chọn --</option>
-                        <optgroup label="Sản phẩm">
-                          {products.map((pr) => (
-                            <option key={`p-${pr.id}`} value={`p:${pr.id}`}>
-                              {pr.name} ({pr.price.toLocaleString()}đ)
-                            </option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="Kiện">
-                          {packageProducts.map((pk) => {
-                            const baseProduct = products.find((pr) => pr.id === pk.productId);
-                            const label = `${pk.name} - ${baseProduct?.name || `#${pk.productId}`} (${pk.quantityProduct} viên/kiện)`;
-                            const packagePrice = baseProduct ? baseProduct.price * pk.quantityProduct : 0;
-                            return (
-                              <option key={`k-${pk.id}`} value={`k:${pk.id}`}>
-                                {label} ({packagePrice.toLocaleString()}đ/kiện)
-                              </option>
-                            );
-                          })}
-                        </optgroup>
-                      </select>
+                        isLoading={loadingProducts || loadingPackageProducts}
+                        styles={{
+                          control: (base, state) => ({
+                            ...base,
+                            borderRadius: '0.5rem',
+                            borderColor: state.isFocused ? '#f97316' : '#d1d5db',
+                            boxShadow: state.isFocused ? '0 0 0 1px #ffedd5' : 'none',
+                            fontSize: '12px',
+                            minHeight: '34px',
+                            '&:hover': {
+                              borderColor: '#f97316'
+                            }
+                          }),
+                          option: (base, state) => ({
+                            ...base,
+                            backgroundColor: state.isSelected ? '#f97316' : state.isFocused ? '#ffedd5' : 'white',
+                            color: state.isSelected ? 'white' : 'black',
+                            padding: '4px 8px',
+                            fontSize: '11px',
+                            '&:active': {
+                              backgroundColor: '#f97316'
+                            }
+                          }),
+                          groupHeading: (base) => ({
+                            ...base,
+                            color: '#6b7280',
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            textTransform: 'uppercase'
+                          })
+                        }}
+                      />
                     </div>
                     <div>
                       <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Số lượng</label>

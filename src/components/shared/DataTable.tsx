@@ -85,13 +85,15 @@ export function DataTable<T extends { id?: number | string }>({
                     <tbody className="divide-y divide-gray-100 bg-white">
                         {isLoading ? (
                             <tr>
-                                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-8 text-center text-gray-500">
-                                    <div className="flex items-center justify-center space-x-2">
-                                        <svg className="h-5 w-5 animate-spin text-orange-600" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        <span>Đang tải dữ liệu...</span>
+                                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-12 text-center text-gray-500">
+                                    <div className="flex items-center justify-center space-x-2 min-h-[300px]">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <svg className="h-8 w-8 animate-spin text-orange-600" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            <span className="font-medium text-gray-600">Đang tải dữ liệu...</span>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
@@ -132,13 +134,13 @@ export function DataTable<T extends { id?: number | string }>({
             {!disableCardView && (
                 <div className="md:hidden space-y-3">
                     {isLoading ? (
-                        <div className="p-8 text-center text-gray-500 bg-white rounded-xl border border-gray-100">
+                        <div className="p-8 text-center text-gray-500 bg-white rounded-xl border border-gray-100 min-h-[400px] flex items-center justify-center">
                             <div className="flex flex-col items-center justify-center space-y-3">
-                                <svg className="h-8 w-8 animate-spin text-orange-600" fill="none" viewBox="0 0 24 24">
+                                <svg className="h-10 w-10 animate-spin text-orange-600" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                <span className="font-medium">Đang tải dữ liệu...</span>
+                                <span className="font-bold text-gray-900">Đang tải dữ liệu...</span>
                             </div>
                         </div>
                     ) : data.length === 0 ? (
