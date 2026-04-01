@@ -5,10 +5,11 @@ import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { DataTable, FormField } from '@/components/shared';
 import ImportProductModal from './modal/ImportProductModal';
 import ImportRawMaterialModal from './modal/ImportRawMaterialModal';
-import { inventoryApi, inventoryReceiptApi, partnerApi, financeApi } from '@/api';
-import { Product, PackageProduct, RawMaterial, Partner, RawMaterialImport, InventoryReceipt } from '@/types';
+import { importProductChartApi, inventoryApi, inventoryReceiptApi, partnerApi, financeApi } from '@/api';
+import { Product, PackageProduct, RawMaterial, Partner, RawMaterialImport, InventoryReceipt, ImportProductChart } from '@/types';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import SelectChartProductsModal from './modal/SelectChartProductsModal';
 
 interface NhapHangItem {
   id: number;
@@ -32,20 +33,20 @@ interface ChartPoint {
     colorClass: string;
   }[];
 }
-
 const CHART_PAGE_SIZE = 10;
-const PRODUCT_CHART_SERIES = [
-  {
-    key: 'brick-b-425',
-    label: 'Kiện gạch B 425 viên',
-    colorClass: 'bg-orange-500',
-  },
-  {
-    key: 'brick-a-425',
-    label: 'Kiện A 425',
-    colorClass: 'bg-orange-300',
-  },
-] as const;
+
+const CHART_COLORS = [
+  'bg-orange-600',
+  'bg-blue-600',
+  'bg-green-600',
+  'bg-purple-600',
+  'bg-pink-600',
+  'bg-teal-600',
+  'bg-indigo-600',
+  'bg-yellow-600',
+  'bg-red-600',
+  'bg-cyan-600',
+];
 
 const monthOptions = Array.from({ length: 12 }, (_, index) => ({
   value: String(index + 1),
@@ -65,23 +66,6 @@ const getChartPageForDate = (granularity: ChartGranularity, year: number, month:
   if (month !== targetDate.getMonth() + 1) return 0;
 
   return Math.floor((targetDate.getDate() - 1) / CHART_PAGE_SIZE);
-};
-
-const normalizeText = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
-
-const isBrickB425Package = (value: string) => {
-  const normalized = normalizeText(value);
-  return normalized.includes('b 425') && (normalized.includes('vien') || normalized.includes('gach'));
-};
-
-const isBrickA425Package = (value: string) => {
-  const normalized = normalizeText(value);
-  return normalized.includes('a 425');
 };
 
 const createYearOptions = (years: number[]) =>
@@ -160,6 +144,10 @@ export default function NhapHangPage() {
   const [selectedChartRawMaterialId, setSelectedChartRawMaterialId] = useState('');
   const [productChartPage, setProductChartPage] = useState(0);
   const [rawMaterialChartPage, setRawMaterialChartPage] = useState(0);
+  
+  const [chartSelections, setChartSelections] = useState<ImportProductChart[]>([]);
+  const [showChartModal, setShowChartModal] = useState(false);
+  const [submittingChartSettings, setSubmittingChartSettings] = useState(false);
 
   useEffect(() => {
     const r = getCookie('role');
@@ -240,6 +228,7 @@ export default function NhapHangPage() {
         loadPartners(),
         loadChartInventoryReceipts(),
         loadChartRawMaterialImports(),
+        loadChartSelections(),
       ]);
     };
     loadAll();
@@ -325,6 +314,15 @@ export default function NhapHangPage() {
       setChartRawMaterialImports(data);
     } catch (err: unknown) {
       console.error('Failed to load chart raw material imports:', err);
+    }
+  };
+
+  const loadChartSelections = async () => {
+    try {
+      const data = await importProductChartApi.getImportProductCharts();
+      setChartSelections(data);
+    } catch (err: unknown) {
+      console.error('Failed to load chart selections:', err);
     }
   };
 
@@ -852,14 +850,13 @@ export default function NhapHangPage() {
   );
 
   const productChartSeries = useMemo(() => {
-    const brickB425Ids = packageProducts.filter((pkg) => isBrickB425Package(pkg.name)).map((pkg) => pkg.id);
-    const brickA425Ids = packageProducts.filter((pkg) => isBrickA425Package(pkg.name)).map((pkg) => pkg.id);
-
-    return PRODUCT_CHART_SERIES.map((series) => ({
-      ...series,
-      packageIds: series.key === 'brick-b-425' ? brickB425Ids : brickA425Ids,
+    return chartSelections.map((selection, index) => ({
+      key: `pkg-${selection.packageProductId}`,
+      label: selection.packageProduct?.name || `Kiện ${selection.packageProductId}`,
+      colorClass: CHART_COLORS[index % CHART_COLORS.length],
+      packageIds: [selection.packageProductId],
     }));
-  }, [packageProducts]);
+  }, [chartSelections]);
 
   const productYearOptions = useMemo(
     () => createYearOptions(extractYears(productChartSource, (item) => item.createdDate)),
@@ -1021,7 +1018,18 @@ export default function NhapHangPage() {
       <div className="mb-5 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="mb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <h3 className="text-sm font-bold text-gray-900 sm:text-base">{title}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-gray-900 sm:text-base">{title}</h3>
+              {activeTab === 'sanpham' && (
+                <button
+                  onClick={() => setShowChartModal(true)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:bg-gray-50 hover:text-orange-600 cursor-pointer"
+                  title="Thiết lập biểu đồ"
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
+              )}
+            </div>
             <div className="inline-flex overflow-hidden self-start rounded-lg border border-gray-200">
             <button
               onClick={() => onGranularityChange('day')}
@@ -1381,6 +1389,31 @@ export default function NhapHangPage() {
         }}
         onSubmit={handleNguyenLieuSubmit}
         calculateTotalAmount={calculateTotalAmount}
+      />
+
+      <SelectChartProductsModal
+        isOpen={showChartModal}
+        onClose={() => setShowChartModal(false)}
+        packageProducts={packageProducts}
+        products={products}
+        selectedPackageIds={chartSelections.map(s => s.packageProductId)}
+        submitting={submittingChartSettings}
+        onSave={async (newIds) => {
+          setSubmittingChartSettings(true);
+          try {
+            await importProductChartApi.createOrUpdateImportProductCharts({
+              packageProductIds: newIds
+            });
+            await loadChartSelections();
+            setShowChartModal(false);
+            toast.success('Cập nhật biểu đồ thành công');
+          } catch (err) {
+            console.error(err);
+            toast.error('Lỗi khi cập nhật biểu đồ');
+          } finally {
+            setSubmittingChartSettings(false);
+          }
+        }}
       />
     </div>
   );

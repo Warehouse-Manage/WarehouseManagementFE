@@ -6,7 +6,7 @@ import { financeApi, inventoryApi } from '@/api';
 import { Order, Customer, Deliver, Product, PackageProduct, InventoryForecastResponse } from '@/types';
 import { DataTable } from '@/components/shared';
 import { toast } from 'sonner';
-import { Printer, Trash2 } from 'lucide-react';
+import { Pencil, Printer, Trash2 } from 'lucide-react';
 import CreateOrderModal from './modal/CreateOrderModal';
 import CustomerModal from './modal/CustomerModal';
 import DeliverModal from './modal/DeliverModal';
@@ -52,6 +52,8 @@ export default function PlaceOrderPage() {
   >([{ productId: '', packageProductId: '', selectionKey: '', amount: '', price: '', sale: 0 }]);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
+  const [originalPayment, setOriginalPayment] = useState<number>(0);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showDeliverModal, setShowDeliverModal] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState('');
@@ -210,6 +212,8 @@ export default function PlaceOrderPage() {
     setAmountCustomerPayment(0);
     setProductOrdersInput([{ productId: '', packageProductId: '', selectionKey: '', amount: '', price: '', sale: 0 }]);
     setError(null);
+    setEditingOrderId(null);
+    setOriginalPayment(0);
   };
 
   const handleOpenModal = () => {
@@ -295,6 +299,45 @@ export default function PlaceOrderPage() {
     ]);
   };
 
+  const hydrateFormFromOrder = (order: any) => {
+    setCustomerId(order.customerId);
+    setDeliverId(order.deliverId ?? '');
+    setSale(order.sale);
+    setAmountCustomerPayment(order.amountCustomerPayment);
+    setDeliveryDate(order.deliveryDate ? order.deliveryDate.split('T')[0] : '');
+    setDeliveryAddress(order.deliveryAddress || '');
+    setAllowAdditionalQuantity(order.allowAdditionalQuantity);
+    setProductOrdersInput(
+      (order.placeOrderProductOrders || []).map((po: any) => {
+        const isPackage = !!po.packageProductId;
+        return {
+          productId: po.productId ?? '',
+          packageProductId: po.packageProductId ?? '',
+          selectionKey: isPackage ? `k:${po.packageProductId}` : `p:${po.productId}`,
+          amount: po.amount,
+          price: po.price,
+          sale: po.sale ?? 0
+        };
+      })
+    );
+  };
+
+  const handleEditOrder = async (orderId: number) => {
+    setError(null);
+    setLoading(true);
+    try {
+      const orderDetail = await financeApi.getPlaceOrderById(orderId);
+      setEditingOrderId(orderId);
+      setOriginalPayment(orderDetail.amountCustomerPayment);
+      hydrateFormFromOrder(orderDetail);
+      setShowModal(true);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Không thể tải đặt hàng');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePrintOrderForm = async (id: number) => {
     try {
       const html = await financeApi.printPlaceOrderForm(id);
@@ -324,7 +367,7 @@ export default function PlaceOrderPage() {
     }
   };
 
-  const handleCreate = async () => {
+  const handleSubmit = async () => {
     if (customerId === '') {
       setError('Cần chọn Khách hàng');
       return;
@@ -382,14 +425,14 @@ export default function PlaceOrderPage() {
         return;
       }
       
-      // Nếu đủ hàng thì tiếp tục tạo đơn hàng
-      await proceedWithCreate(deliveryDateISO, productsToOrder);
+      // Nếu đủ hàng thì tiếp tục xử lý save
+      await proceedWithSubmit(deliveryDateISO, productsToOrder);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tạo đặt hàng');
     }
   };
 
-  const proceedWithCreate = async (deliveryDateISO: string | undefined, productsToOrder: Array<{ productId: number; packageProductId?: number; amount: number; price: number; sale: number }>) => {
+  const proceedWithSubmit = async (deliveryDateISO: string | undefined, productsToOrder: Array<{ productId: number; packageProductId?: number; amount: number; price: number; sale: number }>) => {
     setSubmitting(true);
     setError(null);
     try {
@@ -399,17 +442,28 @@ export default function PlaceOrderPage() {
         return;
       }
       
-      const res = await financeApi.createPlaceOrder({
+      const payload = {
         customerId: Number(customerId),
         deliverId: deliverId === '' ? null : Number(deliverId),
         sale: Number(sale || 0),
         amountCustomerPayment: Number(amountCustomerPayment || 0),
         placeOrderProductOrders: productsToOrder,
-        createdUserId: Number(userId),
         deliveryDate: deliveryDateISO,
         deliveryAddress,
         allowAdditionalQuantity,
-      });
+      };
+
+      let res;
+      if (editingOrderId) {
+        res = await financeApi.updatePlaceOrder(editingOrderId, payload);
+        toast.success('Cập nhật đặt hàng thành công');
+      } else {
+        res = await financeApi.createPlaceOrder({
+          ...payload,
+          createdUserId: Number(userId),
+        } as any);
+        toast.success('Tạo đặt hàng thành công');
+      }
 
       const now = new Date();
       const customer = customers.find((c) => c.id === Number(customerId));
@@ -455,16 +509,26 @@ export default function PlaceOrderPage() {
         Nhan_Ky_Ten: 'NGƯỜI NỘP TIỀN',
       };
 
-      // In phiếu thu
-      const receiptHtml = await financeApi.printPlaceOrderReceiptModel(receiptModel);
-      if (receiptHtml) {
-        await printHtmlContent(receiptHtml);
+      // Phân tích xem có cần in phiếu thu không
+      // Create: >0 => in
+      // Update: 0 -> >0 => in
+      const isNewPrint = !editingOrderId ? Number(amountCustomerPayment) > 0 : (originalPayment === 0 && Number(amountCustomerPayment) > 0);
+
+      if (isNewPrint) {
+        const receiptHtml = await financeApi.printPlaceOrderReceiptModel(receiptModel);
+        if (receiptHtml) {
+          await printHtmlContent(receiptHtml);
+        }
       }
 
-      // In phiếu ĐẶT HÀNG (template mới trên BE)
-      const orderFormHtml = await financeApi.printPlaceOrderForm(res.id);
-      if (orderFormHtml) {
-        await printHtmlContent(orderFormHtml);
+      // Luôn in phiếu đặt hàng nếu là tạo mới? Hoặc user muốn in lại?
+      // Thường Edit xong cũng nên in lại nếu có thay đổi. 
+      // Nhưng theo yêu cầu chỉ nhấn mạnh 0 -> >0 in phiếu thu.
+      if (!editingOrderId) {
+        const orderFormHtml = await financeApi.printPlaceOrderForm(res.id);
+        if (orderFormHtml) {
+          await printHtmlContent(orderFormHtml);
+        }
       }
 
       resetForm();
@@ -494,7 +558,7 @@ export default function PlaceOrderPage() {
             sale: Number(p.sale || 0),
           };
         });
-      await proceedWithCreate(deliveryDateISO, productsToOrder);
+      await proceedWithSubmit(deliveryDateISO, productsToOrder);
     }
   };
 
@@ -569,7 +633,9 @@ export default function PlaceOrderPage() {
         calculateProductTotal={calculateProductTotal}
         calculateGrandTotal={calculateGrandTotal}
         calculateOrderTotal={calculateOrderTotal}
-        onSubmit={handleCreate}
+        title={editingOrderId ? 'Cập nhật đặt hàng' : 'Tạo đơn đặt hàng mới'}
+        submitLabel={editingOrderId ? 'Cập nhật đặt hàng' : 'Lưu đơn đặt hàng'}
+        onSubmit={handleSubmit}
       />
 
       <CustomerModal
@@ -725,6 +791,11 @@ export default function PlaceOrderPage() {
               label: 'In đơn hàng',
               icon: <Printer className="h-4 w-4" />,
               onClick: () => handlePrintOrderForm(o.id)
+            },
+            {
+              label: 'Sửa',
+              icon: <Pencil className="h-4 w-4" />,
+              onClick: () => handleEditOrder(o.id)
             },
             {
               label: 'Xóa',

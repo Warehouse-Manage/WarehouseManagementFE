@@ -54,6 +54,7 @@ export default function OrdersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
+  const [originalPayment, setOriginalPayment] = useState<number>(0);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showDeliverModal, setShowDeliverModal] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState('');
@@ -244,6 +245,7 @@ export default function OrdersPage() {
     setProductOrdersInput([{ productId: '', packageProductId: '', selectionKey: '', amount: '', price: '', sale: 0 }]);
     setError(null);
     setEditingOrderId(null);
+    setOriginalPayment(0);
   };
 
   const handleOpenModal = () => {
@@ -283,6 +285,7 @@ export default function OrdersPage() {
     try {
       const orderDetail = await financeApi.getOrderById(orderId);
       setEditingOrderId(orderId);
+      setOriginalPayment(orderDetail.amountCustomerPayment);
       hydrateFormFromOrder(orderDetail);
       setShowModal(true);
     } catch (err: unknown) {
@@ -440,6 +443,41 @@ export default function OrdersPage() {
         };
         await financeApi.updateOrder(editingOrderId, payload);
         toast.success('Cập nhật đơn hàng thành công');
+
+        // Phân tích xem có cần in phiếu thu không (chuyển từ 0 -> >0)
+        const isNewPayment = originalPayment === 0 && Number(amountCustomerPayment) > 0;
+        
+        if (isNewPayment) {
+          const now = new Date();
+          const customer = customers.find((c) => c.id === Number(customerId));
+          
+          const formatDateTimeStr = (date: Date): string => {
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+          };
+
+          const receiptModel = {
+            Tieu_De: 'PHIẾU THU (ĐƠN HÀNG)',
+            Nhan_Doi_Tac: 'Người nộp tiền',
+            Ngay_Thang_Nam: formatDateTimeStr(now),
+            Doi_Tac: customer?.name || 'Khách hàng',
+            Dia_Chi: customer?.address || '',
+            Ly_Do: `Thanh toán cho đơn hàng #${editingOrderId}`,
+            Gia_Tri_Phieu: Number(amountCustomerPayment || 0).toLocaleString('vi-VN'),
+            Ngay: now.getDate().toString().padStart(2, '0'),
+            Thang: (now.getMonth() + 1).toString().padStart(2, '0'),
+            Nam: now.getFullYear().toString(),
+            Nhan_Ky_Ten: 'NGƯỜI NỘP TIỀN'
+          };
+
+          const receiptHtml = await financeApi.printOrderReceiptModel(receiptModel);
+          if (receiptHtml) printHtmlContent(receiptHtml);
+        }
+
         resetForm();
         setShowModal(false);
         await loadOrders(currentPage, pageSize, buildOrderFilters(), true);
