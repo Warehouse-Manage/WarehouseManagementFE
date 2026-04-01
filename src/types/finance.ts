@@ -105,6 +105,42 @@ export interface PlaceOrderFormData {
     allowAdditionalQuantity?: boolean;
 }
 
+export interface UpdatePlaceOrderFormData {
+    customerId?: number;
+    deliverId?: number | null;
+    sale?: number;
+    amountCustomerPayment?: number;
+    deliveryDate?: string;
+    deliveryAddress?: string;
+    allowAdditionalQuantity?: boolean;
+    placeOrderProductOrders?: ProductOrderDetail[];
+}
+
+export interface PlaceOrderProductOrderResponse {
+    id: number;
+    productId?: number;
+    packageProductId?: number;
+    name: string;
+    amount: number;
+    price: number;
+    sale: number;
+}
+
+export interface PlaceOrderDetailsResponse {
+    id: number;
+    customerId: number;
+    customerName?: string;
+    deliverId?: number | null;
+    deliverName?: string;
+    sale: number;
+    amountCustomerPayment: number;
+    dateCreated: string;
+    deliveryDate: string;
+    deliveryAddress: string;
+    allowAdditionalQuantity: boolean;
+    placeOrderProductOrders: PlaceOrderProductOrderResponse[];
+}
+
 export interface OrderReceiptPrintModel {
     Tieu_De: string;
     Nhan_Doi_Tac: string;

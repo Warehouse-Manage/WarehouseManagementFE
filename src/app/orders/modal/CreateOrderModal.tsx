@@ -135,9 +135,9 @@ export default function CreateOrderModal({
                   value={
                     customerId
                       ? {
-                          value: customerId,
-                          label: customers.find((c) => c.id === customerId)?.name + ' - ' + customers.find((c) => c.id === customerId)?.phoneNumber
-                        }
+                        value: customerId,
+                        label: customers.find((c) => c.id === customerId)?.name + ' - ' + customers.find((c) => c.id === customerId)?.phoneNumber
+                      }
                       : null
                   }
                   onChange={(option) => onCustomerIdChange(option ? option.value : '')}
@@ -191,9 +191,9 @@ export default function CreateOrderModal({
                   value={
                     deliverId
                       ? {
-                          value: deliverId,
-                          label: delivers.find((d) => d.id === deliverId)?.name + ' - ' + delivers.find((d) => d.id === deliverId)?.plateNumber
-                        }
+                        value: deliverId,
+                        label: delivers.find((d) => d.id === deliverId)?.name + ' - ' + delivers.find((d) => d.id === deliverId)?.plateNumber
+                      }
                       : null
                   }
                   onChange={(option) => onDeliverIdChange(option ? option.value : '')}
@@ -310,6 +310,8 @@ export default function CreateOrderModal({
                       <Select
                         className="w-full text-[11px]"
                         placeholder="-- Chọn --"
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
                         options={[
                           {
                             label: 'Sản phẩm',
@@ -334,21 +336,21 @@ export default function CreateOrderModal({
                         value={
                           p.selectionKey
                             ? (() => {
-                                const key = p.selectionKey;
-                                if (key.startsWith('p:')) {
-                                  const pr = products.find((pr) => pr.id === Number(key.slice(2)));
-                                  return pr ? { value: key, label: `${pr.name} (${pr.price.toLocaleString()}đ)` } : null;
-                                }
-                                if (key.startsWith('k:')) {
-                                  const pk = packageProducts.find((pk) => pk.id === Number(key.slice(2)));
-                                  if (!pk) return null;
-                                  const baseProduct = products.find((pr) => pr.id === pk.productId);
-                                  const label = `${pk.name} - ${baseProduct?.name || `#${pk.productId}`} (${pk.quantityProduct} viên/kiện)`;
-                                  const packagePrice = baseProduct ? baseProduct.price * pk.quantityProduct : 0;
-                                  return { value: key, label: `${label} (${packagePrice.toLocaleString()}đ/kiện)` };
-                                }
-                                return null;
-                              })()
+                              const key = p.selectionKey;
+                              if (key.startsWith('p:')) {
+                                const pr = products.find((pr) => pr.id === Number(key.slice(2)));
+                                return pr ? { value: key, label: `${pr.name} (${pr.price.toLocaleString()}đ)` } : null;
+                              }
+                              if (key.startsWith('k:')) {
+                                const pk = packageProducts.find((pk) => pk.id === Number(key.slice(2)));
+                                if (!pk) return null;
+                                const baseProduct = products.find((pr) => pr.id === pk.productId);
+                                const label = `${pk.name} - ${baseProduct?.name || `#${pk.productId}`} (${pk.quantityProduct} viên/kiện)`;
+                                const packagePrice = baseProduct ? baseProduct.price * pk.quantityProduct : 0;
+                                return { value: key, label: `${label} (${packagePrice.toLocaleString()}đ/kiện)` };
+                              }
+                              return null;
+                            })()
                             : null
                         }
                         onChange={(option) => {
@@ -417,6 +419,10 @@ export default function CreateOrderModal({
                             fontSize: '10px',
                             fontWeight: 'bold',
                             textTransform: 'uppercase'
+                          }),
+                          menuPortal: (base) => ({
+                            ...base,
+                            zIndex: 9999
                           })
                         }}
                       />
