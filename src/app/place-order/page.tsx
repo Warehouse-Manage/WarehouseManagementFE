@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { financeApi, inventoryApi } from '@/api';
-import { Order, Customer, Deliver, Product, PackageProduct, InventoryForecastResponse } from '@/types';
+import { Order, Customer, Deliver, Product, PackageProduct, InventoryForecastResponse, PlaceOrderDetailsResponse, PlaceOrderFormData, UpdatePlaceOrderFormData, PlaceOrderProductOrderResponse } from '@/types';
 import { DataTable } from '@/components/shared';
 import { toast } from 'sonner';
 import { Pencil, Printer, Trash2 } from 'lucide-react';
@@ -299,7 +299,7 @@ export default function PlaceOrderPage() {
     ]);
   };
 
-  const hydrateFormFromOrder = (order: any) => {
+  const hydrateFormFromOrder = (order: PlaceOrderDetailsResponse) => {
     setCustomerId(order.customerId);
     setDeliverId(order.deliverId ?? '');
     setSale(order.sale);
@@ -308,7 +308,7 @@ export default function PlaceOrderPage() {
     setDeliveryAddress(order.deliveryAddress || '');
     setAllowAdditionalQuantity(order.allowAdditionalQuantity);
     setProductOrdersInput(
-      (order.placeOrderProductOrders || []).map((po: any) => {
+      (order.placeOrderProductOrders || []).map((po: PlaceOrderProductOrderResponse) => {
         const isPackage = !!po.packageProductId;
         return {
           productId: po.productId ?? '',
@@ -400,11 +400,11 @@ export default function PlaceOrderPage() {
       return;
     }
     setError(null);
-    
+
     try {
       // Convert deliveryDate to ISO string
       const deliveryDateISO = deliveryDate ? new Date(`${deliveryDate}T00:00:00Z`).toISOString() : undefined;
-      
+
       // Tính toán forecast trước khi save
       const forecastRequest = {
         deliveryDate: deliveryDateISO!,
@@ -414,9 +414,9 @@ export default function PlaceOrderPage() {
           requiredQuantity: po.amount
         }))
       };
-      
+
       const forecastResult = await financeApi.calculatePlaceOrderForecast(forecastRequest);
-      
+
       // Kiểm tra xem có thiếu hàng không
       if (forecastResult.hasAnyShortage) {
         setForecastData(forecastResult);
@@ -424,7 +424,7 @@ export default function PlaceOrderPage() {
         setShowForecastWarning(true);
         return;
       }
-      
+
       // Nếu đủ hàng thì tiếp tục xử lý save
       await proceedWithSubmit(deliveryDateISO, productsToOrder);
     } catch (err: unknown) {
@@ -441,7 +441,7 @@ export default function PlaceOrderPage() {
         setError('Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.');
         return;
       }
-      
+
       const payload = {
         customerId: Number(customerId),
         deliverId: deliverId === '' ? null : Number(deliverId),
@@ -455,13 +455,13 @@ export default function PlaceOrderPage() {
 
       let res;
       if (editingOrderId) {
-        res = await financeApi.updatePlaceOrder(editingOrderId, payload);
+        res = await financeApi.updatePlaceOrder(editingOrderId, payload as UpdatePlaceOrderFormData);
         toast.success('Cập nhật đặt hàng thành công');
       } else {
         res = await financeApi.createPlaceOrder({
           ...payload,
           createdUserId: Number(userId),
-        } as any);
+        } as PlaceOrderFormData);
         toast.success('Tạo đặt hàng thành công');
       }
 
