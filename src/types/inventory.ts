@@ -100,3 +100,13 @@ export interface RawMaterialImportFormData {
     paidAmount: number;
     partnerId: number;
 }
+
+export interface ImportProductChart {
+    id: number;
+    packageProductId: number;
+    packageProduct: PackageProduct;
+}
+
+export interface SyncImportProductChartRequest {
+    packageProductIds: number[];
+}
