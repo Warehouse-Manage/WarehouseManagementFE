@@ -16,7 +16,9 @@ import {
     OrderDeliveryNotePrintModel,
     InventoryForecastResponse,
     UpdateOrderFormData,
-    OrderDetailsResponse
+    OrderDetailsResponse,
+    UpdatePlaceOrderFormData,
+    PlaceOrderDetailsResponse
 } from '@/types';
 
 export const financeApi = {
@@ -154,6 +156,14 @@ export const financeApi = {
 
     createPlaceOrder: async (data: PlaceOrderFormData): Promise<Order> => {
         return api.post<Order>('/api/place-orders', data);
+    },
+
+    updatePlaceOrder: async (id: number, data: UpdatePlaceOrderFormData): Promise<Order> => {
+        return api.put<Order>(`/api/place-orders/${id}`, data);
+    },
+
+    getPlaceOrderById: async (id: number): Promise<PlaceOrderDetailsResponse> => {
+        return api.get<PlaceOrderDetailsResponse>(`/api/place-orders/${id}`);
     },
 
     printPlaceOrderReceipt: async (id: number): Promise<string> => {
