@@ -79,6 +79,7 @@ export interface RawMaterialImport {
     partnerId: number;
     createdUserId: number;
     dateCreated: string;
+    fundId?: number; // Liên kết sổ quỹ
     rawMaterial?: RawMaterial;
     partner?: {
         id: number;
@@ -99,6 +100,7 @@ export interface RawMaterialImportFormData {
     totalAmount: number;
     paidAmount: number;
     partnerId: number;
+    fundId?: number; // Liên kết sổ quỹ
 }
 
 export interface ImportProductChart {
