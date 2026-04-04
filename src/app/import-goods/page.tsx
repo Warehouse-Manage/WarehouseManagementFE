@@ -124,7 +124,14 @@ export default function NhapHangPage() {
   const [editingRawMaterialImport, setEditingRawMaterialImport] = useState<RawMaterialImport | null>(null);
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
-  const [nguyenLieuFormData, setNguyenLieuFormData] = useState({
+  const [nguyenLieuFormData, setNguyenLieuFormData] = useState<{
+    rawMaterialId: string;
+    quantity: string | number;
+    unitPrice: string | number;
+    discount: string | number;
+    paidAmount: string | number;
+    partnerId: string;
+  }>({
     rawMaterialId: '',
     quantity: '',
     unitPrice: '',
@@ -623,11 +630,11 @@ export default function NhapHangPage() {
       setEditingRawMaterialImport(detail);
       setNguyenLieuFormData({
         rawMaterialId: detail.rawMaterialId.toString(),
-        quantity: detail.quantity.toString(),
-        unitPrice: detail.unitPrice.toString(),
-        discount: detail.discount.toString(),
-        paidAmount: detail.paidAmount.toString(),
-        partnerId: detail.partnerId.toString(),
+        quantity: detail.quantity,
+        unitPrice: detail.unitPrice,
+        discount: detail.discount,
+        paidAmount: detail.paidAmount,
+        partnerId: detail.partnerId?.toString() || '',
       });
       setShowNguyenLieuModal(true);
     } catch (err: unknown) {
