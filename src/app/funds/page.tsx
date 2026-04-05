@@ -85,11 +85,15 @@ export default function FundsPage() {
         { value: 'Trả nợ', label: 'Trả nợ' },
         { value: 'Sửa chữa', label: 'Sửa chữa' },
         { value: 'Vận chuyển', label: 'Vận chuyển' },
+        { value: 'Công nợ cũ', label: 'Công nợ cũ' },
+        { value: 'Nhiên liệu', label: 'Nhiên liệu' },
+        { value: 'Máy mới', label: 'Máy mới' },
         { value: 'Dịch vụ khác', label: 'Dịch vụ khác' },
       ] : type === 'Thu' ? [
         { value: 'Tiền bán gạch', label: 'Tiền bán gạch' },
         { value: 'Tiền vay ngân hàng', label: 'Tiền vay ngân hàng' },
         { value: 'Tiền đặt cọc', label: 'Tiền đặt cọc' },
+        { value: 'Công nợ cũ', label: 'Công nợ cũ' },
       ] : []
     },
     {

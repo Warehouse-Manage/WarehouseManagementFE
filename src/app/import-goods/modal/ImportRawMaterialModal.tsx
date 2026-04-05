@@ -9,10 +9,10 @@ interface ImportRawMaterialModalProps {
   nguyenLieuFormFields: FormField[];
   nguyenLieuFormData: {
     rawMaterialId: string;
-    quantity: string;
-    unitPrice: string;
-    discount: string;
-    paidAmount: string;
+    quantity: string | number;
+    unitPrice: string | number;
+    discount: string | number;
+    paidAmount: string | number;
     partnerId: string;
   };
   submittingNguyenLieu: boolean;
@@ -67,7 +67,7 @@ export default function ImportRawMaterialModal({
         <div className="rounded-lg bg-gray-50 p-4 border-2 border-gray-200">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-700">Tổng tiền:</span>
-            <span className="text-xl font-bold text-blue-600">{calculateTotalAmount().toLocaleString('vi-VN')} đ</span>
+            <span className="text-xl font-bold text-blue-600">{calculateTotalAmount().toLocaleString()} đ</span>
           </div>
           <div className="mt-2 text-xs text-gray-500">
             (Giá thành × Số lượng - Giảm giá)
