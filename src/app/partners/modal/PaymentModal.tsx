@@ -69,16 +69,16 @@ export default function PaymentModal({
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 shadow-sm">
             <div className="text-[10px] uppercase font-black text-gray-400 mb-1">Tổng chi phí</div>
-            <div className="text-sm font-bold text-gray-900">{(selectedPartner.amountMoneyTotal || 0).toLocaleString('vi-VN')}đ</div>
+            <div className="text-sm font-bold text-gray-900">{(selectedPartner.amountMoneyTotal || 0).toLocaleString('en-US')}đ</div>
           </div>
           <div className="bg-green-50 p-3 rounded-xl border border-green-100 shadow-sm">
             <div className="text-[10px] uppercase font-black text-green-400 mb-1">Đã trả</div>
-            <div className="text-sm font-bold text-green-600">{(selectedPartner.amountMoneyPaid || 0).toLocaleString('vi-VN')}đ</div>
+            <div className="text-sm font-bold text-green-600">{(selectedPartner.amountMoneyPaid || 0).toLocaleString('en-US')}đ</div>
           </div>
           <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 shadow-sm">
             <div className="text-[10px] uppercase font-black text-orange-400 mb-1">Còn nợ</div>
             <div className="text-sm font-black text-orange-600">
-              {maxAmount.toLocaleString('vi-VN')}đ
+              {maxAmount.toLocaleString('en-US')}đ
             </div>
           </div>
         </div>
@@ -103,7 +103,7 @@ export default function PaymentModal({
           ) : monthlyTotal !== null ? (
             <div className="flex items-baseline gap-2">
               <span className="text-sm text-blue-700">Chi phí tháng {selectedMonth}:</span>
-              <span className="text-lg font-black text-blue-800">{monthlyTotal.toLocaleString('vi-VN')}đ</span>
+              <span className="text-lg font-black text-blue-800">{monthlyTotal.toLocaleString('en-US')}đ</span>
             </div>
           ) : (
             <div className="text-xs text-blue-400">Chọn tháng để xem chi tiết chi phí phát sinh</div>
@@ -126,7 +126,7 @@ export default function PaymentModal({
             <div className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">VNĐ</div>
           </div>
           <div className="text-[10px] font-bold text-gray-400 text-right uppercase italic">
-            Tối đa: {maxAmount.toLocaleString('vi-VN')}đ
+            Tối đa: {maxAmount.toLocaleString('en-US')}đ
           </div>
         </div>
       </div>

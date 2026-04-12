@@ -50,7 +50,7 @@ const formatCurrency = (value?: number | null) => {
   if (value === undefined || value === null || Number.isNaN(value)) {
     return '0 VNĐ';
   }
-  return `${value.toLocaleString('vi-VN')} VNĐ`;
+  return `${value.toLocaleString('en-US')} VNĐ`;
 };
 
 const toMonthIsoString = (monthValue: string) => {
@@ -318,7 +318,7 @@ export default function AttendancePage() {
   const syncScroll = useCallback((sourceScrollLeft: number) => {
     if (isSyncingScrollRef.current) return;
     isSyncingScrollRef.current = true;
-    
+
     if (overviewHeaderScrollRef.current) {
       overviewHeaderScrollRef.current.scrollLeft = sourceScrollLeft;
     }
@@ -328,7 +328,7 @@ export default function AttendancePage() {
     if (overviewFooterScrollRef.current) {
       overviewFooterScrollRef.current.scrollLeft = sourceScrollLeft;
     }
-    
+
     requestAnimationFrame(() => {
       isSyncingScrollRef.current = false;
     });
@@ -1439,27 +1439,27 @@ export default function AttendancePage() {
                             <label className="text-xs text-gray-600">
                               Công:
                               <input
-                              type="text"
-                              inputMode="decimal"
-                              step="0.5"
-                              min="0"
-                              max="2"
-                              value={workDate.workQuantity}
-                              onChange={(e) => updateMarkWorkDate(index, 'workQuantity', parseFloat(e.target.value.replace(/,/g, '.')) || 0)}
-                              className="ml-1 w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none text-right"
-                            />
+                                type="text"
+                                inputMode="decimal"
+                                step="0.5"
+                                min="0"
+                                max="2"
+                                value={workDate.workQuantity}
+                                onChange={(e) => updateMarkWorkDate(index, 'workQuantity', parseFloat(e.target.value.replace(/,/g, '.')) || 0)}
+                                className="ml-1 w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none text-right"
+                              />
                             </label>
                             <label className="text-xs text-gray-600">
                               OT:
                               <input
-                              type="text"
-                              inputMode="decimal"
-                              step="1"
-                              min="0"
-                              value={workDate.workOvertime}
-                              onChange={(e) => updateMarkWorkDate(index, 'workOvertime', parseFloat(e.target.value.replace(/,/g, '.')) || 0)}
-                              className="ml-1 w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none text-right"
-                            />
+                                type="text"
+                                inputMode="decimal"
+                                step="1"
+                                min="0"
+                                value={workDate.workOvertime}
+                                onChange={(e) => updateMarkWorkDate(index, 'workOvertime', parseFloat(e.target.value.replace(/,/g, '.')) || 0)}
+                                className="ml-1 w-16 rounded border border-gray-300 px-2 py-1 text-xs focus:border-orange-500 focus:outline-none text-right"
+                              />
                               h
                             </label>
                             <button
@@ -2535,7 +2535,7 @@ export default function AttendancePage() {
                       </div>
 
                       {/* Scrollable body: days - can scroll horizontally from anywhere */}
-                      <div 
+                      <div
                         ref={overviewBodyScrollRef}
                         onScroll={handleOverviewBodyScroll}
                         className="max-h-[65vh] overflow-y-auto overflow-x-auto no-scrollbar"

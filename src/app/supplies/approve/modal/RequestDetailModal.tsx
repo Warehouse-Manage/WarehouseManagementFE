@@ -39,7 +39,7 @@ export default function RequestDetailModal({ isOpen, onClose, selectedRequest }:
             {selectedRequest.totalPrice && (
               <div>
                 <p className="text-xs text-gray-500 uppercase font-bold mb-1">Tổng tiền</p>
-                <p className="font-black text-green-600">{selectedRequest.totalPrice.toLocaleString('vi-VN')} đ</p>
+                <p className="font-black text-green-600">{selectedRequest.totalPrice.toLocaleString('en-US')} đ</p>
               </div>
             )}
           </div>
@@ -67,12 +67,12 @@ export default function RequestDetailModal({ isOpen, onClose, selectedRequest }:
                     <div className="flex items-center gap-6">
                       <div className="text-right">
                         <p className="text-[10px] text-gray-500 uppercase font-bold">Số lượng</p>
-                        <p className="text-sm font-bold text-gray-900">{item.quantity.toLocaleString('vi-VN')} {item.unit}</p>
+                        <p className="text-sm font-bold text-gray-900">{item.quantity.toLocaleString('en-US')} {item.unit}</p>
                       </div>
                       {selectedRequest.status === 'approved' && item.unitPrice && (
                         <div className="text-right">
                           <p className="text-[10px] text-gray-500 uppercase font-bold">Thành tiền</p>
-                          <p className="text-sm font-bold text-green-600">{(item.unitPrice * item.quantity).toLocaleString('vi-VN')} đ</p>
+                          <p className="text-sm font-bold text-green-600">{(item.unitPrice * item.quantity).toLocaleString('en-US')} đ</p>
                         </div>
                       )}
                     </div>

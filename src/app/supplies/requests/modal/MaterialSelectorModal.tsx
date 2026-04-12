@@ -46,7 +46,7 @@ export default function MaterialSelectorModal({
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-bold text-gray-900 group-hover:text-orange-700 truncate">{m.name}</div>
-                <div className="text-[10px] text-gray-500 uppercase font-medium">{m.type} • Có sẵn: {m.amount.toLocaleString('vi-VN')}</div>
+                <div className="text-[10px] text-gray-500 uppercase font-medium">{m.type} • Có sẵn: {m.amount.toLocaleString('en-US')}</div>
               </div>
             </button>
           ))}

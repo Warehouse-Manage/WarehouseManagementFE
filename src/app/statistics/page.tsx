@@ -96,12 +96,12 @@ export default function StatisticsPage() {
     } else if (amount >= 1000) {
       return (amount / 1000).toFixed(1) + ' nghìn VNĐ';
     } else {
-      return amount.toLocaleString('vi-VN') + ' VNĐ';
+      return amount.toLocaleString('en-US') + ' VNĐ';
     }
   };
 
   const formatCurrencyFull = (amount: number) => {
-    return amount.toLocaleString('vi-VN') + ' VNĐ';
+    return amount.toLocaleString('en-US') + ' VNĐ';
   };
 
   const formatPercentage = (value: number) => {

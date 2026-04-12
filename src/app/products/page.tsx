@@ -364,67 +364,67 @@ export default function ProductsPage() {
             )}
           </div>
 
-      <ProductFormModal
-        isOpen={showForm}
-        onClose={() => setShowForm(false)}
-        productFormFields={productFormFields}
-        formValues={{ name, price, quantity }}
-        error={error}
-        submitting={submitting}
-        onFieldChange={(field, value) => {
-          if (field === 'name') setName(value as string);
-          if (field === 'price') setPrice(value as number);
-          if (field === 'quantity') setQuantity(value as number);
-        }}
-        onSubmit={handleCreate}
-      />
+          <ProductFormModal
+            isOpen={showForm}
+            onClose={() => setShowForm(false)}
+            productFormFields={productFormFields}
+            formValues={{ name, price, quantity }}
+            error={error}
+            submitting={submitting}
+            onFieldChange={(field, value) => {
+              if (field === 'name') setName(value as string);
+              if (field === 'price') setPrice(value as number);
+              if (field === 'quantity') setQuantity(value as number);
+            }}
+            onSubmit={handleCreate}
+          />
 
-      <PackageFormModal
-        isOpen={showPackageForm}
-        onClose={() => {
-          setShowPackageForm(false);
-          setEditingPackageId(null);
-        }}
-        editingPackageId={editingPackageId}
-        products={products}
-        pkgName={pkgName}
-        pkgProductId={pkgProductId}
-        pkgUnitsPerPackage={pkgUnitsPerPackage}
-        pkgInitialPackages={pkgInitialPackages}
-        error={error}
-        loadingPackageDetail={loadingPackageDetail}
-        submittingPackage={submittingPackage}
-        onPkgNameChange={setPkgName}
-        onPkgProductIdChange={setPkgProductId}
-        onPkgUnitsPerPackageChange={setPkgUnitsPerPackage}
-        onPkgInitialPackagesChange={setPkgInitialPackages}
-        onSubmit={handleCreatePackage}
-      />
+          <PackageFormModal
+            isOpen={showPackageForm}
+            onClose={() => {
+              setShowPackageForm(false);
+              setEditingPackageId(null);
+            }}
+            editingPackageId={editingPackageId}
+            products={products}
+            pkgName={pkgName}
+            pkgProductId={pkgProductId}
+            pkgUnitsPerPackage={pkgUnitsPerPackage}
+            pkgInitialPackages={pkgInitialPackages}
+            error={error}
+            loadingPackageDetail={loadingPackageDetail}
+            submittingPackage={submittingPackage}
+            onPkgNameChange={setPkgName}
+            onPkgProductIdChange={setPkgProductId}
+            onPkgUnitsPerPackageChange={setPkgUnitsPerPackage}
+            onPkgInitialPackagesChange={setPkgInitialPackages}
+            onSubmit={handleCreatePackage}
+          />
 
-      <ProductFormModal
-        isOpen={showUpdateQuantityForm}
-        onClose={() => {
-          setShowUpdateQuantityForm(false);
-          setEditingProduct(null);
-          setUpdateQuantity('');
-        }}
-        productFormFields={[
-          {
-            name: 'quantity',
-            label: 'Số lượng tồn kho mới',
-            type: 'number',
-            required: true,
-            placeholder: 'Nhập số lượng tồn kho...'
-          }
-        ]}
-        formValues={{ name: '', price: '', quantity: updateQuantity }}
-        error={error}
-        submitting={submittingUpdateQuantity}
-        onFieldChange={(field, value) => {
-          if (field === 'quantity') setUpdateQuantity(value as number);
-        }}
-        onSubmit={handleUpdateQuantity}
-      />
+          <ProductFormModal
+            isOpen={showUpdateQuantityForm}
+            onClose={() => {
+              setShowUpdateQuantityForm(false);
+              setEditingProduct(null);
+              setUpdateQuantity('');
+            }}
+            productFormFields={[
+              {
+                name: 'quantity',
+                label: 'Số lượng tồn kho mới',
+                type: 'number',
+                required: true,
+                placeholder: 'Nhập số lượng tồn kho...'
+              }
+            ]}
+            formValues={{ name: '', price: '', quantity: updateQuantity }}
+            error={error}
+            submitting={submittingUpdateQuantity}
+            onFieldChange={(field, value) => {
+              if (field === 'quantity') setUpdateQuantity(value as number);
+            }}
+            onSubmit={handleUpdateQuantity}
+          />
 
           <div className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -470,7 +470,7 @@ export default function ProductsPage() {
                     isMain: true,
                     headerClassName: 'text-right',
                     className: 'text-right font-black text-orange-600 md:text-base',
-                    render: (p) => <span>{p.price.toLocaleString()}đ</span>
+                    render: (p) => <span>{p.price.toLocaleString('en-US')}đ</span>
                   },
                   {
                     key: 'quantity',
@@ -485,10 +485,10 @@ export default function ProductsPage() {
                       return (
                         <div className="flex flex-col items-end space-y-0.5">
                           <span className="font-black text-gray-900">
-                            {totalQuantity.toLocaleString()}
+                            {totalQuantity.toLocaleString('en-US')}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {quantityPackage.toLocaleString()} (kiện) • {quantity.toLocaleString()} viên lẻ
+                            {quantityPackage.toLocaleString('en-US')} (kiện) • {quantity.toLocaleString('en-US')} viên lẻ
                           </span>
                         </div>
                       );
@@ -545,7 +545,7 @@ export default function ProductsPage() {
                     className: 'font-bold text-gray-600',
                     render: (k: PackageRow) => (
                       <span>
-                        {k.quantity.toLocaleString()}
+                        {k.quantity.toLocaleString('en-US')}
                       </span>
                     )
                   },

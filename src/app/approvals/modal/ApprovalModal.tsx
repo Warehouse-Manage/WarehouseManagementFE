@@ -170,7 +170,7 @@ export default function ApprovalModal({
                 render: (it) => {
                   const item = it as RequestItem;
                   const total = (item.unitPrice || 0) * item.quantity;
-                  return <span className="font-black text-green-600">{total.toLocaleString('vi-VN')} đ</span>;
+                  return <span className="font-black text-green-600">{total.toLocaleString('en-US')} đ</span>;
                 }
               },
               {
@@ -193,7 +193,7 @@ export default function ApprovalModal({
           <div className="bg-orange-50 rounded-2xl p-6 border border-orange-100 flex flex-col items-end gap-3 max-w-md ml-auto">
             <div className="w-full flex justify-between items-center text-orange-900 opacity-60">
               <span className="font-bold text-sm uppercase">Tổng chưa giảm:</span>
-              <span className="font-black">{calculateSubtotal().toLocaleString('vi-VN')} đ</span>
+              <span className="font-black">{calculateSubtotal().toLocaleString('en-US')} đ</span>
             </div>
             <div className="w-full flex justify-between items-center bg-white p-3 rounded-xl border border-orange-100 shadow-sm">
               <span className="font-bold text-sm text-gray-500 uppercase">Giảm giá:</span>
@@ -214,7 +214,7 @@ export default function ApprovalModal({
             <div className="w-full flex justify-between items-center">
               <span className="font-black text-orange-900 text-lg uppercase">Tổng cộng:</span>
               <span className="text-3xl font-black text-orange-600 tracking-tighter">
-                {calculateTotal().toLocaleString('vi-VN')} đ
+                {calculateTotal().toLocaleString('en-US')} đ
               </span>
             </div>
           </div>
