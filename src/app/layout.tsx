@@ -4,6 +4,7 @@ import "./globals.css";
 import Script from "next/script";
 import { Toaster } from "sonner";
 import NavbarContainer from "@/components/NavbarContainer";
+import ChatBot from "@/components/shared/ChatBot";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -58,6 +59,7 @@ export default function RootLayout({
         <main className="mx-auto max-w-[1440px] w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           {children}
         </main>
+        <ChatBot />
         <Script
           id="sw-register"
           strategy="afterInteractive"
