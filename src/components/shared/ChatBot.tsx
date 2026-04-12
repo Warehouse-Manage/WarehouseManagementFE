@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, Loader2 } from 'lucide-react';
-import { chatApi, ChatResponse } from '@/api/chatApi';
+import { useEffect, useRef, useState } from 'react';
+import { Bot, Loader2, MessageCircle, Mic, MicOff, X } from 'lucide-react';
+import { chatApi } from '@/api/chatApi';
 import { toast } from 'sonner';
 
 interface Message {
@@ -12,19 +12,82 @@ interface Message {
   timestamp: Date;
 }
 
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+interface SpeechRecognitionInstance extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognitionInstance;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  }
+}
+
+const DEFAULT_GREETING =
+  'Xin chao, toi la Warehouse AI. Bam micro va noi yeu cau de toi ho tro tao phieu thu chi nhanh hon.';
+
 export default function ChatBot() {
+  const [isMounted, setIsMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isSupported, setIsSupported] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [message, setMessage] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [transcript, setTranscript] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: 'Xin chào! Tôi là trợ lý ảo Warehouse AI. Tôi có thể giúp bạn tạo phiếu thu/chi nhanh chóng. Ví dụ: "Thu 5 triệu tiền bán hàng".',
+      text: DEFAULT_GREETING,
       isBot: true,
-      timestamp: new Date()
-    }
+      timestamp: new Date(),
+    },
   ]);
-  const [isLoading, setIsLoading] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor;
+      const mobileDevice =
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
+        window.innerWidth < 768 ||
+        navigator.maxTouchPoints > 1;
+      setIsMobile(mobileDevice);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    setIsSupported(Boolean(Recognition));
+
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      recognitionRef.current?.stop();
+    };
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -32,99 +95,151 @@ export default function ChatBot() {
     }
   }, [messages, isLoading]);
 
-  const handleSend = async () => {
-    if (!message.trim() || isLoading) return;
+  const sendVoiceMessage = async (spokenText: string) => {
+    const cleanText = spokenText.trim();
+    if (!cleanText || isLoading) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
-      text: message,
+      text: cleanText,
       isBot: false,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMsg]);
-    setMessage('');
+    setMessages((prev) => [...prev, userMsg]);
+    setTranscript(cleanText);
     setIsLoading(true);
 
     try {
-      const response = await chatApi.chat(message);
-      
+      const response = await chatApi.chat(cleanText);
+
       const botMsg: Message = {
         id: (Date.now() + 1).toString(),
         text: response.reply,
         isBot: true,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, botMsg]);
-
+      setMessages((prev) => [...prev, botMsg]);
       if (response.isActionTaken) {
         toast.success(response.reply);
       }
     } catch (error) {
       console.error('Chat error:', error);
-      toast.error('Có lỗi xảy ra khi kết nối với AI');
+      toast.error('Co loi xay ra khi ket noi voi AI');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const startListening = () => {
+    if (!isSupported || isLoading) return;
+
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      toast.error('Trinh duyet nay chua ho tro nhan dien giong noi');
+      return;
+    }
+
+    recognitionRef.current?.stop();
+
+    const recognition = new Recognition();
+    recognition.lang = 'vi-VN';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event) => {
+      const spokenText = Array.from(event.results)
+        .map((result) => result[0]?.transcript ?? '')
+        .join(' ')
+        .trim();
+
+      setTranscript(spokenText);
+
+      if (!spokenText) {
+        toast.error('Khong nghe ro noi dung, vui long thu lai');
+        return;
+      }
+
+      void sendVoiceMessage(spokenText);
+    };
+
+    recognition.onerror = (event) => {
+      if (event.error !== 'aborted') {
+        toast.error('Khong the nhan giong noi, vui long thu lai');
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    setTranscript('');
+    setIsListening(true);
+    recognition.start();
+  };
+
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  };
+
+  if (!isMounted || !isMobile) {
+    return null;
+  }
+
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      {/* Floating Button */}
+    <div className="fixed bottom-4 right-4 z-50 md:hidden">
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
           className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-orange-600 to-orange-500 text-white shadow-xl transition-all hover:scale-110 hover:shadow-orange-200 active:scale-95"
+          aria-label="Mo tro ly giong noi"
         >
           <MessageCircle className="h-7 w-7 transition-all group-hover:rotate-12" />
-          <span className="absolute -top-1 -right-1 flex h-4 w-4">
+          <span className="absolute -right-1 -top-1 flex h-4 w-4">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"></span>
             <span className="relative inline-flex h-4 w-4 rounded-full bg-orange-500"></span>
           </span>
         </button>
       )}
 
-      {/* Chat Window */}
       {isOpen && (
-        <div className="flex h-[500px] w-[350px] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white/95 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in slide-in-from-bottom-10 duration-300 sm:w-[400px]">
-          {/* Header */}
+        <div className="flex h-[min(78vh,560px)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white/95 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in slide-in-from-bottom-10 duration-300">
           <div className="flex items-center justify-between bg-gradient-to-r from-orange-600 to-orange-500 p-4 text-white">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md">
                 <Bot className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="font-bold tracking-tight">Warehouse AI</h3>
+                <h3 className="font-bold tracking-tight">Warehouse AI Voice</h3>
                 <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse"></span>
-                  <span className="text-[10px] uppercase tracking-widest opacity-80 font-black">Trực tuyến</span>
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-green-400"></span>
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Mobile only</span>
                 </div>
               </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="rounded-lg p-1.5 hover:bg-white/10 transition-colors"
+              className="rounded-lg p-1.5 transition-colors hover:bg-white/10"
+              aria-label="Dong chatbot"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Messages Area */}
-          <div
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50"
-          >
+          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto bg-gray-50/50 p-4">
             {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl p-3 text-sm shadow-sm ${
+                  className={`max-w-[85%] rounded-2xl p-3 text-sm shadow-sm ${
                     msg.isBot
-                      ? 'bg-white text-gray-800 rounded-tl-none border border-gray-100'
-                      : 'bg-orange-600 text-white rounded-tr-none'
+                      ? 'rounded-tl-none border border-gray-100 bg-white text-gray-800'
+                      : 'rounded-tr-none bg-orange-600 text-white'
                   }`}
                 >
                   {msg.text}
@@ -138,9 +253,10 @@ export default function ChatBot() {
                 </div>
               </div>
             ))}
+
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-white text-gray-800 rounded-2xl rounded-tl-none border border-gray-100 p-3 shadow-sm">
+                <div className="rounded-2xl rounded-tl-none border border-gray-100 bg-white p-3 text-gray-800 shadow-sm">
                   <div className="flex gap-1">
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-600"></span>
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-600 [animation-delay:0.2s]"></span>
@@ -151,25 +267,45 @@ export default function ChatBot() {
             )}
           </div>
 
-          {/* Input Area */}
           <div className="border-t bg-white p-4">
-            <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-100 transition-all">
-              <input
-                type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Nhập yêu cầu tại đây..."
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400"
-              />
-              <button
-                onClick={handleSend}
-                disabled={isLoading || !message.trim()}
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-600 text-white shadow-md transition-all hover:bg-orange-700 active:scale-95 disabled:opacity-50"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </button>
-            </div>
+            {!isSupported ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                Trinh duyet tren dien thoai nay chua ho tro voice chat.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+                  {transcript
+                    ? `Ban vua noi: "${transcript}"`
+                    : 'Bam micro, noi yeu cau, he thong se tu gui ma khong can nhap tin nhan.'}
+                </div>
+
+                <button
+                  onClick={isListening ? stopListening : startListening}
+                  disabled={isLoading}
+                  className={`flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+                    isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Dang xu ly yeu cau
+                    </>
+                  ) : isListening ? (
+                    <>
+                      <MicOff className="h-4 w-4" />
+                      Dung ghi am
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="h-4 w-4" />
+                      Noi voi Warehouse AI
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
