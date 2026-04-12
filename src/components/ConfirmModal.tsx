@@ -57,7 +57,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                                 )}
                                 <div>
                                     <h3 className="font-semibold text-gray-900">{material.name}</h3>
-                                    <p className="text-sm text-gray-600">ĐVT: {material.type} | Tồn kho: {material.amount.toLocaleString('vi-VN')}</p>
+                                    <p className="text-sm text-gray-600">ĐVT: {material.type} | Tồn kho: {material.amount.toLocaleString('en-US')}</p>
                                 </div>
                             </div>
                         </div>

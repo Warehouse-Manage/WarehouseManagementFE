@@ -465,14 +465,14 @@ export default function RequestsPage() {
               className: 'w-24',
               render: (it: RequestItem) => (
                 <input
-                type="text"
-                inputMode="decimal"
-                min="0"
-                value={formatNumberInput(it.quantity as number | '' | null | undefined)}
-                onChange={e => handleItemChange(it.id, "quantity", e.target.value)}
-                placeholder="0"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-center font-bold text-orange-600 focus:border-orange-500 outline-none"
-              />
+                  type="text"
+                  inputMode="decimal"
+                  min="0"
+                  value={formatNumberInput(it.quantity as number | '' | null | undefined)}
+                  onChange={e => handleItemChange(it.id, "quantity", e.target.value)}
+                  placeholder="0"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-center font-bold text-orange-600 focus:border-orange-500 outline-none"
+                />
               )
             },
             {
@@ -577,7 +577,7 @@ export default function RequestsPage() {
                 </div>
                 <div className="min-w-0">
                   <div className="text-sm font-bold text-gray-900 group-hover:text-orange-700 truncate">{m.name}</div>
-                  <div className="text-[10px] text-gray-500 uppercase font-medium">{m.type} • Có sẵn: {m.amount.toLocaleString('vi-VN')}</div>
+                  <div className="text-[10px] text-gray-500 uppercase font-medium">{m.type} • Có sẵn: {m.amount.toLocaleString('en-US')}</div>
                 </div>
               </button>
             ))}

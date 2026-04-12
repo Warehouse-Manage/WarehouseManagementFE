@@ -292,7 +292,7 @@ export default function DuyetPage() {
             className: 'text-right',
             render: (r) => r.totalPrice ? (
               <span className="font-black text-green-600">
-                {r.totalPrice.toLocaleString('vi-VN')} đ
+                {r.totalPrice.toLocaleString('en-US')} đ
               </span>
             ) : <span className="text-gray-400">---</span>
           },

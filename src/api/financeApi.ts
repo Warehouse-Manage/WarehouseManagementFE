@@ -35,6 +35,14 @@ export const financeApi = {
         return api.post<Customer>('/api/customers', data);
     },
 
+    updateCustomer: async (id: number, data: Partial<CustomerFormData>): Promise<Customer> => {
+        return api.put<Customer>(`/api/customers/${id}`, data);
+    },
+
+    deleteCustomer: async (id: number): Promise<void> => {
+        return api.delete<void>(`/api/customers/${id}`);
+    },
+
     getCustomerDebtTemplate: async (customerId: number, startDate?: string, endDate?: string): Promise<Blob> => {
         const token = getCookie('token');
         

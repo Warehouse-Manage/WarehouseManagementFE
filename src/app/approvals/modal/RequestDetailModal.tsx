@@ -72,7 +72,7 @@ export default function RequestDetailModal({ isOpen, onClose, selectedRequest }:
                 key: 'quantity',
                 header: 'Số lượng',
                 className: 'w-24 text-center font-black text-orange-600',
-                render: (it) => (it as RequestItem).quantity.toLocaleString('vi-VN')
+                render: (it) => (it as RequestItem).quantity.toLocaleString('en-US')
               },
               {
                 key: 'unitPrice',
@@ -80,7 +80,7 @@ export default function RequestDetailModal({ isOpen, onClose, selectedRequest }:
                 className: 'w-32 text-right',
                 render: (it) => {
                   const price = (it as RequestItem).unitPrice;
-                  return price ? <span className="text-gray-600 font-bold">{price.toLocaleString('vi-VN')} đ</span> : <span className="text-gray-300">---</span>;
+                  return price ? <span className="text-gray-600 font-bold">{price.toLocaleString('en-US')} đ</span> : <span className="text-gray-300">---</span>;
                 }
               },
               {
@@ -90,7 +90,7 @@ export default function RequestDetailModal({ isOpen, onClose, selectedRequest }:
                 render: (it) => {
                   const item = it as RequestItem;
                   const total = (item.unitPrice ?? 0) * item.quantity;
-                  return total > 0 ? <span className="text-green-600 font-black">{total.toLocaleString('vi-VN')} đ</span> : <span className="text-gray-300">---</span>;
+                  return total > 0 ? <span className="text-green-600 font-black">{total.toLocaleString('en-US')} đ</span> : <span className="text-gray-300">---</span>;
                 }
               }
             ]}

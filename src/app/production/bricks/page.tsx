@@ -426,7 +426,7 @@ export default function LoGachPage() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Tổng số gói</p>
-              <p className="text-2xl font-semibold text-gray-900">{getTotalQuantity().toLocaleString()}</p>
+              <p className="text-2xl font-semibold text-gray-900">{getTotalQuantity().toLocaleString('en-US')}</p>
             </div>
           </div>
         </div>
@@ -440,7 +440,7 @@ export default function LoGachPage() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Trung bình</p>
-              <p className="text-2xl font-semibold text-gray-900">{getAverageQuantity().toLocaleString()}</p>
+              <p className="text-2xl font-semibold text-gray-900">{getAverageQuantity().toLocaleString('en-US')}</p>
             </div>
           </div>
         </div>
@@ -495,7 +495,7 @@ export default function LoGachPage() {
                 header: 'Số lượng gói',
                 headerClassName: 'text-right',
                 className: 'text-right font-black text-orange-600 text-lg',
-                render: (s) => <span>{s.packageQuantity.toLocaleString()}</span>
+                render: (s) => <span>{s.packageQuantity.toLocaleString('en-US')}</span>
               }
             ]}
             emptyMessage="Không có dữ liệu tình trạng lò gạch trong khoảng thời gian này"

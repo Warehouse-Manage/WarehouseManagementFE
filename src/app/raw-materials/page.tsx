@@ -185,7 +185,7 @@ export default function NguyenLieuPage() {
               header: 'Số lượng tồn',
               headerClassName: 'text-right',
               className: 'text-right font-black text-gray-900',
-              render: (n) => <span>{n.quantity.toLocaleString()}</span>
+              render: (n) => <span>{n.quantity.toLocaleString('en-US')}</span>
             },
             {
               key: 'description',

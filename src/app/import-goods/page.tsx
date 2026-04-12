@@ -93,7 +93,7 @@ export default function NhapHangPage() {
   const today = useMemo(() => new Date(), []);
   const [activeTab, setActiveTab] = useState<'sanpham' | 'nguyenlieu'>('sanpham');
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
-  
+
   // State cho tab Sản phẩm
   const [items, setItems] = useState<NhapHangItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -151,7 +151,7 @@ export default function NhapHangPage() {
   const [selectedChartRawMaterialId, setSelectedChartRawMaterialId] = useState('');
   const [productChartPage, setProductChartPage] = useState(0);
   const [rawMaterialChartPage, setRawMaterialChartPage] = useState(0);
-  
+
   const [chartSelections, setChartSelections] = useState<ImportProductChart[]>([]);
   const [showChartModal, setShowChartModal] = useState(false);
   const [submittingChartSettings, setSubmittingChartSettings] = useState(false);
@@ -164,7 +164,7 @@ export default function NhapHangPage() {
   // Tạo options cho dropdown từ products và packageProducts
   const getProductOptions = () => {
     const options: { label: string; value: string }[] = [];
-    
+
     // Thêm sản phẩm
     products.forEach((product) => {
       options.push({
@@ -172,7 +172,7 @@ export default function NhapHangPage() {
         value: `p:${product.id}`,
       });
     });
-    
+
     // Thêm kiện
     packageProducts.forEach((pkg) => {
       const product = products.find((p) => p.id === pkg.productId);
@@ -181,25 +181,25 @@ export default function NhapHangPage() {
         value: `k:${pkg.id}`,
       });
     });
-    
+
     return options;
   };
 
   // Tạo formFields với options động
   const formFields: FormField[] = [
-    { 
-      name: 'selectionKey', 
-      label: 'Tên hàng', 
-      type: 'select', 
-      required: true, 
+    {
+      name: 'selectionKey',
+      label: 'Tên hàng',
+      type: 'select',
+      required: true,
       placeholder: 'Chọn sản phẩm hoặc kiện...',
       options: getProductOptions()
     },
-    { 
-      name: 'soLuong', 
-      label: 'Số lượng', 
-      type: 'number', 
-      required: true, 
+    {
+      name: 'soLuong',
+      label: 'Số lượng',
+      type: 'number',
+      required: true,
       placeholder: 'Nhập số lượng...',
       min: 1
     },
@@ -354,12 +354,12 @@ export default function NhapHangPage() {
     setError(null);
     try {
       const result = await inventoryReceiptApi.getInventoryReceiptsFilter(page, size);
-      
+
       // Map dữ liệu từ API về format hiển thị
       const mappedData: NhapHangItem[] = result.data.map((receipt) => {
         let tenHang = '';
         let selectionKey = '';
-        
+
         if (receipt.packageProductId) {
           const pkg = packageProducts.find((k) => k.id === receipt.packageProductId);
           if (pkg) {
@@ -374,7 +374,7 @@ export default function NhapHangPage() {
             selectionKey = `p:${product.id}`;
           }
         }
-        
+
         return {
           id: receipt.id,
           tenHang: tenHang || 'Không xác định',
@@ -386,7 +386,7 @@ export default function NhapHangPage() {
           packageProductId: receipt.packageProductId,
         };
       });
-      
+
       setItems(mappedData);
       setTotalCountInventoryReceipt(result.totalCount);
     } catch (err: unknown) {
@@ -450,7 +450,7 @@ export default function NhapHangPage() {
       const isPackage = formData.selectionKey.startsWith('k:');
       let productId: number | undefined;
       let packageProductId: number | undefined;
-      
+
       if (isPackage) {
         packageProductId = Number(formData.selectionKey.slice(2));
         const pkg = packageProducts.find((k) => k.id === packageProductId);
@@ -480,7 +480,7 @@ export default function NhapHangPage() {
 
       toast.success(editingItem ? 'Cập nhật nhập hàng thành công' : 'Thêm nhập hàng thành công');
       handleCloseModal();
-      
+
       // Reload danh sách
       await Promise.all([loadItems(currentPageInventoryReceipt), loadChartInventoryReceipts()]);
     } catch (err: unknown) {
@@ -495,7 +495,7 @@ export default function NhapHangPage() {
   const formatDateTime = (value?: string) => {
     if (!value) return '';
     const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN');
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('en-US');
   };
 
   // Tính tổng tiền từ giá thành, số lượng và giảm giá
@@ -571,7 +571,7 @@ export default function NhapHangPage() {
             }
 
             let fundId: number;
-            
+
             // Nếu backend đã tạo fund, dùng fund đó
             if (result.fund && (result.fund as { id: number }).id) {
               fundId = (result.fund as { id: number }).id;
@@ -611,7 +611,7 @@ export default function NhapHangPage() {
         paidAmount: '',
         partnerId: '',
       });
-      
+
       // Reload danh sách
       await Promise.all([loadRawMaterialImports(currentPageRawMaterialImport), loadChartRawMaterialImports()]);
     } catch (err: unknown) {
@@ -725,7 +725,7 @@ export default function NhapHangPage() {
       key: 'soLuong',
       header: 'Số lượng',
       render: (item: NhapHangItem) => (
-        <span className="font-semibold">{item.soLuong.toLocaleString('vi-VN')}</span>
+        <span className="font-semibold">{item.soLuong.toLocaleString('en-US')}</span>
       ),
     },
     {
@@ -755,7 +755,7 @@ export default function NhapHangPage() {
       header: 'Số lượng',
       render: (item: RawMaterialImport) => (
         <span className="font-semibold">
-          {item.quantity.toLocaleString('vi-VN')} {item.rawMaterial?.unit || ''}
+          {item.quantity.toLocaleString('en-US')} {item.rawMaterial?.unit || ''}
         </span>
       ),
     },
@@ -763,7 +763,7 @@ export default function NhapHangPage() {
       key: 'unitPrice',
       header: 'Đơn giá',
       render: (item: RawMaterialImport) => (
-        <span>{item.unitPrice.toLocaleString('vi-VN')} đ</span>
+        <span>{item.unitPrice.toLocaleString('en-US')} đ</span>
       ),
       mobileHidden: true,
     },
@@ -772,7 +772,7 @@ export default function NhapHangPage() {
       header: 'Tổng tiền',
       render: (item: RawMaterialImport) => (
         <span className="font-semibold text-blue-600">
-          {item.totalAmount.toLocaleString('vi-VN')} đ
+          {item.totalAmount.toLocaleString('en-US')} đ
         </span>
       ),
     },
@@ -875,8 +875,8 @@ export default function NhapHangPage() {
       const groupedValues =
         productChartGranularity === 'day'
           ? Array.from({ length: getDaysInMonth(Number(productChartYear), Number(productChartMonth)) }, () =>
-              productChartSeries.map(() => 0)
-            )
+            productChartSeries.map(() => 0)
+          )
           : Array.from({ length: 12 }, () => productChartSeries.map(() => 0));
 
       const packageToSeriesIndex = new Map<number, number>();
@@ -1038,18 +1038,18 @@ export default function NhapHangPage() {
               )}
             </div>
             <div className="inline-flex overflow-hidden self-start rounded-lg border border-gray-200">
-            <button
-              onClick={() => onGranularityChange('day')}
-              className={`cursor-pointer px-3 py-1.5 text-xs font-semibold ${granularity === 'day' ? activeTab === 'sanpham' ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-            >
-              Theo ngày
-            </button>
-            <button
-              onClick={() => onGranularityChange('month')}
-              className={`cursor-pointer px-3 py-1.5 text-xs font-semibold ${granularity === 'month' ? activeTab === 'sanpham' ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-            >
-              Theo tháng
-            </button>
+              <button
+                onClick={() => onGranularityChange('day')}
+                className={`cursor-pointer px-3 py-1.5 text-xs font-semibold ${granularity === 'day' ? activeTab === 'sanpham' ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                Theo ngày
+              </button>
+              <button
+                onClick={() => onGranularityChange('month')}
+                className={`cursor-pointer px-3 py-1.5 text-xs font-semibold ${granularity === 'month' ? activeTab === 'sanpham' ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                Theo tháng
+              </button>
             </div>
           </div>
 
@@ -1137,7 +1137,7 @@ export default function NhapHangPage() {
                       <div className="mb-1 flex flex-wrap items-center justify-center gap-2 text-[11px] font-semibold text-gray-700">
                         {bars.map((bar) => (
                           <span key={bar.label} className="whitespace-nowrap">
-                            {bar.value.toLocaleString('vi-VN')}
+                            {bar.value.toLocaleString('en-US')}
                           </span>
                         ))}
                       </div>
@@ -1149,7 +1149,7 @@ export default function NhapHangPage() {
                               key={bar.label}
                               className={`min-h-[4px] flex-1 rounded-t-md ${bar.colorClass}`}
                               style={{ height: `${Math.max(height, 2)}%` }}
-                              title={`${bar.label}: ${bar.value.toLocaleString('vi-VN')} ${unitLabel}`}
+                              title={`${bar.label}: ${bar.value.toLocaleString('en-US')} ${unitLabel}`}
                             />
                           );
                         })}
@@ -1175,26 +1175,24 @@ export default function NhapHangPage() {
     <div className="container mx-auto p-4 sm:p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">Nhập hàng</h1>
-        
+
         {/* Tabs */}
         <div className="flex gap-2 border-b border-gray-200">
           <button
             onClick={() => setActiveTab('sanpham')}
-            className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 cursor-pointer ${
-              activeTab === 'sanpham'
+            className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 cursor-pointer ${activeTab === 'sanpham'
                 ? 'text-orange-600 border-orange-600'
                 : 'text-gray-600 border-transparent hover:text-orange-600'
-            }`}
+              }`}
           >
             Sản phẩm
           </button>
           <button
             onClick={() => setActiveTab('nguyenlieu')}
-            className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 cursor-pointer ${
-              activeTab === 'nguyenlieu'
+            className={`px-4 py-2 text-sm font-semibold transition-colors border-b-2 cursor-pointer ${activeTab === 'nguyenlieu'
                 ? 'text-orange-600 border-orange-600'
                 : 'text-gray-600 border-transparent hover:text-orange-600'
-            }`}
+              }`}
           >
             Nguyên liệu
           </button>
