@@ -99,12 +99,12 @@ export default function ThongKePage() {
     } else if (amount >= 1000) {
       return (amount / 1000).toFixed(1) + ' nghìn VNĐ';
     } else {
-      return amount.toLocaleString('vi-VN') + ' VNĐ';
+      return amount.toLocaleString('en-US') + ' VNĐ';
     }
   };
 
   const formatCurrencyFull = (amount: number) => {
-    return amount.toLocaleString('vi-VN') + ' VNĐ';
+    return amount.toLocaleString('en-US') + ' VNĐ';
   };
 
   const formatPercentage = (value: number) => {
@@ -354,7 +354,7 @@ export default function ThongKePage() {
                   key: 'quantity',
                   header: 'Số lượng',
                   className: 'text-center font-black text-orange-600',
-                  render: (it: unknown) => (it as { quantity: number }).quantity.toLocaleString('vi-VN')
+                  render: (it: unknown) => (it as { quantity: number }).quantity.toLocaleString('en-US')
                 },
                 {
                   key: 'totalValue',

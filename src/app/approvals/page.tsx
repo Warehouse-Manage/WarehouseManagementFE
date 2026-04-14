@@ -331,7 +331,7 @@ export default function ApprovalsPage() {
             render: (it: unknown) => {
               const req = it as Request;
               return req.totalPrice ? (
-                <span className="font-black text-green-600">{req.totalPrice.toLocaleString('vi-VN')} đ</span>
+                <span className="font-black text-green-600">{req.totalPrice.toLocaleString('en-US')} đ</span>
               ) : <span className="text-gray-400 italic">N/A</span>;
             }
           },

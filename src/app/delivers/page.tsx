@@ -287,14 +287,14 @@ export default function DeliversPage() {
               header: 'Tổng chi phí',
               headerClassName: 'text-right',
               className: 'text-right font-semibold text-gray-900',
-              render: (d) => <span>{(d.amountMoneyTotal || 0).toLocaleString('vi-VN')}đ</span>
+              render: (d) => <span>{(d.amountMoneyTotal || 0).toLocaleString('en-US')}đ</span>
             },
             {
               key: 'amountMoneyPaid',
               header: 'Đã thanh toán',
               headerClassName: 'text-right',
               className: 'text-right text-green-600 font-medium',
-              render: (d) => <span>{(d.amountMoneyPaid || 0).toLocaleString('vi-VN')}đ</span>
+              render: (d) => <span>{(d.amountMoneyPaid || 0).toLocaleString('en-US')}đ</span>
             },
             {
               key: 'remaining',
@@ -303,7 +303,7 @@ export default function DeliversPage() {
               className: 'text-right text-orange-600 font-black text-lg',
               render: (d) => {
                 const remaining = (d.amountMoneyTotal || 0) - (d.amountMoneyPaid || 0);
-                return <span>{remaining.toLocaleString('vi-VN')}đ</span>;
+                return <span>{remaining.toLocaleString('en-US')}đ</span>;
               }
             },
           ]}
@@ -315,18 +315,18 @@ export default function DeliversPage() {
               onClick: () => void;
               variant?: 'default' | 'danger';
             }> = [
-              {
-                label: 'Sửa',
-                icon: <Edit className="h-4 w-4" />,
-                onClick: () => handleEditDeliver(d)
-              },
-              {
-                label: 'Xóa',
-                icon: <Trash2 className="h-4 w-4" />,
-                onClick: () => handleDeleteDeliver(d),
-                variant: 'danger' as const
-              }
-            ];
+                {
+                  label: 'Sửa',
+                  icon: <Edit className="h-4 w-4" />,
+                  onClick: () => handleEditDeliver(d)
+                },
+                {
+                  label: 'Xóa',
+                  icon: <Trash2 className="h-4 w-4" />,
+                  onClick: () => handleDeleteDeliver(d),
+                  variant: 'danger' as const
+                }
+              ];
             if (remaining > 0) {
               actions.unshift({
                 label: 'Thanh toán',

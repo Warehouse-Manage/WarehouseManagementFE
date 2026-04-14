@@ -132,12 +132,12 @@ export default function DoiTacPage() {
         amount: Number(paymentAmount),
         createdUserId: Number(userId)
       });
-      
+
       // Update local state với dữ liệu từ server
-      setPartners(prev => prev.map(p => 
+      setPartners(prev => prev.map(p =>
         p.id === result.partner.id ? result.partner : p
       ));
-      
+
       // Hiển thị và in phiếu chi
       if (result.fund && result.fund.id) {
         try {
@@ -148,7 +148,7 @@ export default function DoiTacPage() {
           // Không throw error để không làm gián đoạn flow thanh toán
         }
       }
-      
+
       setShowPaymentModal(false);
       setSelectedPartner(null);
       setPaymentAmount(0);
@@ -178,7 +178,7 @@ export default function DoiTacPage() {
         phoneNumber,
         createdUserId: Number(userId)
       });
-      
+
       setName('');
       setPhoneNumber('');
       setShowForm(false);
@@ -216,7 +216,7 @@ export default function DoiTacPage() {
         phoneNumber,
         createdUserId: Number(userId)
       });
-      
+
       setName('');
       setPhoneNumber('');
       setEditingPartner(null);
@@ -329,14 +329,14 @@ export default function DoiTacPage() {
               header: 'Tổng chi phí',
               headerClassName: 'text-right',
               className: 'text-right font-semibold text-gray-900',
-              render: (d) => <span>{(d.amountMoneyTotal || 0).toLocaleString('vi-VN')}đ</span>
+              render: (d) => <span>{(d.amountMoneyTotal || 0).toLocaleString('en-US')}đ</span>
             },
             {
               key: 'amountMoneyPaid',
               header: 'Đã thanh toán',
               headerClassName: 'text-right',
               className: 'text-right text-green-600 font-medium',
-              render: (d) => <span>{(d.amountMoneyPaid || 0).toLocaleString('vi-VN')}đ</span>
+              render: (d) => <span>{(d.amountMoneyPaid || 0).toLocaleString('en-US')}đ</span>
             },
             {
               key: 'remaining',
@@ -345,7 +345,7 @@ export default function DoiTacPage() {
               className: 'text-right text-orange-600 font-black text-lg',
               render: (d) => {
                 const remaining = (d.amountMoneyTotal || 0) - (d.amountMoneyPaid || 0);
-                return <span>{remaining.toLocaleString('vi-VN')}đ</span>;
+                return <span>{remaining.toLocaleString('en-US')}đ</span>;
               }
             },
           ]}

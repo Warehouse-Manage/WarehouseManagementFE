@@ -115,6 +115,11 @@ export default function CustomersPage() {
     setError(null);
     try {
       if (editingCustomer) {
+        await financeApi.updateCustomer(editingCustomer.id, {
+          name,
+          address,
+          phoneNumber
+        });
         toast.success('Cập nhật khách hàng thành công');
       } else {
         const userId = getCookie('userId');
@@ -153,6 +158,7 @@ export default function CustomersPage() {
     if (!confirmed) return;
     try {
       setLoading(true);
+      await financeApi.deleteCustomer(customer.id);
       toast.success('Xóa khách hàng thành công');
       await loadCustomers();
     } catch (err: unknown) {
@@ -172,7 +178,7 @@ export default function CustomersPage() {
 
   const handleDownloadDebt = async () => {
     if (!selectedCustomerForDebt) return;
-    
+
     setDownloadingDebt(true);
     setError(null);
     try {
@@ -248,16 +254,16 @@ export default function CustomersPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
         <div className="border border-green-100 rounded-2xl p-4 bg-green-50 shadow-sm shadow-green-100">
           <div className="text-[10px] font-black uppercase text-green-600 tracking-wider mb-1">Nợ phải thu</div>
-          <div className="text-2xl font-black text-green-700">{totalDebtReceivable.toLocaleString('vi-VN')}đ</div>
+          <div className="text-2xl font-black text-green-700">{totalDebtReceivable.toLocaleString('en-US')}đ</div>
         </div>
         <div className="border border-red-100 rounded-2xl p-4 bg-red-50 shadow-sm shadow-red-100">
           <div className="text-[10px] font-black uppercase text-red-600 tracking-wider mb-1">Nợ phải trả</div>
-          <div className="text-2xl font-black text-red-700">{totalDebtPayable.toLocaleString('vi-VN')}đ</div>
+          <div className="text-2xl font-black text-red-700">{totalDebtPayable.toLocaleString('en-US')}đ</div>
         </div>
         <div className="border border-blue-100 rounded-2xl p-4 bg-blue-50 shadow-sm shadow-blue-100">
           <div className="text-[10px] font-black uppercase text-blue-600 tracking-wider mb-1">Tổng cộng</div>
           <div className={`text-2xl font-black ${netDebtBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-            {netDebtBalance.toLocaleString('vi-VN')}đ
+            {netDebtBalance.toLocaleString('en-US')}đ
           </div>
         </div>
       </div>
@@ -339,7 +345,7 @@ export default function CustomersPage() {
                 if (debt === undefined) {
                   return <span className="text-gray-400 text-xs">Đang tải...</span>;
                 }
-                return <span>{debt.toLocaleString('vi-VN')}</span>;
+                return <span>{debt.toLocaleString('en-US')}</span>;
               }
             },
             {
@@ -410,7 +416,7 @@ export default function CustomersPage() {
       >
         <div className="space-y-4">
           {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
-          
+
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">
@@ -423,7 +429,7 @@ export default function CustomersPage() {
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
-            
+
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">
                 Đến ngày <span className="text-gray-400 font-normal normal-case">(tùy chọn)</span>
@@ -436,7 +442,7 @@ export default function CustomersPage() {
                 min={startDate || undefined}
               />
             </div>
-            
+
             <div className="text-xs text-gray-500 italic">
               <p>• Để trống cả 2 trường để lấy công nợ tất cả thời gian</p>
               <p>• Chỉ chọn &quot;Từ ngày&quot; để lấy từ ngày đó đến hiện tại</p>

@@ -317,7 +317,7 @@ export default function CreateOrderModal({
                             label: 'Sản phẩm',
                             options: products.map((pr) => ({
                               value: `p:${pr.id}`,
-                              label: `${pr.name} (${pr.price.toLocaleString()}đ)`
+                              label: `${pr.name} (${pr.price.toLocaleString('en-US')}đ)`
                             }))
                           },
                           {
@@ -328,7 +328,7 @@ export default function CreateOrderModal({
                               const packagePrice = baseProduct ? baseProduct.price * pk.quantityProduct : 0;
                               return {
                                 value: `k:${pk.id}`,
-                                label: `${label} (${packagePrice.toLocaleString()}đ/kiện)`
+                                label: `${label} (${packagePrice.toLocaleString('en-US')}đ/kiện)`
                               };
                             })
                           }
@@ -339,7 +339,7 @@ export default function CreateOrderModal({
                               const key = p.selectionKey;
                               if (key.startsWith('p:')) {
                                 const pr = products.find((pr) => pr.id === Number(key.slice(2)));
-                                return pr ? { value: key, label: `${pr.name} (${pr.price.toLocaleString()}đ)` } : null;
+                                return pr ? { value: key, label: `${pr.name} (${pr.price.toLocaleString('en-US')}đ)` } : null;
                               }
                               if (key.startsWith('k:')) {
                                 const pk = packageProducts.find((pk) => pk.id === Number(key.slice(2)));
@@ -347,7 +347,7 @@ export default function CreateOrderModal({
                                 const baseProduct = products.find((pr) => pr.id === pk.productId);
                                 const label = `${pk.name} - ${baseProduct?.name || `#${pk.productId}`} (${pk.quantityProduct} viên/kiện)`;
                                 const packagePrice = baseProduct ? baseProduct.price * pk.quantityProduct : 0;
-                                return { value: key, label: `${label} (${packagePrice.toLocaleString()}đ/kiện)` };
+                                return { value: key, label: `${label} (${packagePrice.toLocaleString('en-US')}đ/kiện)` };
                               }
                               return null;
                             })()
@@ -458,7 +458,7 @@ export default function CreateOrderModal({
                     <div>
                       <label className="block text-[10px] font-black uppercase text-gray-500 mb-1">Thành tiền</label>
                       <div className="font-bold text-sm text-orange-600 pt-1.5">
-                        {total > 0 ? total.toLocaleString() + 'đ' : '0đ'}
+                        {total > 0 ? total.toLocaleString('en-US') + 'đ' : '0đ'}
                       </div>
                     </div>
                   </div>
@@ -478,13 +478,13 @@ export default function CreateOrderModal({
           <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-4">
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm">
               <div className="text-gray-600">
-                <p>Tổng tiền hàng: <span className="font-bold text-gray-900">{calculateGrandTotal().toLocaleString()}đ</span></p>
-                <p>Giảm giá đơn hàng: <span className="font-bold text-red-600">-{Number(sale || 0).toLocaleString()}đ</span></p>
+                <p>Tổng tiền hàng: <span className="font-bold text-gray-900">{calculateGrandTotal().toLocaleString('en-US')}đ</span></p>
+                <p>Giảm giá đơn hàng: <span className="font-bold text-red-600">-{Number(sale || 0).toLocaleString('en-US')}đ</span></p>
               </div>
               <div className="text-center sm:text-right">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Tổng cộng sau giảm</p>
                 <p className="text-2xl font-black text-orange-600 leading-none">
-                  {calculateOrderTotal().toLocaleString()}đ
+                  {calculateOrderTotal().toLocaleString('en-US')}đ
                 </p>
               </div>
             </div>

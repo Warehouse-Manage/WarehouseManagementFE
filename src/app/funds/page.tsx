@@ -434,16 +434,16 @@ export default function FundsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
         <div className="border border-green-100 rounded-2xl p-4 bg-green-50 shadow-sm shadow-green-100">
           <div className="text-[10px] font-black uppercase text-green-600 tracking-wider mb-1">Tổng thu</div>
-          <div className="text-2xl font-black text-green-700">{totalThu.toLocaleString()}đ</div>
+          <div className="text-2xl font-black text-green-700">{totalThu.toLocaleString('en-US')}đ</div>
         </div>
         <div className="border border-red-100 rounded-2xl p-4 bg-red-50 shadow-sm shadow-red-100">
           <div className="text-[10px] font-black uppercase text-red-600 tracking-wider mb-1">Tổng chi</div>
-          <div className="text-2xl font-black text-red-700">{totalChi.toLocaleString()}đ</div>
+          <div className="text-2xl font-black text-red-700">{totalChi.toLocaleString('en-US')}đ</div>
         </div>
         <div className="border border-blue-100 rounded-2xl p-4 bg-blue-50 shadow-sm shadow-blue-100">
           <div className="text-[10px] font-black uppercase text-blue-600 tracking-wider mb-1">Số dư</div>
           <div className={`text-2xl font-black ${balance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-            {balance.toLocaleString()}đ
+            {balance.toLocaleString('en-US')}đ
           </div>
         </div>
       </div>
@@ -731,7 +731,7 @@ export default function FundsPage() {
               isMain: true,
               render: (f) => (
                 <span className={`font-black text-base md:text-lg ${f.type === 'Thu' ? 'text-green-600' : 'text-red-600'}`}>
-                  {f.type === 'Thu' ? '+' : '-'}{f.amount.toLocaleString()}đ
+                  {f.type === 'Thu' ? '+' : '-'}{f.amount.toLocaleString('en-US')}đ
                 </span>
               )
             }

@@ -120,12 +120,12 @@ export default function MonthlyDetailsPage() {
     } else if (amount >= 1000) {
       return (amount / 1000).toFixed(1) + ' nghìn VNĐ';
     } else {
-      return amount.toLocaleString('vi-VN') + ' VNĐ';
+      return amount.toLocaleString('en-US') + ' VNĐ';
     }
   };
 
   const formatCurrencyFull = (amount: number) => {
-    return amount.toLocaleString('vi-VN') + ' VNĐ';
+    return amount.toLocaleString('en-US') + ' VNĐ';
   };
 
   const getMonthName = (month: string) => {
@@ -320,19 +320,19 @@ export default function MonthlyDetailsPage() {
                         key: 'quantity',
                         header: 'Số lượng',
                         className: 'w-24 text-center',
-                        render: (it: unknown) => <span className="font-bold text-gray-700">{(it as RequestItemMaterial).quantity.toLocaleString('vi-VN')}</span>
+                        render: (it: unknown) => <span className="font-bold text-gray-700">{(it as RequestItemMaterial).quantity.toLocaleString('en-US')}</span>
                       },
                       {
                         key: 'unitPrice',
                         header: 'Đơn giá',
                         className: 'w-32 text-right',
-                        render: (it: unknown) => <span className="text-gray-600">{(it as RequestItemMaterial).unitPrice.toLocaleString('vi-VN')} đ</span>
+                        render: (it: unknown) => <span className="text-gray-600">{(it as RequestItemMaterial).unitPrice.toLocaleString('en-US')} đ</span>
                       },
                       {
                         key: 'totalPrice',
                         header: 'Thành tiền',
                         className: 'w-32 text-right',
-                        render: (it: unknown) => <span className="font-black text-green-600">{(it as RequestItemMaterial).totalPrice.toLocaleString('vi-VN')} đ</span>
+                        render: (it: unknown) => <span className="font-black text-green-600">{(it as RequestItemMaterial).totalPrice.toLocaleString('en-US')} đ</span>
                       }
                     ]}
                   />

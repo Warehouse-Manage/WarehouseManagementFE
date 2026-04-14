@@ -64,7 +64,7 @@ export const MaterialTable: React.FC<MaterialTableProps> = ({
                                 </td>
                                 <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm font-bold text-gray-800">{m.name}</td>
                                 <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm font-semibold text-gray-700">{m.type}</td>
-                                <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm font-semibold text-gray-700">{m.amount.toLocaleString('vi-VN')}</td>
+                                <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm font-semibold text-gray-700">{m.amount.toLocaleString('en-US')}</td>
                                 <td className="whitespace-nowrap px-2 sm:px-4 py-3 text-sm relative">
                                     <div className="relative flex justify-center" ref={el => { dropdownRefs.current[m.id] = el; }}>
                                         <button

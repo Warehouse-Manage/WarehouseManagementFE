@@ -76,7 +76,7 @@ export default function OrdersPage() {
   const formatDateTime = (value?: string) => {
     if (!value) return '';
     const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN');
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('en-US');
   };
 
   const formatDateFilterDisplay = (value: string) => {
@@ -446,11 +446,11 @@ export default function OrdersPage() {
 
         // Phân tích xem có cần in phiếu thu không (chuyển từ 0 -> >0)
         const isNewPayment = originalPayment === 0 && Number(amountCustomerPayment) > 0;
-        
+
         if (isNewPayment) {
           const now = new Date();
           const customer = customers.find((c) => c.id === Number(customerId));
-          
+
           const formatDateTimeStr = (date: Date): string => {
             const day = date.getDate().toString().padStart(2, '0');
             const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -467,7 +467,7 @@ export default function OrdersPage() {
             Doi_Tac: customer?.name || 'Khách hàng',
             Dia_Chi: customer?.address || '',
             Ly_Do: `Thanh toán cho đơn hàng #${editingOrderId}`,
-            Gia_Tri_Phieu: Number(amountCustomerPayment || 0).toLocaleString('vi-VN'),
+            Gia_Tri_Phieu: Number(amountCustomerPayment || 0).toLocaleString('en-US'),
             Ngay: now.getDate().toString().padStart(2, '0'),
             Thang: (now.getMonth() + 1).toString().padStart(2, '0'),
             Nam: now.getFullYear().toString(),
@@ -515,32 +515,32 @@ export default function OrdersPage() {
         Doi_Tac: customer?.name || 'Khách hàng',
         Dia_Chi: customer?.address || '',
         Ly_Do: `Thanh toán cho đơn hàng #${res.id}`,
-        Gia_Tri_Phieu: Number(amountCustomerPayment || 0).toLocaleString('vi-VN'),
+        Gia_Tri_Phieu: Number(amountCustomerPayment || 0).toLocaleString('en-US'),
         Ngay: now.getDate().toString().padStart(2, '0'),
         Thang: (now.getMonth() + 1).toString().padStart(2, '0'),
         Nam: now.getFullYear().toString(),
         Nhan_Ky_Ten: 'NGƯỜI NỘP TIỀN'
       };
 
-        const deliveryItems = productsToOrder.map((po, idx) => {
-          const pkg = po.packageProductId
-            ? packageProducts.find((k) => k.id === po.packageProductId)
-            : undefined;
-          const baseProduct = po.productId
-            ? products.find((p) => p.id === po.productId)
-            : undefined;
-          const isPackage = !!po.packageProductId;
-          return {
-            STT: idx + 1,
-            // Nếu là kiện: luôn hiển thị tên kiện (không fallback sang tên sản phẩm)
-            Ten_Hang_Hoa: isPackage ? (pkg?.name || 'Kiện') : (baseProduct?.name || 'Sản phẩm'),
-            So_Luong: po.amount,
-            ProductId: po.productId && po.productId > 0 ? po.productId : null,
-            PackageProductId: po.packageProductId ?? null,
-            QuantityProduct: pkg?.quantityProduct ?? null,
-            Ten_San_Pham_Goc: baseProduct?.name || 'Sản phẩm',
-          };
-        });
+      const deliveryItems = productsToOrder.map((po, idx) => {
+        const pkg = po.packageProductId
+          ? packageProducts.find((k) => k.id === po.packageProductId)
+          : undefined;
+        const baseProduct = po.productId
+          ? products.find((p) => p.id === po.productId)
+          : undefined;
+        const isPackage = !!po.packageProductId;
+        return {
+          STT: idx + 1,
+          // Nếu là kiện: luôn hiển thị tên kiện (không fallback sang tên sản phẩm)
+          Ten_Hang_Hoa: isPackage ? (pkg?.name || 'Kiện') : (baseProduct?.name || 'Sản phẩm'),
+          So_Luong: po.amount,
+          ProductId: po.productId && po.productId > 0 ? po.productId : null,
+          PackageProductId: po.packageProductId ?? null,
+          QuantityProduct: pkg?.quantityProduct ?? null,
+          Ten_San_Pham_Goc: baseProduct?.name || 'Sản phẩm',
+        };
+      });
 
       const deliveryModel = {
         Ngay_Thang_Nam: formatDateTime(now),
@@ -820,7 +820,7 @@ export default function OrdersPage() {
               className: 'text-right',
               render: (o) => (
                 <span className="font-black text-gray-900 md:text-base">
-                  {o.totalPrice.toLocaleString()}đ
+                  {o.totalPrice.toLocaleString('en-US')}đ
                 </span>
               )
             },
@@ -830,7 +830,7 @@ export default function OrdersPage() {
               mobileHidden: true,
               headerClassName: 'text-right',
               className: 'text-right',
-              render: (o) => <span className="text-red-500 font-bold">{o.sale.toLocaleString()}đ</span>
+              render: (o) => <span className="text-red-500 font-bold">{o.sale.toLocaleString('en-US')}đ</span>
             },
             {
               key: 'amountCustomerPayment',
@@ -838,7 +838,7 @@ export default function OrdersPage() {
               mobileHidden: true,
               headerClassName: 'text-right',
               className: 'text-right',
-              render: (o) => <span className="text-blue-600 font-bold">{o.amountCustomerPayment.toLocaleString()}đ</span>
+              render: (o) => <span className="text-blue-600 font-bold">{o.amountCustomerPayment.toLocaleString('en-US')}đ</span>
             },
             {
               key: 'remainingAmount',
@@ -848,7 +848,7 @@ export default function OrdersPage() {
               render: (o) => (
                 <div className="flex flex-col items-end">
                   <span className={`font-black md:text-base ${o.remainingAmount > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                    {o.remainingAmount.toLocaleString()}đ
+                    {o.remainingAmount.toLocaleString('en-US')}đ
                   </span>
                   {o.remainingAmount > 0 && <span className="text-[10px] font-bold text-orange-400 uppercase tracking-tighter md:hidden">Chưa thu</span>}
                 </div>

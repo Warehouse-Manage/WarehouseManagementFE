@@ -78,7 +78,7 @@ export default function PlaceOrderPage() {
   const formatDateTime = (value?: string) => {
     if (!value) return '';
     const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN');
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('en-US');
   };
 
   const formatDate = (value?: string) => {
@@ -502,7 +502,7 @@ export default function PlaceOrderPage() {
         Doi_Tac: customerName,
         Dia_Chi: deliveryAddress || '',
         Ly_Do: `Thanh toán cho đặt hàng #${res.id} - Người đặt hàng: ${customerName} - Ngày giao hàng: ${deliveryDateFormatted}`,
-        Gia_Tri_Phieu: Number(amountCustomerPayment || 0).toLocaleString('vi-VN'),
+        Gia_Tri_Phieu: Number(amountCustomerPayment || 0).toLocaleString('en-US'),
         Ngay: now.getDate().toString().padStart(2, '0'),
         Thang: (now.getMonth() + 1).toString().padStart(2, '0'),
         Nam: now.getFullYear().toString(),
@@ -751,7 +751,7 @@ export default function PlaceOrderPage() {
               className: 'text-right',
               render: (o) => (
                 <span className="font-black text-gray-900 md:text-base">
-                  {o.totalPrice.toLocaleString()}đ
+                  {o.totalPrice.toLocaleString('en-US')}đ
                 </span>
               )
             },
@@ -761,7 +761,7 @@ export default function PlaceOrderPage() {
               mobileHidden: true,
               headerClassName: 'text-right',
               className: 'text-right',
-              render: (o) => <span className="text-red-500 font-bold">{o.sale.toLocaleString()}đ</span>
+              render: (o) => <span className="text-red-500 font-bold">{o.sale.toLocaleString('en-US')}đ</span>
             },
             {
               key: 'amountCustomerPayment',
@@ -769,7 +769,7 @@ export default function PlaceOrderPage() {
               mobileHidden: true,
               headerClassName: 'text-right',
               className: 'text-right',
-              render: (o) => <span className="text-blue-600 font-bold">{o.amountCustomerPayment.toLocaleString()}đ</span>
+              render: (o) => <span className="text-blue-600 font-bold">{o.amountCustomerPayment.toLocaleString('en-US')}đ</span>
             },
             {
               key: 'remainingAmount',
@@ -779,7 +779,7 @@ export default function PlaceOrderPage() {
               render: (o) => (
                 <div className="flex flex-col items-end">
                   <span className={`font-black md:text-base ${o.remainingAmount > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                    {o.remainingAmount.toLocaleString()}đ
+                    {o.remainingAmount.toLocaleString('en-US')}đ
                   </span>
                   {o.remainingAmount > 0 && <span className="text-[10px] font-bold text-orange-400 uppercase tracking-tighter md:hidden">Chưa thu</span>}
                 </div>

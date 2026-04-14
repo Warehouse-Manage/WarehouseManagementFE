@@ -107,7 +107,7 @@ export default function ApprovalModal({
                     </div>
                     <div className="w-32 text-right">
                       <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Thành tiền</p>
-                      <p className="text-sm font-black text-green-600">{((item.unitPrice || 0) * item.quantity).toLocaleString('vi-VN')} đ</p>
+                      <p className="text-sm font-black text-green-600">{((item.unitPrice || 0) * item.quantity).toLocaleString('en-US')} đ</p>
                     </div>
                     <button
                       onClick={() => onRemoveItem(item.id)}
@@ -126,7 +126,7 @@ export default function ApprovalModal({
           <div className="bg-orange-50 rounded-xl border border-orange-100 p-5 space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-sm font-bold text-gray-600">Tổng phụ:</span>
-              <span className="text-sm font-bold text-gray-900">{calculateSubtotal().toLocaleString('vi-VN')} đ</span>
+              <span className="text-sm font-bold text-gray-900">{calculateSubtotal().toLocaleString('en-US')} đ</span>
             </div>
             <DynamicForm
               fields={approvalFormFields}
@@ -136,7 +136,7 @@ export default function ApprovalModal({
             />
             <div className="pt-3 border-t border-orange-200 flex justify-between items-center">
               <span className="text-lg font-black text-gray-900">TỔNG CỘNG:</span>
-              <span className="text-2xl font-black text-orange-600">{calculateTotal().toLocaleString('vi-VN')} đ</span>
+              <span className="text-2xl font-black text-orange-600">{calculateTotal().toLocaleString('en-US')} đ</span>
             </div>
           </div>
         </div>

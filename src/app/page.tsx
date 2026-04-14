@@ -235,7 +235,7 @@ export default function MaterialsPage() {
                 render: (it) => (
                   <div className="flex flex-col">
                     <span className={`text-base font-black ${it.amount < 10 ? 'text-red-600' : 'text-green-600'}`}>
-                      {it.amount.toLocaleString('vi-VN')}
+                      {it.amount.toLocaleString('en-US')}
                     </span>
                     {it.amount < 10 && (
                       <span className="text-[10px] font-black text-red-500 uppercase tracking-tighter">Sắp hết hàng</span>
