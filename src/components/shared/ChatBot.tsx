@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Bot, Loader2, MessageCircle, Mic, MicOff, X } from 'lucide-react';
+import { Bot, Loader2, MessageCircle, Mic, MicOff, Trash2, X } from 'lucide-react';
 import { chatApi } from '@/api/chatApi';
 import { toast } from 'sonner';
 
@@ -43,7 +43,7 @@ declare global {
 }
 
 const DEFAULT_GREETING =
-  'Xin chao, toi la Warehouse AI. Bam micro va noi yeu cau de toi ho tro tao phieu thu chi nhanh hon.';
+  'Xin chào, tôi là Warehouse AI. Bấm micro và nói yêu cầu để tôi hỗ trợ tạo phiếu thu chi nhanh hơn.';
 
 export default function ChatBot() {
   const [isMounted, setIsMounted] = useState(false);
@@ -64,6 +64,9 @@ export default function ChatBot() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const finalTranscriptRef = useRef<string>('');
+  const latestTranscriptRef = useRef<string>('');
+  const isStoppedRef = useRef<boolean>(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -126,7 +129,7 @@ export default function ChatBot() {
       }
     } catch (error) {
       console.error('Chat error:', error);
-      toast.error('Co loi xay ra khi ket noi voi AI');
+      toast.error('Có lỗi xảy ra khi kết nối với AI');
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +140,7 @@ export default function ChatBot() {
 
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
-      toast.error('Trinh duyet nay chua ho tro nhan dien giong noi');
+      toast.error('Trình duyệt này chưa hỗ trợ nhận diện giọng nói');
       return;
     }
 
@@ -145,28 +148,40 @@ export default function ChatBot() {
 
     const recognition = new Recognition();
     recognition.lang = 'vi-VN';
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    finalTranscriptRef.current = '';
+    latestTranscriptRef.current = '';
+    isStoppedRef.current = false;
 
     recognition.onresult = (event) => {
-      const spokenText = Array.from(event.results)
-        .map((result) => result[0]?.transcript ?? '')
-        .join(' ')
-        .trim();
+      if (isStoppedRef.current) return;
+      let interimText = '';
+      let finalText = '';
 
-      setTranscript(spokenText);
-
-      if (!spokenText) {
-        toast.error('Khong nghe ro noi dung, vui long thu lai');
-        return;
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        const text = result[0]?.transcript ?? '';
+        if (result.isFinal) {
+          finalText += text + ' ';
+        } else {
+          interimText += text;
+        }
       }
 
-      void sendVoiceMessage(spokenText);
+      if (finalText) {
+        finalTranscriptRef.current = finalText.trim();
+      }
+
+      const displayText = (finalTranscriptRef.current + ' ' + interimText).trim();
+      latestTranscriptRef.current = displayText;
+      setTranscript(displayText);
     };
 
     recognition.onerror = (event) => {
-      if (event.error !== 'aborted') {
-        toast.error('Khong the nhan giong noi, vui long thu lai');
+      if (event.error !== 'aborted' && event.error !== 'no-speech') {
+        toast.error('Không thể nhận giọng nói, vui lòng thử lại');
       }
     };
 
@@ -181,8 +196,41 @@ export default function ChatBot() {
   };
 
   const stopListening = () => {
+    isStoppedRef.current = true;
     recognitionRef.current?.stop();
+    recognitionRef.current = null;
     setIsListening(false);
+
+    const spokenText = (finalTranscriptRef.current || latestTranscriptRef.current).trim();
+    finalTranscriptRef.current = '';
+    latestTranscriptRef.current = '';
+    setTranscript('');
+
+    if (!spokenText) {
+      toast.error('Không nghe rõ nội dung, vui lòng thử lại');
+      return;
+    }
+
+    void sendVoiceMessage(spokenText);
+  };
+
+  const handleClearTranscript = () => {
+    // Reset ngay lập tức trên UI
+    finalTranscriptRef.current = '';
+    latestTranscriptRef.current = '';
+    setTranscript('');
+
+    // Nếu đang nghe, phải restart engine để clear buffer của browser
+    if (isListening && recognitionRef.current) {
+      isStoppedRef.current = true;
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+      
+      // Khởi động lại sau một khoảng thời gian ngắn để engine kịp đóng hẳn
+      setTimeout(() => {
+        startListening();
+      }, 100);
+    }
   };
 
   if (!isMounted || !isMobile) {
@@ -195,7 +243,7 @@ export default function ChatBot() {
         <button
           onClick={() => setIsOpen(true)}
           className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-orange-600 to-orange-500 text-white shadow-xl transition-all hover:scale-110 hover:shadow-orange-200 active:scale-95"
-          aria-label="Mo tro ly giong noi"
+          aria-label="Mở trợ lý giọng nói"
         >
           <MessageCircle className="h-7 w-7 transition-all group-hover:rotate-12" />
           <span className="absolute -right-1 -top-1 flex h-4 w-4">
@@ -223,7 +271,7 @@ export default function ChatBot() {
             <button
               onClick={() => setIsOpen(false)}
               className="rounded-lg p-1.5 transition-colors hover:bg-white/10"
-              aria-label="Dong chatbot"
+              aria-label="Đóng chatbot"
             >
               <X className="h-5 w-5" />
             </button>
@@ -270,14 +318,25 @@ export default function ChatBot() {
           <div className="border-t bg-white p-4">
             {!isSupported ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                Trinh duyet tren dien thoai nay chua ho tro voice chat.
+                Trình duyệt trên điện thoại này chưa hỗ trợ voice chat.
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-                  {transcript
-                    ? `Ban vua noi: "${transcript}"`
-                    : 'Bam micro, noi yeu cau, he thong se tu gui ma khong can nhap tin nhan.'}
+                <div className="relative rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+                  <div className="pr-8">
+                    {transcript
+                      ? `Bạn đang nói: "${transcript}"`
+                      : 'Bấm micro, nói yêu cầu, hệ thống sẽ tự gửi mà không cần nhập tin nhắn.'}
+                  </div>
+                  {transcript && !isLoading && (
+                    <button
+                      onClick={handleClearTranscript}
+                      className="absolute right-2 top-2 p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                      title="Xóa nội dung đang nói"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
 
                 <button
@@ -290,17 +349,17 @@ export default function ChatBot() {
                   {isLoading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Dang xu ly yeu cau
+                      Đang xử lý yêu cầu
                     </>
                   ) : isListening ? (
                     <>
                       <MicOff className="h-4 w-4" />
-                      Dung ghi am
+                      Dừng ghi âm
                     </>
                   ) : (
                     <>
                       <Mic className="h-4 w-4" />
-                      Noi voi Warehouse AI
+                      Nói với Warehouse AI
                     </>
                   )}
                 </button>
