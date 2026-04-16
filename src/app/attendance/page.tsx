@@ -647,7 +647,7 @@ export default function AttendancePage() {
     const baseSalary = dailySalary * totalWorkQuantity;
     // Assuming overtime rate is 2x daily salary per hour (8 hours per day) - matching backend
     const overtimeRate = dailySalary / 8;
-    const overtimeSalary = workDatesInPeriod.reduce((sum, wd) => sum + (wd.workOvertime * overtimeRate * 2), 0);
+    const overtimeSalary = workDatesInPeriod.reduce((sum, wd) => sum + (wd.workOvertime * overtimeRate), 0);
     return baseSalary + overtimeSalary;
   }, [selectedMarkWorker, markForm.month, markWorkDates]);
 
@@ -2102,7 +2102,7 @@ export default function AttendancePage() {
                         const totalWorkQuantity = workDatesInPeriod.reduce((sum, wd) => sum + wd.workQuantity, 0);
                         const baseSalary = dailySalary * totalWorkQuantity;
                         const overtimeRate = dailySalary / 8;
-                        const overtimeSalary = workDatesInPeriod.reduce((sum, wd) => sum + (wd.workOvertime * overtimeRate * 2), 0);
+                        const overtimeSalary = workDatesInPeriod.reduce((sum, wd) => sum + (wd.workOvertime * overtimeRate), 0);
                         const calculatedSalary = baseSalary + overtimeSalary;
                         return formatCurrency(calculatedSalary);
                       })() : formatCurrency(markAttendance.monthlySalary)}
