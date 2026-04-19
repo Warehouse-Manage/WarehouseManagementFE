@@ -241,7 +241,7 @@ export default function LoGachPage() {
     return (
       <div className="w-full overflow-x-auto py-6 px-4 bg-white/30 backdrop-blur-md rounded-2xl border border-white/50 shadow-inner">
         <svg
-          viewBox={`0 0 ${contentWidth} ${height + 60}`}
+          viewBox={`0 -30 ${contentWidth} ${height + 90}`}
           width="100%"
           height="auto"
           className="mx-auto drop-shadow-sm"
