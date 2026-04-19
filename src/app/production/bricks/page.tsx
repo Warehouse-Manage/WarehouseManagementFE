@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
 import { productionApi } from '@/api';
-import { BrickYardStatus, BrickYardAggregated } from '@/types';
+import { BrickYardStatus, BrickYardAggregated, DeviceActivity } from '@/types';
 import { DataTable } from '@/components/shared';
 import Select from "react-select";
 import AddStatusModal from './modal/AddStatusModal';
@@ -39,6 +39,11 @@ export default function LoGachPage() {
   const [canFetch, setCanFetch] = useState<boolean>(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [chartData, setChartData] = useState<ChartDatum[]>([]);
+
+  // Device Activity state
+  const [activityDate, setActivityDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [activityData, setActivityData] = useState<DeviceActivity | null>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   useEffect(() => {
     const role = getCookie('role');
@@ -120,7 +125,7 @@ export default function LoGachPage() {
         const mappedStatuses: BrickYardStatus[] = aggregated.map((item, idx) => ({
           id: idx + 1,
           packageQuantity: item.totalPackageQuantity,
-          dateTimes: [item.periodStart]
+          dateTime: item.periodStart
         }));
         setStatuses(mappedStatuses);
 
@@ -153,8 +158,8 @@ export default function LoGachPage() {
         const items = (data as BrickYardStatus[]);
         setStatuses(items);
         const chart = items.map(item => ({
-          label: item.dateTimes && item.dateTimes.length > 0 
-                 ? new Date(item.dateTimes[0]).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) 
+          label: item.dateTime
+                 ? new Date(item.dateTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) 
                  : '',
           value: item.packageQuantity
         }));
@@ -190,15 +195,32 @@ export default function LoGachPage() {
     fetchStatuses();
   }, [fetchStatuses, canFetch]);
 
-  const formatDateTime = (dateTime: string | string[]) => {
-    const dates = Array.isArray(dateTime) ? dateTime : [dateTime];
-    return dates.map(dt => new Date(dt).toLocaleString('vi-VN', {
+  // Fetch device activities
+  const fetchDeviceActivities = useCallback(async () => {
+    if (!canFetch) return;
+    try {
+      setActivityLoading(true);
+      const data = await productionApi.getDeviceActivities(activityDate);
+      setActivityData(data);
+    } catch (err) {
+      console.error('Lỗi khi lấy hoạt động thiết bị:', err);
+    } finally {
+      setActivityLoading(false);
+    }
+  }, [activityDate, canFetch]);
+
+  useEffect(() => {
+    fetchDeviceActivities();
+  }, [fetchDeviceActivities]);
+
+  const formatDateTime = (dateTime: string) => {
+    return new Date(dateTime).toLocaleString('vi-VN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit'
-    })).join(', ');
+    });
   };
 
   const getTotalQuantity = () => {
@@ -538,10 +560,10 @@ export default function LoGachPage() {
                 render: (_, index) => <span>{index + 1}</span>
               },
               {
-                key: 'dateTimes',
+                key: 'dateTime',
                 header: 'Thời gian',
                 className: 'font-medium text-gray-900',
-                render: (s) => <span>{formatDateTime(s.dateTimes)}</span>
+                render: (s) => <span>{formatDateTime(s.dateTime)}</span>
               },
               {
                 key: 'packageQuantity',
@@ -556,45 +578,61 @@ export default function LoGachPage() {
         </div>
       </div>
 
-      {/* Device Activity Chart - NEW */}
+      {/* Device Activity Chart */}
       <div className="bg-white/30 backdrop-blur-md rounded-2xl border border-white/50 shadow-xl overflow-hidden mt-8">
-        <div className="px-6 py-4 border-b border-white/50 bg-white/50">
-          <h2 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
-            Biểu đồ hoạt động của thiết bị (Tần suất theo giờ)
-          </h2>
-          <p className="text-sm text-gray-500">Phân bổ các tín hiệu nhận được từ IoT trong ngày</p>
+        <div className="px-6 py-4 border-b border-white/50 bg-white/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+              Biểu đồ hoạt động của thiết bị
+            </h2>
+            <p className="text-sm text-gray-500">Tần suất tín hiệu IoT nhận được theo giờ trong ngày</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-600">Chọn ngày:</label>
+            <input
+              type="date"
+              value={activityDate}
+              onChange={(e) => setActivityDate(e.target.value)}
+              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+            />
+          </div>
         </div>
         <div className="p-6">
-          {(() => {
-            // Processing activity data: Group by hour (00-23)
-            const allDateTimes = statuses.flatMap(s => s.dateTimes);
+          {activityLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <svg className="animate-spin h-8 w-8 text-orange-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          ) : (() => {
+            const timestamps = activityData?.timestamps || [];
             const hourMap: Record<number, number> = {};
-            // Initialize 24 hours
             for (let i = 0; i < 24; i++) hourMap[i] = 0;
-            
-            // Count receptions per hour
-            allDateTimes.forEach(dt => {
-              const date = new Date(dt);
-              // Only count if it matches the current filter date (if filtered by day) 
-              // or just show all for now as requested
-              const hour = date.getHours();
+
+            timestamps.forEach(ts => {
+              const hour = new Date(ts).getHours();
               hourMap[hour]++;
             });
 
-            const activityData: ChartDatum[] = Object.entries(hourMap)
+            const chartItems: ChartDatum[] = Object.entries(hourMap)
               .map(([hour, count]) => ({
                 label: `${hour.padStart(2, '0')}:00`,
                 value: count
               }));
 
-            // Filter out hours with 0 activity to make chart cleaner if it's too sparse
-            const filteredActivity = activityData.filter(d => {
-                // If we have data, we might want to see the whole 24h or just active range
-                // Let's show the whole day for a proper business view
-                return true; 
-            });
+            if (timestamps.length === 0) {
+              return (
+                <div className="text-center py-12 text-gray-400">
+                  <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <p className="font-medium">Chưa có dữ liệu hoạt động cho ngày này</p>
+                </div>
+              );
+            }
 
-            return <Chart data={filteredActivity} />;
+            return <Chart data={chartItems} />;
           })()}
         </div>
       </div>
