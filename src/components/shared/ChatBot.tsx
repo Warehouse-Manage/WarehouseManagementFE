@@ -1,22 +1,26 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Bot, Loader2, MessageCircle, Mic, MicOff, Trash2, X } from 'lucide-react';
-import { chatApi } from '@/api/chatApi';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { Bot, Loader2, MessageCircle, Mic, MicOff, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface Message {
+import { chatApi } from '@/api/chatApi';
+
+type Message = {
   id: string;
   text: string;
   isBot: boolean;
-  timestamp: Date;
-}
+  timestamp: number;
+};
 
-interface SpeechRecognitionEvent extends Event {
+type RecognitionResult = SpeechRecognitionResultList[number];
+
+interface SpeechRecognitionEventLike extends Event {
   results: SpeechRecognitionResultList;
 }
 
-interface SpeechRecognitionErrorEvent extends Event {
+interface SpeechRecognitionErrorEventLike extends Event {
   error: string;
 }
 
@@ -24,8 +28,8 @@ interface SpeechRecognitionInstance extends EventTarget {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
   onend: (() => void) | null;
   start: () => void;
   stop: () => void;
@@ -42,324 +46,332 @@ declare global {
   }
 }
 
+const LOGIN_PATHS = new Set(['/login']);
+const MOBILE_BREAKPOINT = 768;
 const DEFAULT_GREETING =
-  'Xin chào, tôi là Warehouse AI. Bấm micro và nói yêu cầu để tôi hỗ trợ tạo phiếu thu chi nhanh hơn.';
+  'Xin chào, tôi là Warehouse AI. Bấm micro rồi nói yêu cầu, tôi sẽ gửi nội dung lên hệ thống để hỗ trợ nhanh hơn.';
+
+function getRecognitionConstructor(): SpeechRecognitionConstructor | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
+}
+
+function isMobileViewport() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return window.innerWidth < MOBILE_BREAKPOINT;
+}
+
+function createMessage(text: string, isBot: boolean): Message {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    text,
+    isBot,
+    timestamp: Date.now(),
+  };
+}
+
+function extractTranscript(results: SpeechRecognitionResultList) {
+  let finalText = '';
+  let interimText = '';
+
+  for (let index = 0; index < results.length; index += 1) {
+    const result = results[index] as RecognitionResult;
+    const text = result[0]?.transcript?.trim() ?? '';
+
+    if (!text) {
+      continue;
+    }
+
+    if (result.isFinal) {
+      finalText = `${finalText} ${text}`.trim();
+    } else {
+      interimText = `${interimText} ${text}`.trim();
+    }
+  }
+
+  return {
+    finalText,
+    previewText: `${finalText} ${interimText}`.trim(),
+  };
+}
 
 export default function ChatBot() {
-  const [isMounted, setIsMounted] = useState(false);
+  const pathname = usePathname();
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const transcriptRef = useRef('');
+  const shouldSubmitRef = useRef(false);
+
+  const [isReady, setIsReady] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [isSupported, setIsSupported] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: DEFAULT_GREETING,
-      isBot: true,
-      timestamp: new Date(),
-    },
-  ]);
+  const [draftText, setDraftText] = useState('');
+  const [messages, setMessages] = useState<Message[]>(() => [createMessage(DEFAULT_GREETING, true)]);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const finalTranscriptRef = useRef<string>('');
-  const latestTranscriptRef = useRef<string>('');
-  const isStoppedRef = useRef<boolean>(false);
+  const isHiddenRoute = useMemo(() => LOGIN_PATHS.has(pathname), [pathname]);
+  const isSupported = useMemo(() => isReady && Boolean(getRecognitionConstructor()), [isReady]);
 
   useEffect(() => {
-    setIsMounted(true);
+    setIsReady(true);
+    setIsMobile(isMobileViewport());
 
-    const checkMobile = () => {
-      const userAgent = navigator.userAgent || navigator.vendor;
-      const mobileDevice =
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
-        window.innerWidth < 768 ||
-        navigator.maxTouchPoints > 1;
-      setIsMobile(mobileDevice);
+    const handleResize = () => {
+      const mobile = isMobileViewport();
+      setIsMobile(mobile);
+
+      if (!mobile) {
+        setIsOpen(false);
+      }
     };
 
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    setIsSupported(Boolean(Recognition));
-
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-      recognitionRef.current?.stop();
-    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (!scrollRef.current) {
+      return;
     }
+
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, isLoading]);
 
-  const sendVoiceMessage = async (spokenText: string) => {
-    const cleanText = spokenText.trim();
-    if (!cleanText || isLoading) return;
+  useEffect(() => {
+    if (!isHiddenRoute) {
+      return;
+    }
 
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      text: cleanText,
-      isBot: false,
-      timestamp: new Date(),
+    setIsOpen(false);
+    setDraftText('');
+    setIsListening(false);
+    transcriptRef.current = '';
+    shouldSubmitRef.current = false;
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+  }, [isHiddenRoute]);
+
+  useEffect(() => {
+    return () => {
+      shouldSubmitRef.current = false;
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
     };
+  }, []);
 
-    setMessages((prev) => [...prev, userMsg]);
-    setTranscript(cleanText);
+  const sendMessage = async (content: string) => {
+    const text = content.trim();
+    if (!text || isLoading) {
+      return;
+    }
+
+    setMessages((current) => [...current, createMessage(text, false)]);
+    setDraftText('');
+    transcriptRef.current = '';
     setIsLoading(true);
 
     try {
-      const response = await chatApi.chat(cleanText);
+      const response = await chatApi.chat(text);
 
-      const botMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        text: response.reply,
-        isBot: true,
-        timestamp: new Date(),
-      };
+      setMessages((current) => [...current, createMessage(response.reply, true)]);
 
-      setMessages((prev) => [...prev, botMsg]);
       if (response.isActionTaken) {
         toast.success(response.reply);
       }
     } catch (error) {
-      console.error('Chat error:', error);
-      toast.error('Có lỗi xảy ra khi kết nối với AI');
+      console.error('ChatBot error:', error);
+      toast.error('Không thể kết nối tới Warehouse AI.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const startListening = () => {
-    if (!isSupported || isLoading) return;
+  const stopRecognition = (shouldSubmit: boolean) => {
+    shouldSubmitRef.current = shouldSubmit;
+    recognitionRef.current?.stop();
+  };
 
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) {
-      toast.error('Trình duyệt này chưa hỗ trợ nhận diện giọng nói');
+  const startListening = () => {
+    const Recognition = getRecognitionConstructor();
+
+    if (!Recognition || isLoading || isListening) {
       return;
     }
 
-    recognitionRef.current?.stop();
+    transcriptRef.current = '';
+    shouldSubmitRef.current = false;
+    setDraftText('');
 
     const recognition = new Recognition();
     recognition.lang = 'vi-VN';
     recognition.continuous = true;
     recognition.interimResults = true;
 
-    finalTranscriptRef.current = '';
-    latestTranscriptRef.current = '';
-    isStoppedRef.current = false;
-
     recognition.onresult = (event) => {
-      if (isStoppedRef.current) return;
-      let interimText = '';
-      let finalText = '';
-
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i];
-        const text = result[0]?.transcript ?? '';
-        if (result.isFinal) {
-          finalText += text + ' ';
-        } else {
-          interimText += text;
-        }
-      }
-
-      if (finalText) {
-        finalTranscriptRef.current = finalText.trim();
-      }
-
-      const displayText = (finalTranscriptRef.current + ' ' + interimText).trim();
-      latestTranscriptRef.current = displayText;
-      setTranscript(displayText);
+      const { finalText, previewText } = extractTranscript(event.results);
+      transcriptRef.current = finalText || previewText;
+      setDraftText(previewText);
     };
 
     recognition.onerror = (event) => {
-      if (event.error !== 'aborted' && event.error !== 'no-speech') {
-        toast.error('Không thể nhận giọng nói, vui lòng thử lại');
+      if (event.error === 'aborted' || event.error === 'no-speech') {
+        return;
       }
+
+      toast.error('Không thể nhận giọng nói. Vui lòng thử lại.');
     };
 
     recognition.onend = () => {
+      const spokenText = transcriptRef.current.trim();
+      const shouldSend = shouldSubmitRef.current;
+
+      recognitionRef.current = null;
+      shouldSubmitRef.current = false;
       setIsListening(false);
+      setDraftText('');
+      transcriptRef.current = '';
+
+      if (shouldSend && spokenText) {
+        void sendMessage(spokenText);
+        return;
+      }
+
+      if (shouldSend && !spokenText) {
+        toast.error('Chưa ghi nhận được nội dung giọng nói.');
+      }
     };
 
     recognitionRef.current = recognition;
-    setTranscript('');
     setIsListening(true);
     recognition.start();
   };
 
-  const stopListening = () => {
-    isStoppedRef.current = true;
-    recognitionRef.current?.stop();
-    recognitionRef.current = null;
-    setIsListening(false);
-
-    const spokenText = (finalTranscriptRef.current || latestTranscriptRef.current).trim();
-    finalTranscriptRef.current = '';
-    latestTranscriptRef.current = '';
-    setTranscript('');
-
-    if (!spokenText) {
-      toast.error('Không nghe rõ nội dung, vui lòng thử lại');
+  const toggleListening = () => {
+    if (isListening) {
+      stopRecognition(true);
       return;
     }
 
-    void sendVoiceMessage(spokenText);
-  };
-
-  const handleClearTranscript = () => {
-    // Reset ngay lập tức trên UI
-    finalTranscriptRef.current = '';
-    latestTranscriptRef.current = '';
-    setTranscript('');
-
-    // Nếu đang nghe, phải restart engine để clear buffer của browser
-    if (isListening && recognitionRef.current) {
-      isStoppedRef.current = true;
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-      
-      // Khởi động lại sau một khoảng thời gian ngắn để engine kịp đóng hẳn
-      setTimeout(() => {
-        startListening();
-      }, 100);
+    if (!isSupported) {
+      toast.error('Thiết bị này chưa hỗ trợ voice chat.');
+      return;
     }
+
+    startListening();
   };
 
-  if (!isMounted || !isMobile) {
+  if (!isReady || !isMobile || isHiddenRoute) {
     return null;
   }
 
   return (
     <div className="fixed bottom-4 right-4 z-50 md:hidden">
-      {!isOpen && (
+      {!isOpen ? (
         <button
+          type="button"
           onClick={() => setIsOpen(true)}
-          className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-orange-600 to-orange-500 text-white shadow-xl transition-all hover:scale-110 hover:shadow-orange-200 active:scale-95"
-          aria-label="Mở trợ lý giọng nói"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-600 text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
+          aria-label="Mở chatbot"
         >
-          <MessageCircle className="h-7 w-7 transition-all group-hover:rotate-12" />
-          <span className="absolute -right-1 -top-1 flex h-4 w-4">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"></span>
-            <span className="relative inline-flex h-4 w-4 rounded-full bg-orange-500"></span>
-          </span>
+          <MessageCircle className="h-6 w-6" />
         </button>
-      )}
-
-      {isOpen && (
-        <div className="flex h-[min(78vh,560px)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white/95 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in slide-in-from-bottom-10 duration-300">
-          <div className="flex items-center justify-between bg-gradient-to-r from-orange-600 to-orange-500 p-4 text-white">
+      ) : (
+        <div className="flex h-[min(78vh,560px)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl">
+          <div className="flex items-center justify-between bg-orange-600 px-4 py-3 text-white">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md">
-                <Bot className="h-6 w-6" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+                <Bot className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="font-bold tracking-tight">Warehouse AI Voice</h3>
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-green-400"></span>
-                  <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Mobile only</span>
-                </div>
+                <p className="text-sm font-semibold">Warehouse AI</p>
+                <p className="text-[11px] text-orange-100">Voice assistant trên mobile</p>
               </div>
             </div>
             <button
-              onClick={() => setIsOpen(false)}
-              className="rounded-lg p-1.5 transition-colors hover:bg-white/10"
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                if (isListening) {
+                  stopRecognition(false);
+                }
+              }}
+              className="rounded-lg p-1.5 hover:bg-white/10"
               aria-label="Đóng chatbot"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto bg-gray-50/50 p-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
-              >
+          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto bg-gray-50 px-4 py-4">
+            {messages.map((message) => (
+              <div key={message.id} className={`flex ${message.isBot ? 'justify-start' : 'justify-end'}`}>
                 <div
-                  className={`max-w-[85%] rounded-2xl p-3 text-sm shadow-sm ${
-                    msg.isBot
-                      ? 'rounded-tl-none border border-gray-100 bg-white text-gray-800'
+                  className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+                    message.isBot
+                      ? 'rounded-tl-none border border-gray-200 bg-white text-gray-800'
                       : 'rounded-tr-none bg-orange-600 text-white'
                   }`}
                 >
-                  {msg.text}
-                  <div
-                    className={`mt-1 text-[10px] opacity-50 ${
-                      msg.isBot ? 'text-gray-500' : 'text-orange-100'
-                    }`}
-                  >
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
+                  <p>{message.text}</p>
+                  <p className={`mt-1 text-[10px] ${message.isBot ? 'text-gray-400' : 'text-orange-100'}`}>
+                    {new Date(message.timestamp).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
                 </div>
               </div>
             ))}
 
             {isLoading && (
               <div className="flex justify-start">
-                <div className="rounded-2xl rounded-tl-none border border-gray-100 bg-white p-3 text-gray-800 shadow-sm">
-                  <div className="flex gap-1">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-600"></span>
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-600 [animation-delay:0.2s]"></span>
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-600 [animation-delay:0.4s]"></span>
+                <div className="rounded-2xl rounded-tl-none border border-gray-200 bg-white px-3 py-2 text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-orange-600" />
+                    <span className="text-sm">Đang xử lý yêu cầu...</span>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          <div className="border-t bg-white p-4">
+          <div className="border-t border-gray-200 bg-white p-4">
             {!isSupported ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                Trình duyệt trên điện thoại này chưa hỗ trợ voice chat.
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Trình duyệt này chưa hỗ trợ nhận diện giọng nói.
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="relative rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-                  <div className="pr-8">
-                    {transcript
-                      ? `Bạn đang nói: "${transcript}"`
-                      : 'Bấm micro, nói yêu cầu, hệ thống sẽ tự gửi mà không cần nhập tin nhắn.'}
-                  </div>
-                  {transcript && !isLoading && (
-                    <button
-                      onClick={handleClearTranscript}
-                      className="absolute right-2 top-2 p-1.5 text-gray-400 hover:text-red-500 transition-colors"
-                      title="Xóa nội dung đang nói"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                  {draftText
+                    ? `Bạn đang nói: "${draftText}"`
+                    : 'Bấm micro, nói yêu cầu rồi bấm lần nữa để gửi.'}
                 </div>
 
                 <button
-                  onClick={isListening ? stopListening : startListening}
+                  type="button"
+                  onClick={toggleListening}
                   disabled={isLoading}
-                  className={`flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+                  className={`flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 ${
                     isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-orange-600 hover:bg-orange-700'
                   }`}
                 >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Đang xử lý yêu cầu
-                    </>
-                  ) : isListening ? (
+                  {isListening ? (
                     <>
                       <MicOff className="h-4 w-4" />
-                      Dừng ghi âm
+                      Dừng và gửi
                     </>
                   ) : (
                     <>
                       <Mic className="h-4 w-4" />
-                      Nói với Warehouse AI
+                      Bắt đầu nói
                     </>
                   )}
                 </button>

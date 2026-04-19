@@ -120,7 +120,7 @@ export default function LoGachPage() {
         const mappedStatuses: BrickYardStatus[] = aggregated.map((item, idx) => ({
           id: idx + 1,
           packageQuantity: item.totalPackageQuantity,
-          dateTime: item.periodStart
+          dateTimes: [item.periodStart]
         }));
         setStatuses(mappedStatuses);
 
@@ -153,7 +153,9 @@ export default function LoGachPage() {
         const items = (data as BrickYardStatus[]);
         setStatuses(items);
         const chart = items.map(item => ({
-          label: new Date(item.dateTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+          label: item.dateTimes && item.dateTimes.length > 0 
+                 ? new Date(item.dateTimes[0]).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) 
+                 : '',
           value: item.packageQuantity
         }));
         setChartData(chart);
@@ -188,14 +190,15 @@ export default function LoGachPage() {
     fetchStatuses();
   }, [fetchStatuses, canFetch]);
 
-  const formatDateTime = (dateTime: string) => {
-    return new Date(dateTime).toLocaleString('vi-VN', {
+  const formatDateTime = (dateTime: string | string[]) => {
+    const dates = Array.isArray(dateTime) ? dateTime : [dateTime];
+    return dates.map(dt => new Date(dt).toLocaleString('vi-VN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit'
-    });
+    })).join(', ');
   };
 
   const getTotalQuantity = () => {
@@ -208,42 +211,92 @@ export default function LoGachPage() {
 
   const Chart = ({ data }: { data: ChartDatum[] }) => {
     const maxValue = Math.max(1, ...data.map(d => d.value));
-    const barWidth = 32;
-    const gap = 20;
+    const barWidth = 36;
+    const gap = 24;
     const height = 280;
-    const contentWidth = data.length * (barWidth + gap) + gap;
+    const contentWidth = Math.max(800, data.length * (barWidth + gap) + gap * 2);
 
     return (
-      <div className="w-full overflow-x-auto flex justify-center py-4">
+      <div className="w-full overflow-x-auto py-6 px-4 bg-white/30 backdrop-blur-md rounded-2xl border border-white/50 shadow-inner">
         <svg
-          viewBox={`0 0 ${contentWidth} ${height + 50}`}
+          viewBox={`0 0 ${contentWidth} ${height + 60}`}
           width="100%"
           height="auto"
-          className="text-gray-700 mx-auto"
+          className="mx-auto drop-shadow-sm"
           style={{
-            maxWidth: data.length < 10 ? `${contentWidth}px` : '100%',
-            minHeight: '250px'
+            minHeight: '300px',
+            maxWidth: '100%'
           }}
           preserveAspectRatio="xMidYMin meet"
         >
+          <defs>
+            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ea580c" />
+              <stop offset="100%" stopColor="#fbbf24" />
+            </linearGradient>
+            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+              <feOffset dx="0" dy="2" result="offsetblur" />
+              <feComponentTransfer>
+                <feFuncA type="linear" slope="0.3" />
+              </feComponentTransfer>
+              <feMerge>
+                <feMergeNode />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          {/* Grid lines */}
+          {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
+            <line
+              key={i}
+              x1={0}
+              y1={height * (1 - p)}
+              x2={contentWidth}
+              y2={height * (1 - p)}
+              className="stroke-gray-200"
+              strokeDasharray="4 4"
+            />
+          ))}
+
           {data.map((d, i) => {
             const x = gap + i * (barWidth + gap);
             const barHeight = Math.round((d.value / maxValue) * height);
             const y = height - barHeight;
             return (
-              <g key={i}>
-                <rect x={x} y={y} width={barWidth} height={barHeight} rx={4} className="fill-orange-500" />
-                <text x={x + barWidth / 2} y={height + 20} textAnchor="middle" fontSize={11} className="fill-current font-medium">
+              <g key={i} className="transition-all duration-300 hover:scale-105 origin-bottom cursor-pointer">
+                <rect 
+                  x={x} 
+                  y={y} 
+                  width={barWidth} 
+                  height={barHeight} 
+                  rx={8} 
+                  fill="url(#barGradient)"
+                  filter="url(#shadow)"
+                />
+                <text 
+                  x={x + barWidth / 2} 
+                  y={height + 25} 
+                  textAnchor="middle" 
+                  className="fill-gray-600 font-semibold text-[10px] sm:text-[12px]"
+                >
                   {d.label}
                 </text>
-                <text x={x + barWidth / 2} y={y - 8} textAnchor="middle" fontSize={11} className="fill-current font-bold">
+                <text 
+                  x={x + barWidth / 2} 
+                  y={y - 12} 
+                  textAnchor="middle" 
+                  className="fill-orange-700 font-black text-[12px] sm:text-[14px]"
+                >
                   {d.value}
                 </text>
               </g>
             );
           })}
-          {/* x-axis line */}
-          <line x1={0} y1={height} x2={contentWidth} y2={height} className="stroke-gray-300" strokeWidth={2} />
+          
+          {/* x-axis base line */}
+          <line x1={0} y1={height} x2={contentWidth} y2={height} className="stroke-gray-400" strokeWidth={1} />
         </svg>
       </div>
     );
@@ -485,10 +538,10 @@ export default function LoGachPage() {
                 render: (_, index) => <span>{index + 1}</span>
               },
               {
-                key: 'dateTime',
+                key: 'dateTimes',
                 header: 'Thời gian',
                 className: 'font-medium text-gray-900',
-                render: (s) => <span>{formatDateTime(s.dateTime)}</span>
+                render: (s) => <span>{formatDateTime(s.dateTimes)}</span>
               },
               {
                 key: 'packageQuantity',
@@ -500,6 +553,49 @@ export default function LoGachPage() {
             ]}
             emptyMessage="Không có dữ liệu tình trạng lò gạch trong khoảng thời gian này"
           />
+        </div>
+      </div>
+
+      {/* Device Activity Chart - NEW */}
+      <div className="bg-white/30 backdrop-blur-md rounded-2xl border border-white/50 shadow-xl overflow-hidden mt-8">
+        <div className="px-6 py-4 border-b border-white/50 bg-white/50">
+          <h2 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+            Biểu đồ hoạt động của thiết bị (Tần suất theo giờ)
+          </h2>
+          <p className="text-sm text-gray-500">Phân bổ các tín hiệu nhận được từ IoT trong ngày</p>
+        </div>
+        <div className="p-6">
+          {(() => {
+            // Processing activity data: Group by hour (00-23)
+            const allDateTimes = statuses.flatMap(s => s.dateTimes);
+            const hourMap: Record<number, number> = {};
+            // Initialize 24 hours
+            for (let i = 0; i < 24; i++) hourMap[i] = 0;
+            
+            // Count receptions per hour
+            allDateTimes.forEach(dt => {
+              const date = new Date(dt);
+              // Only count if it matches the current filter date (if filtered by day) 
+              // or just show all for now as requested
+              const hour = date.getHours();
+              hourMap[hour]++;
+            });
+
+            const activityData: ChartDatum[] = Object.entries(hourMap)
+              .map(([hour, count]) => ({
+                label: `${hour.padStart(2, '0')}:00`,
+                value: count
+              }));
+
+            // Filter out hours with 0 activity to make chart cleaner if it's too sparse
+            const filteredActivity = activityData.filter(d => {
+                // If we have data, we might want to see the whole 24h or just active range
+                // Let's show the whole day for a proper business view
+                return true; 
+            });
+
+            return <Chart data={filteredActivity} />;
+          })()}
         </div>
       </div>
 
