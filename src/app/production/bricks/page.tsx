@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
 import { productionApi } from '@/api';
-import { BrickYardStatus, BrickYardAggregated } from '@/types';
+import { BrickYardStatus, BrickYardAggregated, DeviceActivity } from '@/types';
 import { DataTable } from '@/components/shared';
 import Select from "react-select";
 import AddStatusModal from './modal/AddStatusModal';
@@ -39,6 +39,11 @@ export default function LoGachPage() {
   const [canFetch, setCanFetch] = useState<boolean>(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [chartData, setChartData] = useState<ChartDatum[]>([]);
+
+  // Device Activity state
+  const [activityDate, setActivityDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [activityData, setActivityData] = useState<DeviceActivity | null>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   useEffect(() => {
     const role = getCookie('role');
@@ -153,7 +158,9 @@ export default function LoGachPage() {
         const items = (data as BrickYardStatus[]);
         setStatuses(items);
         const chart = items.map(item => ({
-          label: new Date(item.dateTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+          label: item.dateTime
+                 ? new Date(item.dateTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) 
+                 : '',
           value: item.packageQuantity
         }));
         setChartData(chart);
@@ -188,6 +195,24 @@ export default function LoGachPage() {
     fetchStatuses();
   }, [fetchStatuses, canFetch]);
 
+  // Fetch device activities
+  const fetchDeviceActivities = useCallback(async () => {
+    if (!canFetch) return;
+    try {
+      setActivityLoading(true);
+      const data = await productionApi.getDeviceActivities(activityDate);
+      setActivityData(data);
+    } catch (err) {
+      console.error('Lỗi khi lấy hoạt động thiết bị:', err);
+    } finally {
+      setActivityLoading(false);
+    }
+  }, [activityDate, canFetch]);
+
+  useEffect(() => {
+    fetchDeviceActivities();
+  }, [fetchDeviceActivities]);
+
   const formatDateTime = (dateTime: string) => {
     return new Date(dateTime).toLocaleString('vi-VN', {
       year: 'numeric',
@@ -208,42 +233,92 @@ export default function LoGachPage() {
 
   const Chart = ({ data }: { data: ChartDatum[] }) => {
     const maxValue = Math.max(1, ...data.map(d => d.value));
-    const barWidth = 32;
-    const gap = 20;
+    const barWidth = 36;
+    const gap = 24;
     const height = 280;
-    const contentWidth = data.length * (barWidth + gap) + gap;
+    const contentWidth = Math.max(800, data.length * (barWidth + gap) + gap * 2);
 
     return (
-      <div className="w-full overflow-x-auto flex justify-center py-4">
+      <div className="w-full overflow-x-auto py-6 px-4 bg-white/30 backdrop-blur-md rounded-2xl border border-white/50 shadow-inner">
         <svg
-          viewBox={`0 0 ${contentWidth} ${height + 50}`}
+          viewBox={`0 -30 ${contentWidth} ${height + 90}`}
           width="100%"
           height="auto"
-          className="text-gray-700 mx-auto"
+          className="mx-auto drop-shadow-sm"
           style={{
-            maxWidth: data.length < 10 ? `${contentWidth}px` : '100%',
-            minHeight: '250px'
+            minHeight: '300px',
+            maxWidth: '100%'
           }}
           preserveAspectRatio="xMidYMin meet"
         >
+          <defs>
+            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ea580c" />
+              <stop offset="100%" stopColor="#fbbf24" />
+            </linearGradient>
+            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+              <feOffset dx="0" dy="2" result="offsetblur" />
+              <feComponentTransfer>
+                <feFuncA type="linear" slope="0.3" />
+              </feComponentTransfer>
+              <feMerge>
+                <feMergeNode />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          {/* Grid lines */}
+          {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
+            <line
+              key={i}
+              x1={0}
+              y1={height * (1 - p)}
+              x2={contentWidth}
+              y2={height * (1 - p)}
+              className="stroke-gray-200"
+              strokeDasharray="4 4"
+            />
+          ))}
+
           {data.map((d, i) => {
             const x = gap + i * (barWidth + gap);
             const barHeight = Math.round((d.value / maxValue) * height);
             const y = height - barHeight;
             return (
-              <g key={i}>
-                <rect x={x} y={y} width={barWidth} height={barHeight} rx={4} className="fill-orange-500" />
-                <text x={x + barWidth / 2} y={height + 20} textAnchor="middle" fontSize={11} className="fill-current font-medium">
+              <g key={i} className="transition-all duration-300 hover:scale-105 origin-bottom cursor-pointer">
+                <rect 
+                  x={x} 
+                  y={y} 
+                  width={barWidth} 
+                  height={barHeight} 
+                  rx={8} 
+                  fill="url(#barGradient)"
+                  filter="url(#shadow)"
+                />
+                <text 
+                  x={x + barWidth / 2} 
+                  y={height + 25} 
+                  textAnchor="middle" 
+                  className="fill-gray-600 font-semibold text-[10px] sm:text-[12px]"
+                >
                   {d.label}
                 </text>
-                <text x={x + barWidth / 2} y={y - 8} textAnchor="middle" fontSize={11} className="fill-current font-bold">
+                <text 
+                  x={x + barWidth / 2} 
+                  y={y - 12} 
+                  textAnchor="middle" 
+                  className="fill-orange-700 font-black text-[12px] sm:text-[14px]"
+                >
                   {d.value}
                 </text>
               </g>
             );
           })}
-          {/* x-axis line */}
-          <line x1={0} y1={height} x2={contentWidth} y2={height} className="stroke-gray-300" strokeWidth={2} />
+          
+          {/* x-axis base line */}
+          <line x1={0} y1={height} x2={contentWidth} y2={height} className="stroke-gray-400" strokeWidth={1} />
         </svg>
       </div>
     );
@@ -500,6 +575,65 @@ export default function LoGachPage() {
             ]}
             emptyMessage="Không có dữ liệu tình trạng lò gạch trong khoảng thời gian này"
           />
+        </div>
+      </div>
+
+      {/* Device Activity Chart */}
+      <div className="bg-white/30 backdrop-blur-md rounded-2xl border border-white/50 shadow-xl overflow-hidden mt-8">
+        <div className="px-6 py-4 border-b border-white/50 bg-white/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+              Biểu đồ hoạt động của thiết bị
+            </h2>
+            <p className="text-sm text-gray-500">Tần suất tín hiệu IoT nhận được theo giờ trong ngày</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-600">Chọn ngày:</label>
+            <input
+              type="date"
+              value={activityDate}
+              onChange={(e) => setActivityDate(e.target.value)}
+              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+            />
+          </div>
+        </div>
+        <div className="p-6">
+          {activityLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <svg className="animate-spin h-8 w-8 text-orange-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          ) : (() => {
+            const timestamps = activityData?.timestamps || [];
+            const hourMap: Record<number, number> = {};
+            for (let i = 0; i < 24; i++) hourMap[i] = 0;
+
+            timestamps.forEach(ts => {
+              const hour = new Date(ts).getHours();
+              hourMap[hour]++;
+            });
+
+            const chartItems: ChartDatum[] = Object.entries(hourMap)
+              .map(([hour, count]) => ({
+                label: `${hour.padStart(2, '0')}:00`,
+                value: count
+              }));
+
+            if (timestamps.length === 0) {
+              return (
+                <div className="text-center py-12 text-gray-400">
+                  <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <p className="font-medium">Chưa có dữ liệu hoạt động cho ngày này</p>
+                </div>
+              );
+            }
+
+            return <Chart data={chartItems} />;
+          })()}
         </div>
       </div>
 

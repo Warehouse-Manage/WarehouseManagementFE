@@ -6,7 +6,8 @@ import {
     BrickYardStatus,
     BrickYardAggregated,
     DeviceFormData,
-    BrickYardStatusFormData
+    BrickYardStatusFormData,
+    DeviceActivity
 } from '@/types';
 
 export const productionApi = {
@@ -48,5 +49,10 @@ export const productionApi = {
 
     createBrickYardStatus: async (data: BrickYardStatusFormData): Promise<BrickYardStatus> => {
         return api.post<BrickYardStatus>('/api/brickyardstatus', data);
+    },
+
+    // Device Activities
+    getDeviceActivities: async (date: string): Promise<DeviceActivity> => {
+        return api.get<DeviceActivity>(`/api/deviceactivity?date=${date}`);
     }
 };

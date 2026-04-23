@@ -64,3 +64,8 @@ export interface BrickYardStatusFormData {
     packageQuantity: number;
     dateTime: string;
 }
+
+export interface DeviceActivity {
+    id: number;
+    timestamps: string[];
+}
