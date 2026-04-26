@@ -31,9 +31,21 @@ export default function LoGachPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterOptions>({ type: 'today' });
   const [showAddForm, setShowAddForm] = useState(false);
+  
+  // Hàm lấy local datetime string cho input datetime-local
+  const getLocalDateTimeString = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+  
   const [newStatus, setNewStatus] = useState({
     packageQuantity: 0,
-    dateTime: new Date().toISOString().slice(0, 16)
+    dateTime: getLocalDateTimeString()
   });
 
   const [canFetch, setCanFetch] = useState<boolean>(false);
@@ -76,8 +88,7 @@ export default function LoGachPage() {
 
       switch (filter.type) {
         case 'today':
-          const today = new Date().toISOString().split('T')[0];
-          params.append('date', today);
+          params.append('date', getLocalDateTimeString());
           apiType = 'hour';
           break;
         case 'day':
@@ -176,13 +187,13 @@ export default function LoGachPage() {
     try {
       await productionApi.createBrickYardStatus({
         packageQuantity: newStatus.packageQuantity,
-        dateTime: new Date(newStatus.dateTime).toISOString()
+        dateTime: getLocalDateTimeString()
       });
 
       setShowAddForm(false);
       setNewStatus({
         packageQuantity: 0,
-        dateTime: new Date().toISOString().slice(0, 16)
+        dateTime: getLocalDateTimeString()
       });
       fetchStatuses();
     } catch (err) {
@@ -351,7 +362,7 @@ export default function LoGachPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Tình trạng lò gạch</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">Theo dõi số lượng gói gạch theo thời gian</p>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Theo dõi số lượng gòng gạch theo thời gian</p>
         </div>
         <button
           onClick={() => setShowAddForm(true)}
@@ -500,7 +511,7 @@ export default function LoGachPage() {
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Tổng số gói</p>
+              <p className="text-sm font-medium text-gray-600">Tổng số gòng</p>
               <p className="text-2xl font-semibold text-gray-900">{getTotalQuantity().toLocaleString('en-US')}</p>
             </div>
           </div>
@@ -567,7 +578,7 @@ export default function LoGachPage() {
               },
               {
                 key: 'packageQuantity',
-                header: 'Số lượng gói',
+                header: 'Số lượng gòng',
                 headerClassName: 'text-right',
                 className: 'text-right font-black text-orange-600 text-lg',
                 render: (s) => <span>{s.packageQuantity.toLocaleString('en-US')}</span>

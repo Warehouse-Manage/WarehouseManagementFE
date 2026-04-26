@@ -12,7 +12,7 @@ interface AddStatusModalProps {
 }
 
 const brickYardFormFields: FormField[] = [
-  { name: 'packageQuantity', label: 'Số lượng gói', type: 'number', required: true, placeholder: 'Nhập số lượng...' },
+  { name: 'packageQuantity', label: 'Số lượng gòng', type: 'number', required: true, placeholder: 'Nhập số lượng...' },
   { name: 'dateTime', label: 'Thời gian', type: 'datetime-local', required: true },
 ];
 
