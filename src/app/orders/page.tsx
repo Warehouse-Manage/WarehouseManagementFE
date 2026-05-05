@@ -560,6 +560,30 @@ export default function OrdersPage() {
       if (receiptHtml) printHtmlContent(receiptHtml);
       if (deliveryHtml) printHtmlContent(deliveryHtml);
 
+      // Tính toán số tiền còn nợ
+      const orderTotal = calculateOrderTotal();
+      const remainingAmount = orderTotal - Number(amountCustomerPayment || 0);
+
+      // Nếu còn nợ, in thêm phiếu thu cho phần còn nợ
+      if (remainingAmount > 0) {
+        const remainingReceiptModel = {
+          Tieu_De: 'PHIẾU THU (CHƯA THU)',
+          Nhan_Doi_Tac: 'Người nộp tiền',
+          Ngay_Thang_Nam: formatDateTime(now),
+          Doi_Tac: customer?.name || 'Khách hàng',
+          Dia_Chi: customer?.address || '',
+          Ly_Do: `Thanh toán phần còn nợ cho đơn hàng #${res.id}`,
+          Gia_Tri_Phieu: remainingAmount.toLocaleString('en-US'),
+          Ngay: now.getDate().toString().padStart(2, '0'),
+          Thang: (now.getMonth() + 1).toString().padStart(2, '0'),
+          Nam: now.getFullYear().toString(),
+          Nhan_Ky_Ten: 'NGƯỜI NỘP TIỀN'
+        };
+
+        const remainingReceiptHtml = await financeApi.printOrderReceiptModel(remainingReceiptModel);
+        if (remainingReceiptHtml) printHtmlContent(remainingReceiptHtml);
+      }
+
       resetForm();
       setShowModal(false);
       await loadOrders(currentPage, pageSize, buildOrderFilters(), true);
