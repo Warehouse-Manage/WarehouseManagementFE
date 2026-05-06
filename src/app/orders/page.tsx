@@ -76,7 +76,7 @@ export default function OrdersPage() {
   const formatDateTime = (value?: string) => {
     if (!value) return '';
     const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('en-US');
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN');
   };
 
   const formatDateFilterDisplay = (value: string) => {
