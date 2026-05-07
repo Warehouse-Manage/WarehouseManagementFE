@@ -18,8 +18,7 @@ export default function SettingsModal({
 }: SettingsModalProps) {
   const [formData, setFormData] = useState({
     pricePerPackage: 0,
-    teamLeaderName: '',
-    pricePerBrokenPackage: 0
+    teamLeaderName: ''
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -28,8 +27,7 @@ export default function SettingsModal({
     if (currentSettings) {
       setFormData({
         pricePerPackage: currentSettings.pricePerPackage,
-        teamLeaderName: currentSettings.teamLeaderName,
-        pricePerBrokenPackage: currentSettings.pricePerBrokenPackage
+        teamLeaderName: currentSettings.teamLeaderName
       });
     }
   }, [currentSettings]);
@@ -50,11 +48,6 @@ export default function SettingsModal({
 
       if (formData.pricePerPackage <= 0) {
         setError('Giá trên 1 gòng phải lớn hơn 0');
-        return;
-      }
-
-      if (formData.pricePerBrokenPackage <= 0) {
-        setError('Giá trên kiện vỡ phải lớn hơn 0');
         return;
       }
 
@@ -82,13 +75,6 @@ export default function SettingsModal({
       required: true,
       placeholder: 'Nhập giá...'
     },
-    { 
-      name: 'pricePerBrokenPackage', 
-      label: 'Giá trên kiện vỡ (đ)', 
-      type: 'number', 
-      required: true,
-      placeholder: 'Nhập giá...'
-    }
   ];
 
   return (

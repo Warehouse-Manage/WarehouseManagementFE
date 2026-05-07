@@ -148,7 +148,7 @@ export default function TeamPaymentPage() {
       {settings && (
         <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 sm:p-6 rounded-lg border border-orange-200">
           <h2 className="text-base sm:text-lg font-semibold mb-3 text-orange-900">Cài đặt hiện tại</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <p className="text-sm text-gray-600">Tên tổ trưởng</p>
               <p className="text-base font-bold text-gray-900">{settings.teamLeaderName}</p>
@@ -156,10 +156,6 @@ export default function TeamPaymentPage() {
             <div>
               <p className="text-sm text-gray-600">Giá trên 1 gòng</p>
               <p className="text-base font-bold text-orange-600">{formatCurrency(settings.pricePerPackage)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Giá trên kiện vỡ</p>
-              <p className="text-base font-bold text-orange-600">{formatCurrency(settings.pricePerBrokenPackage)}</p>
             </div>
           </div>
         </div>

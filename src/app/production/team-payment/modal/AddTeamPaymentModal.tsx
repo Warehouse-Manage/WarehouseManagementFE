@@ -48,15 +48,23 @@ export default function AddTeamPaymentModal({
     setBrokenPackages(updated);
   };
 
-  const calculateBrokenPackageAmount = (quantity: number): number => {
+  const getBrokenPackageRateFromType = (type: string): number => {
+    const matches = type.match(/\d+/g);
+    const lastNumber = matches?.at(-1);
+    const value = lastNumber ? Number(lastNumber) : 0;
+    if (!Number.isFinite(value) || value <= 0) return 0;
+    return (value / 100) * 10000;
+  };
+
+  const calculateBrokenPackageAmount = (type: string, quantity: number): number => {
     if (!settings) return 0;
-    return Math.floor(quantity / 100) * 100000;
+    return getBrokenPackageRateFromType(type) * quantity;
   };
 
   const calculateTotalBrokenAmount = (): number => {
     return brokenPackages.reduce((sum, bp) => {
       if (bp.type && bp.quantity > 0) {
-        return sum + calculateBrokenPackageAmount(bp.quantity);
+        return sum + calculateBrokenPackageAmount(bp.type, bp.quantity);
       }
       return sum;
     }, 0);
@@ -157,7 +165,7 @@ export default function AddTeamPaymentModal({
 
           <div className="space-y-4 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
             {brokenPackages.map((bp, idx) => {
-              const amount = calculateBrokenPackageAmount(bp.quantity);
+              const amount = calculateBrokenPackageAmount(bp.type, bp.quantity);
               return (
                 <div key={idx} className="relative rounded-xl border border-gray-200 bg-gray-50 p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
