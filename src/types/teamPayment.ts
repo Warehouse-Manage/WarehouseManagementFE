@@ -11,7 +11,6 @@ export interface TeamPayment {
     brokenPackages: BrokenPackageItem[];
     pricePerPackage: number;
     teamLeaderName: string;
-    pricePerBrokenPackage: number;
     totalAmountPackage: number; // Tiền gòng
     totalAmountBroken: number; // Tiền kiện sổ
     totalAmount: number; // Tổng
@@ -31,11 +30,9 @@ export interface TeamPaymentSettings {
     id: number;
     pricePerPackage: number;
     teamLeaderName: string;
-    pricePerBrokenPackage: number;
 }
 
 export interface TeamPaymentSettingsFormData {
     pricePerPackage: number;
     teamLeaderName: string;
-    pricePerBrokenPackage: number;
 }
