@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { Modal } from '@/components/shared';
-import { getCookie } from '@/lib/ultis';
-import { teamPaymentApi } from '@/api';
+import { getCookie, printHtmlContent } from '@/lib/ultis';
+import { teamPaymentApi, financeApi } from '@/api';
 import { toast } from 'sonner';
 import { TeamPaymentSettings, PackageProduct, BrokenPackageItem } from '@/types';
 import Select from 'react-select';
@@ -92,8 +92,16 @@ export default function AddTeamPaymentModal({
         createdUserId: userId
       });
 
-      if (created.fundIdPackage) {
-        toast.success('Tạo phiếu chi thành công');
+      const fundId = created.fundIdPackage ?? created.fundIdBroken;
+      if (fundId) {
+        try {
+          const html = await financeApi.printFund(fundId);
+          await printHtmlContent(html);
+          toast.success('Tạo phiếu chi thành công');
+        } catch (printErr) {
+          const msg = printErr instanceof Error ? printErr.message : String(printErr);
+          toast.error(`Đã lưu thanh toán nhưng không in được: ${msg}`);
+        }
       } else {
         toast.success('Đã lưu thanh toán tổ ra');
       }
