@@ -53,7 +53,8 @@ export default function AddTeamPaymentModal({
     const lastNumber = matches?.at(-1);
     const value = lastNumber ? Number(lastNumber) : 0;
     if (!Number.isFinite(value) || value <= 0) return 0;
-    return (value / 100) * 10000;
+    // 425, 475 → Math.floor(/100)=4 → *10000 (đồng bộ backend)
+    return Math.floor(value / 100) * 10000;
   };
 
   const calculateBrokenPackageAmount = (type: string, quantity: number): number => {
