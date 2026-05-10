@@ -32,7 +32,15 @@ export default function LoGachPage() {
   const [filter, setFilter] = useState<FilterOptions>({ type: 'today' });
   const [showAddForm, setShowAddForm] = useState(false);
   
-  // Hàm lấy local datetime string cho input datetime-local
+  const getLocalDateString = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Hàm lấy local datetime string cho input datetime-local (có giây để khớp biểu đồ / lưu chính xác)
   const getLocalDateTimeString = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -40,7 +48,8 @@ export default function LoGachPage() {
     const day = String(now.getDate()).padStart(2, '0');
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
   };
   
   const [newStatus, setNewStatus] = useState({
@@ -84,17 +93,17 @@ export default function LoGachPage() {
       setError(null);
 
       const params = new URLSearchParams();
-      let apiType: 'hour' | 'date' | 'month' | undefined;
+      let apiType: 'hour' | 'date' | 'month' | 'raw' | undefined;
 
       switch (filter.type) {
         case 'today':
-          params.append('date', getLocalDateTimeString());
-          apiType = 'hour';
+          params.append('date', getLocalDateString());
+          apiType = 'raw';
           break;
         case 'day':
           if (filter.date) {
             params.append('date', filter.date);
-            apiType = 'hour';
+            apiType = 'raw';
           }
           break;
         case 'month':
@@ -170,7 +179,12 @@ export default function LoGachPage() {
         setStatuses(items);
         const chart = items.map(item => ({
           label: item.dateTime
-                 ? new Date(item.dateTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) 
+                 ? new Date(item.dateTime).toLocaleTimeString('vi-VN', {
+                     hour: '2-digit',
+                     minute: '2-digit',
+                     second: '2-digit',
+                     hour12: false,
+                   })
                  : '',
           value: item.packageQuantity
         }));
@@ -187,7 +201,7 @@ export default function LoGachPage() {
     try {
       await productionApi.createBrickYardStatus({
         packageQuantity: newStatus.packageQuantity,
-        dateTime: getLocalDateTimeString()
+        dateTime: new Date(newStatus.dateTime).toISOString(),
       });
 
       setShowAddForm(false);
@@ -230,7 +244,9 @@ export default function LoGachPage() {
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
     });
   };
 
