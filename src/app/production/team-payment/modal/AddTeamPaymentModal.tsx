@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Modal } from '@/components/shared';
 import { getCookie } from '@/lib/ultis';
 import { teamPaymentApi } from '@/api';
+import { toast } from 'sonner';
 import { TeamPaymentSettings, PackageProduct, BrokenPackageItem } from '@/types';
 import Select from 'react-select';
 
@@ -85,11 +86,17 @@ export default function AddTeamPaymentModal({
       // Validate
       const validBrokenPackages = brokenPackages.filter(bp => bp.type && bp.quantity > 0);
       
-      await teamPaymentApi.createTeamPayment({
+      const created = await teamPaymentApi.createTeamPayment({
         todayRemaining,
         brokenPackages: validBrokenPackages,
         createdUserId: userId
       });
+
+      if (created.fundIdPackage) {
+        toast.success('Tạo phiếu chi thành công');
+      } else {
+        toast.success('Đã lưu thanh toán tổ ra');
+      }
 
       // Reset form
       setTodayRemaining(0);
