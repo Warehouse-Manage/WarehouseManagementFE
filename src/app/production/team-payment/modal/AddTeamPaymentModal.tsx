@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { Modal } from '@/components/shared';
-import { getCookie } from '@/lib/ultis';
-import { teamPaymentApi } from '@/api';
+import { getCookie, printHtmlContent } from '@/lib/ultis';
+import { teamPaymentApi, financeApi } from '@/api';
+import { toast } from 'sonner';
 import { TeamPaymentSettings, PackageProduct, BrokenPackageItem } from '@/types';
 import Select from 'react-select';
 
@@ -53,7 +54,8 @@ export default function AddTeamPaymentModal({
     const lastNumber = matches?.at(-1);
     const value = lastNumber ? Number(lastNumber) : 0;
     if (!Number.isFinite(value) || value <= 0) return 0;
-    return (value / 100) * 10000;
+    // 425, 475 → Math.floor(/100)=4 → *10000 (đồng bộ backend)
+    return Math.floor(value / 100) * 10000;
   };
 
   const calculateBrokenPackageAmount = (type: string, quantity: number): number => {
@@ -84,11 +86,25 @@ export default function AddTeamPaymentModal({
       // Validate
       const validBrokenPackages = brokenPackages.filter(bp => bp.type && bp.quantity > 0);
       
-      await teamPaymentApi.createTeamPayment({
+      const created = await teamPaymentApi.createTeamPayment({
         todayRemaining,
         brokenPackages: validBrokenPackages,
         createdUserId: userId
       });
+
+      const fundId = created.fundIdPackage ?? created.fundIdBroken;
+      if (fundId) {
+        try {
+          const html = await financeApi.printFund(fundId);
+          await printHtmlContent(html);
+          toast.success('Tạo phiếu chi thành công');
+        } catch (printErr) {
+          const msg = printErr instanceof Error ? printErr.message : String(printErr);
+          toast.error(`Đã lưu thanh toán nhưng không in được: ${msg}`);
+        }
+      } else {
+        toast.success('Đã lưu thanh toán tổ ra');
+      }
 
       // Reset form
       setTodayRemaining(0);

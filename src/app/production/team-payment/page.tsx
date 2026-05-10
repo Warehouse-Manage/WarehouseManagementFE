@@ -2,15 +2,22 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCookie } from '@/lib/ultis';
-import { teamPaymentApi, inventoryApi } from '@/api';
+import { getCookie, printHtmlContent } from '@/lib/ultis';
+import { teamPaymentApi, inventoryApi, financeApi } from '@/api';
 import { TeamPayment, TeamPaymentSettings, PackageProduct } from '@/types';
 import { DataTable } from '@/components/shared';
+import type { ActionItem } from '@/components/shared/TableRowActions';
 import AddTeamPaymentModal from './modal/AddTeamPaymentModal';
 import SettingsModal from './modal/SettingsModal';
+import { toast } from 'sonner';
+import { Printer, Trash2 } from 'lucide-react';
+import { useConfirm } from '@/hooks/useConfirm';
+
+const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 export default function TeamPaymentPage() {
   const router = useRouter();
+  const { confirm, ConfirmDialog } = useConfirm();
   const [payments, setPayments] = useState<TeamPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +98,39 @@ export default function TeamPaymentPage() {
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('vi-VN') + ' đ';
+  };
+
+  const resolveTeamPaymentFundId = (p: TeamPayment) => p.fundIdPackage ?? p.fundIdBroken;
+
+  const handlePrintTeamPayment = async (p: TeamPayment) => {
+    const fundId = resolveTeamPaymentFundId(p);
+    if (!fundId) {
+      toast.error('Không có phiếu chi để in');
+      return;
+    }
+    try {
+      const html = await financeApi.printFund(fundId);
+      await printHtmlContent(html);
+    } catch (err) {
+      toast.error('Không thể tải bản in: ' + getErrorMessage(err));
+    }
+  };
+
+  const handleDeleteTeamPayment = async (p: TeamPayment) => {
+    const confirmed = await confirm({
+      message: 'Xóa thanh toán này? Phiếu chi liên quan trên sổ quỹ cũng sẽ bị xóa.',
+      variant: 'danger',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+    });
+    if (!confirmed) return;
+    try {
+      await teamPaymentApi.deleteTeamPayment(p.id);
+      await fetchPayments();
+      toast.success('Đã xóa thanh toán');
+    } catch (err) {
+      toast.error(getErrorMessage(err) || 'Không thể xóa thanh toán');
+    }
   };
 
   if (isCheckingAuth) {
@@ -226,10 +266,34 @@ export default function TeamPaymentPage() {
                 )
               }
             ]}
+            actions={(p): ActionItem[] => {
+              const fundId = resolveTeamPaymentFundId(p);
+              const items: ActionItem[] = [];
+              if (fundId) {
+                items.push({
+                  label: 'In phiếu',
+                  icon: <Printer className="h-4 w-4" />,
+                  onClick: () => {
+                    void handlePrintTeamPayment(p);
+                  },
+                });
+              }
+              items.push({
+                label: 'Xóa',
+                icon: <Trash2 className="h-4 w-4" />,
+                onClick: () => {
+                  void handleDeleteTeamPayment(p);
+                },
+                variant: 'danger' as const,
+              });
+              return items;
+            }}
             emptyMessage="Chưa có dữ liệu thanh toán"
           />
         </div>
       </div>
+
+      {ConfirmDialog}
 
       <AddTeamPaymentModal
         isOpen={showAddForm}
