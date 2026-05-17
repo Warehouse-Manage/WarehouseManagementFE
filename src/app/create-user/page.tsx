@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { getCookie } from '@/lib/ultis';
+import { hasCompanyAdminPrivileges } from '@/lib/roles';
 import { userApi } from '@/api/userApi';
 import { UserFormData } from '@/types';
 
@@ -33,12 +34,17 @@ export default function CreateUserPage() {
 
     // Redirect to login if userId or userName is missing
     if (!userId || !userName) {
-      router.push('/login');
+      router.push('/login/company');
       return;
     }
 
-    // Only allow admin role to access this page
-    if (role !== 'Admin') {
+    const companyId = getCookie('companyId');
+    if (!companyId) {
+      router.push('/login/company');
+      return;
+    }
+
+    if (!hasCompanyAdminPrivileges(role)) {
       router.push('/');
       return;
     }
@@ -125,7 +131,15 @@ export default function CreateUserPage() {
     setErrors({});
 
     try {
-      const response = await userApi.createUser(formData);
+      const companyIdRaw = getCookie('companyId');
+      const companyId = companyIdRaw ? parseInt(companyIdRaw, 10) : 0;
+      if (!companyId) {
+        toast.error('Thiếu thông tin công ty. Vui lòng đăng nhập lại.');
+        router.push('/login/company');
+        return;
+      }
+
+      const response = await userApi.createUser({ ...formData, companyId });
 
       if (response.success) {
         toast.success('Tạo người dùng thành công!');
@@ -235,7 +249,7 @@ export default function CreateUserPage() {
                   }`}
               >
                 <option value="user">Người dùng</option>
-                <option value="Admin">Quản trị viên</option>
+                <option value="admin company">Quản trị công ty</option>
                 <option value="approver">Người duyệt</option>
                 <option value="warehouse manager">Quản lý kho</option>
               </select>

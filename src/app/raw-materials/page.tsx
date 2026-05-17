@@ -1,5 +1,6 @@
 'use client';
 
+import { canAccessAccounting } from '@/lib/roles';
 import { useEffect, useState } from 'react';
 import { getCookie } from '@/lib/ultis';
 import { inventoryApi, partnerApi } from '@/api';
@@ -67,7 +68,7 @@ export default function NguyenLieuPage() {
   }, []);
 
   // Show blank page if role is not 'Admin' or 'accountance'
-  if (role !== 'Admin' && role !== 'accountance') {
+  if (!canAccessAccounting(role)) {
     return null;
   }
 
@@ -200,4 +201,6 @@ export default function NguyenLieuPage() {
     </div>
   );
 }
+
+
 

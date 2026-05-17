@@ -1,5 +1,6 @@
 'use client';
 
+import { canAccessAccounting } from '@/lib/roles';
 import { useEffect, useMemo, useState } from 'react';
 import { getCookie } from '@/lib/ultis';
 import { financeApi } from '@/api';
@@ -231,7 +232,7 @@ export default function CustomersPage() {
   const netDebtBalance = totalDebtReceivable - totalDebtPayable;
 
   // Show blank page if role is not 'Admin' or 'accountance'
-  if (role !== 'Admin' && role !== 'accountance') {
+  if (!canAccessAccounting(role)) {
     return null;
   }
 
@@ -455,5 +456,7 @@ export default function CustomersPage() {
     </div>
   );
 }
+
+
 
 

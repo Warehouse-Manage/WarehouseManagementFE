@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { authApi } from '@/api/authApi';
+import { getCookie } from '@/lib/ultis';
 
 const PERSISTENT_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 10; // 10 years
 
 export default function LoginPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -22,6 +25,24 @@ export default function LoginPage() {
     resetToken: ''
   });
   const [isForgotPasswordLoading, setIsForgotPasswordLoading] = useState(false);
+  const [companyLabel, setCompanyLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCompanyLabel(getCookie('companyName'));
+  }, []);
+
+  useEffect(() => {
+    const cid = getCookie('companyId');
+    if (!cid) {
+      router.replace('/login/company');
+    }
+  }, [router]);
+
+  const handleSwitchCompany = () => {
+    document.cookie = 'companyId=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'companyName=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    router.push('/login/company');
+  };
 
   const validateUsername = (username: string) => {
     const usernameRegex = /^[a-zA-Z0-9_]{3,}$/;
@@ -72,16 +93,33 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      const companyIdRaw = getCookie('companyId');
+      const companyId = companyIdRaw ? parseInt(companyIdRaw, 10) : 0;
+      if (!companyId) {
+        toast.error('Chưa chọn công ty');
+        router.replace('/login/company');
+        return;
+      }
+
       const data = await authApi.login({
         userName: formData.username,
         password: formData.password,
+        companyId,
       });
 
       if (data.success) {
+        const isSuperAdmin = data.isSuperAdmin === true;
         document.cookie = `role=${data.user.role}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
         document.cookie = `userName=${encodeURIComponent(data.user.userName || '')}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
         document.cookie = `name=${encodeURIComponent(data.user.name || '')}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
         document.cookie = `userId=${data.user.id}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
+        const sessionCompanyId = data.user.companyId ?? companyId;
+        document.cookie = `companyId=${sessionCompanyId}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
+        if (isSuperAdmin) {
+          document.cookie = `isSuperAdmin=true; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
+        } else {
+          document.cookie = `isSuperAdmin=; path=/; max-age=0`;
+        }
         if (data.user.department) {
           document.cookie = `department=${encodeURIComponent(data.user.department)}; path=/; max-age=${PERSISTENT_MAX_AGE_SECONDS}`;
         }
@@ -186,6 +224,19 @@ export default function LoginPage() {
             </div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1 tracking-tight">Chào mừng trở lại</h1>
             <p className="text-gray-600 text-sm">Vui lòng đăng nhập vào tài khoản của bạn</p>
+            {companyLabel && (
+              <div className="mt-4 rounded-lg border border-orange-100 bg-orange-50/80 px-3 py-2 text-left">
+                <p className="text-xs text-gray-600">Công ty</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{companyLabel}</p>
+                <button
+                  type="button"
+                  onClick={handleSwitchCompany}
+                  className="mt-2 text-xs font-medium text-orange-600 hover:text-orange-700 hover:underline cursor-pointer"
+                >
+                  Đổi công ty khác
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 登录表单 */}
@@ -319,23 +370,11 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-
-          {/* 注册链接 */}
-          <div className="mt-5 text-center">
-            <p className="text-sm text-gray-600">
-              Chưa có tài khoản?{' '}
-              <a href="#" className="font-semibold text-orange-600 hover:text-orange-500 transition-colors duration-200 hover:underline">
-                Đăng ký ngay
-              </a>
-            </p>
-          </div>
         </div>
 
-        {/* 页脚 */}
         <div className="text-center mt-6">
           <p className="text-xs text-gray-500">
-            © 2024 Tên công ty. Bảo lưu mọi quyền.
+            © {new Date().getFullYear()}. Bảo lưu mọi quyền.
           </p>
         </div>
       </div>

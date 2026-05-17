@@ -1,5 +1,6 @@
 'use client';
 
+import { hasCompanyAdminPrivileges } from '@/lib/roles';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie, printHtmlContent, formatNumberInput, parseNumberInput } from '@/lib/ultis';
@@ -1106,7 +1107,7 @@ export default function AttendancePage() {
 
   // Fetch all attendances for overview (admin/approver)
   useEffect(() => {
-    if ((userRole === 'Admin' || userRole === 'approver') && overviewMonth) {
+    if ((hasCompanyAdminPrivileges(userRole) || userRole === 'approver') && overviewMonth) {
       setIsLoadingOverviewAll(true);
       const [year, month] = overviewMonth.split('-');
 
@@ -1549,7 +1550,7 @@ export default function AttendancePage() {
             <span className="hidden sm:inline">Tạo chấm công</span>
             <span className="sm:hidden">Chấm công</span>
           </button>
-          {userRole === 'Admin' && (
+          {hasCompanyAdminPrivileges(userRole) && (
             <>
               <button
                 className={`flex-none px-6 py-4 text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${activeTab === 'mark'
@@ -1694,7 +1695,7 @@ export default function AttendancePage() {
                                     {worker.name}
                                   </p>
 
-                                  {userRole === 'Admin' && (
+                                  {hasCompanyAdminPrivileges(userRole) && (
                                     <span className="text-xs font-semibold text-orange-600">
                                       {formatCurrency(worker.salary)}
                                     </span>
@@ -2524,7 +2525,7 @@ export default function AttendancePage() {
                                   title={w.name}
                                 >
                                   <div className="text-[10px] font-black text-gray-900 truncate">{w.name}</div>
-                                  {userRole === 'Admin' && (
+                                  {hasCompanyAdminPrivileges(userRole) && (
                                     <div className="text-[10px] text-gray-400 truncate">{formatCurrency(w.salary)}</div>
                                   )}
                                 </div>
@@ -2630,7 +2631,7 @@ export default function AttendancePage() {
                           render: (w) => (
                             <div>
                               <div className="font-bold text-gray-900">{w.name}</div>
-                              {userRole === 'Admin' && (
+                              {hasCompanyAdminPrivileges(userRole) && (
                                 <div className="text-xs text-gray-500">{formatCurrency(w.salary)}</div>
                               )}
                             </div>
@@ -2687,5 +2688,6 @@ export default function AttendancePage() {
     </div>
   );
 }
+
 
 

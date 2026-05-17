@@ -17,7 +17,7 @@ export function middleware(request: NextRequest) {
   }
   
   // Các route không cần authentication - cho phép truy cập tất cả các trang chính
-  const publicRoutes = ['/login', '/', '/requests', '/approvals'];
+  const publicRoutes = ['/login', '/login/company', '/login/create-company', '/login/admin', '/', '/requests', '/approvals'];
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
   
   // Nếu là public route, cho phép truy cập
@@ -34,8 +34,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Chặn quyền truy cập trang tạo người dùng - chỉ admin mới được truy cập
-  if (pathname.startsWith('/create-user') && role !== 'Admin') {
+  const canCreateUsers = role === 'Admin' || role === 'admin company';
+  if (pathname.startsWith('/create-user') && !canCreateUsers) {
     const url = new URL('/', request.url);
     return NextResponse.redirect(url);
   }

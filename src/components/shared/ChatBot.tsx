@@ -46,7 +46,10 @@ declare global {
   }
 }
 
-const LOGIN_PATHS = new Set(['/login']);
+function isLoginPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return pathname === '/login' || pathname.startsWith('/login/');
+}
 const MOBILE_BREAKPOINT = 768;
 const DEFAULT_GREETING =
   'Xin chào, tôi là Warehouse AI. Bấm micro rồi nói yêu cầu, tôi sẽ gửi nội dung lên hệ thống để hỗ trợ nhanh hơn.';
@@ -116,7 +119,7 @@ export default function ChatBot() {
   const [draftText, setDraftText] = useState('');
   const [messages, setMessages] = useState<Message[]>(() => [createMessage(DEFAULT_GREETING, true)]);
 
-  const isHiddenRoute = useMemo(() => LOGIN_PATHS.has(pathname), [pathname]);
+  const isHiddenRoute = useMemo(() => isLoginPath(pathname), [pathname]);
   const isSupported = useMemo(() => isReady && Boolean(getRecognitionConstructor()), [isReady]);
 
   useEffect(() => {

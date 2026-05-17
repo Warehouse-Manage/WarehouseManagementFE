@@ -1,5 +1,6 @@
 'use client';
 
+import { canAccessAccounting } from '@/lib/roles';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
@@ -47,7 +48,7 @@ export default function ThietBiPage() {
       return;
     }
 
-    if (role !== 'Admin' && role !== 'accountance') {
+    if (!canAccessAccounting(role)) {
       setCanFetch(false);
       setIsCheckingAuth(false);
       return;
@@ -199,7 +200,7 @@ export default function ThietBiPage() {
   }
 
   const role = getCookie('role');
-  if (role !== 'Admin' && role !== 'accountance') {
+  if (!canAccessAccounting(role)) {
     return null;
   }
 
@@ -346,3 +347,5 @@ export default function ThietBiPage() {
     </div>
   );
 }
+
+

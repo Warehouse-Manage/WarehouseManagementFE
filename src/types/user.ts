@@ -9,11 +9,14 @@ export interface UserFormData {
 export interface CreateUserResponse {
     success: boolean;
     message?: string;
+    id?: number;
+    companyId?: number;
     errors?: Record<string, string>;
 }
 
 export interface User {
     id: number;
+    companyId?: number | null;
     userName: string;
     name: string;
     role: string;

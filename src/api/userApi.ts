@@ -2,7 +2,7 @@ import { api } from './api';
 import { UserFormData, CreateUserResponse, User } from '../types';
 
 export const userApi = {
-    createUser: async (data: UserFormData): Promise<CreateUserResponse> => {
+    createUser: async (data: UserFormData & { companyId: number }): Promise<CreateUserResponse> => {
         return api.post<CreateUserResponse>('/api/User', data);
     },
 
