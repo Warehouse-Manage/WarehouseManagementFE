@@ -5,6 +5,7 @@ export type LoginResponse = {
     token: string;
     user: User;
     message?: string;
+    isSuperAdmin?: boolean;
 };
 
 export type ForgotPasswordResponse = {

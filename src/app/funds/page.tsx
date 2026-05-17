@@ -1,5 +1,6 @@
 'use client';
 
+import { canAccessAccounting } from '@/lib/roles';
 import { useEffect, useMemo, useState } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { financeApi, workerApi, userApi } from '@/api';
@@ -269,7 +270,7 @@ export default function FundsPage() {
   }, [totalPages]);
 
   // Show blank page if role is not 'Admin' or 'accountance'
-  if (role !== 'Admin' && role !== 'accountance') {
+  if (!canAccessAccounting(role)) {
     return null;
   }
 
@@ -767,5 +768,7 @@ const filterOptions = [
   { value: 'Thu', label: 'Thu' },
   { value: 'Chi', label: 'Chi' },
 ];
+
+
 
 

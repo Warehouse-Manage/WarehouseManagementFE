@@ -1,8 +1,19 @@
+import { getCookie } from '@/lib/ultis';
+
 export const API_HOST = process.env.NEXT_PUBLIC_API_HOST;
+
+function getTenantHeaders(): Record<string, string> {
+    const companyId = getCookie('companyId');
+    if (companyId && companyId !== '0') {
+        return { 'X-Company-Id': companyId };
+    }
+    return {};
+}
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     const headers = {
         'Content-Type': 'application/json',
+        ...getTenantHeaders(),
         ...options.headers,
     } as Record<string, string>;
 

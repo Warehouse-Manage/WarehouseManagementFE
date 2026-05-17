@@ -1,5 +1,6 @@
 'use client';
 
+import { canAccessAccounting } from '@/lib/roles';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
@@ -39,7 +40,7 @@ export default function TeamPaymentPage() {
       return;
     }
 
-    if (role !== 'Admin' && role !== 'accountance') {
+    if (!canAccessAccounting(role)) {
       setCanFetch(false);
       setIsCheckingAuth(false);
       return;
@@ -148,7 +149,7 @@ export default function TeamPaymentPage() {
   }
 
   const role = getCookie('role');
-  if (role !== 'Admin' && role !== 'accountance') {
+  if (!canAccessAccounting(role)) {
     return null;
   }
 
@@ -316,3 +317,5 @@ export default function TeamPaymentPage() {
     </div>
   );
 }
+
+

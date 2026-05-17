@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import NotificationRequest from './Notification';
 import { getCookie } from '@/lib/ultis';
+import { canAccessAccounting, canManageCompanyUsers } from '@/lib/roles';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -82,7 +83,7 @@ export default function Navbar() {
   const isDoiTac = pathname?.startsWith('/partners');
   const isNhapHang = pathname?.startsWith('/import-goods');
   const isWarehouseManager = role === 'warehouse manager';
-  const canAccessAccounting = role === 'Admin' || role === 'accountance';
+  const hasAccountingAccess = canAccessAccounting(role);
 
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {
@@ -139,30 +140,39 @@ export default function Navbar() {
       case 'create-user':
         window.location.href = '/create-user';
         break;
-      case 'logout':
+      case 'logout': {
+        const expire = 'Thu, 01 Jan 1970 00:00:00 GMT';
+        const clearSession = () => {
+          document.cookie = `role=; path=/; expires=${expire}`;
+          document.cookie = `userName=; path=/; expires=${expire}`;
+          document.cookie = `name=; path=/; expires=${expire}`;
+          document.cookie = `department=; path=/; expires=${expire}`;
+          document.cookie = `token=; path=/; expires=${expire}`;
+          document.cookie = `userId=; path=/; expires=${expire}`;
+          document.cookie = `companyId=; path=/; expires=${expire}`;
+          document.cookie = `companyName=; path=/; expires=${expire}`;
+          document.cookie = `isSuperAdmin=; path=/; expires=${expire}`;
+          try {
+            localStorage.removeItem('token');
+          } catch {
+            /* ignore */
+          }
+        };
         try {
           if (true) {
-            // Xóa cookies
-            document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-            document.cookie = 'userName=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-            document.cookie = 'userId=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-
-            // Redirect to login page
-            window.location.href = '/login';
+            clearSession();
+            window.location.href = '/login/company';
           } else {
             console.error('Lỗi đăng xuất');
             toast.error('Có lỗi xảy ra khi đăng xuất');
           }
         } catch (error) {
           console.error('Lỗi kết nối:', error);
-          // Vẫn xóa cookies và redirect ngay cả khi có lỗi
-          document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          document.cookie = 'userName=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          window.location.href = '/login';
+          clearSession();
+          window.location.href = '/login/company';
         }
         break;
+      }
     }
   };
 
@@ -221,7 +231,7 @@ export default function Navbar() {
             </Link>
             
             {/* Admin/Accountance tabs */}
-            {canAccessAccounting && (
+            {hasAccountingAccess && (
               <>
                 <Link
                   href="/production"
@@ -269,7 +279,7 @@ export default function Navbar() {
         </div>
 
         {/* Kế toán dropdown menu - render outside overflow container */}
-        {canAccessAccounting && isKeToanMenuOpen && keToanMenuPosition && (
+        {hasAccountingAccess && isKeToanMenuOpen && keToanMenuPosition && (
           <div 
             ref={keToanMenuRef}
             className="fixed bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 z-[100] py-2"
@@ -373,7 +383,7 @@ export default function Navbar() {
           </button>
 
           {/* Đơn hàng - sát nút thông báo */}
-          {canAccessAccounting && (
+          {hasAccountingAccess && (
             <Link
               href="/orders"
               className={`${baseLink} ${linkSize} whitespace-nowrap hidden md:block bg-orange-400 text-white font-semibold hover:bg-orange-500`}
@@ -423,7 +433,7 @@ export default function Navbar() {
                     </svg>
                     Đổi mật khẩu
                   </button>
-                  {role === 'Admin' && (
+                  {canManageCompanyUsers(role) && (
                     <button
                       onClick={() => handleUserAction('create-user')}
                       className="flex w-full items-center px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-900"
@@ -498,7 +508,7 @@ export default function Navbar() {
             >
               Chấm công
             </Link>
-            {canAccessAccounting && (
+            {hasAccountingAccess && (
               <>
                 <Link
                   href="/products"
@@ -592,7 +602,7 @@ export default function Navbar() {
                 </Link>
               </>
             )}
-            {canAccessAccounting && (
+            {hasAccountingAccess && (
               <>
                 <Link
                   href="/production"
