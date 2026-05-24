@@ -1,5 +1,6 @@
 'use client';
 
+import { canAccessAccounting } from '@/lib/roles';
 import { useEffect, useState, useMemo, type ReactNode } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { DataTable, FormField } from '@/components/shared';
@@ -1167,7 +1168,7 @@ export default function NhapHangPage() {
     );
   };
 
-  if (role !== 'Admin' && role !== 'accountance' && role !== 'warehouse manager') {
+  if (!canAccessAccounting(role) && role !== 'warehouse manager') {
     return null;
   }
 
@@ -1423,3 +1424,4 @@ export default function NhapHangPage() {
     </div>
   );
 }
+

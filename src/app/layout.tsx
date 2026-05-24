@@ -3,8 +3,7 @@ import { Inter, Noto_Sans } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import { Toaster } from "sonner";
-import NavbarContainer from "@/components/NavbarContainer";
-import ChatBot from "@/components/shared/ChatBot";
+import AppShell from "@/components/AppShell";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -55,11 +54,7 @@ export default function RootLayout({
         className={`${inter.variable} ${notoSans.variable} font-sans antialiased`}
       >
         <Toaster richColors position="top-right" />
-        <NavbarContainer />
-        <main className="mx-auto max-w-[1440px] w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-          {children}
-        </main>
-        <ChatBot />
+        <AppShell>{children}</AppShell>
         <Script
           id="sw-register"
           strategy="afterInteractive"

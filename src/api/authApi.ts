@@ -2,7 +2,7 @@ import { api } from './api';
 import { LoginResponse, ForgotPasswordResponse } from '../types';
 
 export const authApi = {
-    login: async (credentials: Record<string, string>) => {
+    login: async (credentials: { userName: string; password: string; companyId: number }) => {
         return api.post<LoginResponse>('/api/auth/login', credentials);
     },
 

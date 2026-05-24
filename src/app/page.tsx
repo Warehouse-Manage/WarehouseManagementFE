@@ -32,7 +32,7 @@ export default function MaterialsPage() {
     const userName = getCookie('userName');
 
     if (!userId || !userName) {
-      router.push('/login');
+      router.push('/login/company');
       return;
     }
 
@@ -53,7 +53,7 @@ export default function MaterialsPage() {
         console.error('Lỗi khi tải danh sách vật tư:', err);
         const errorMessage = err instanceof Error ? err.message : '';
         if (errorMessage.includes('401')) {
-          router.push('/login');
+          router.push('/login/company');
           return;
         }
         setError('Không thể tải danh sách vật tư. Vui lòng thử lại sau.');

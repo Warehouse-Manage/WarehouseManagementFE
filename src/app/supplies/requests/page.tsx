@@ -201,7 +201,7 @@ export default function YeuCauPage() {
 
       // Filter users with admin or approver roles who have notification subscriptions
       return users.filter((u: UserWithNotification) =>
-        (u.role === 'Admin' || u.role === 'approver') &&
+        (u.role === 'Admin' || u.role === 'admin company' || u.role === 'approver') &&
         u.notificationEnabled &&
         u.notificationEndpoint
       );

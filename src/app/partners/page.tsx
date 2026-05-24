@@ -1,5 +1,6 @@
 'use client';
 
+import { canAccessAccounting } from '@/lib/roles';
 import { useEffect, useState } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { Partner } from '@/types';
@@ -86,7 +87,7 @@ export default function DoiTacPage() {
   }, [selectedMonth]);
 
   // Show blank page if role is not 'Admin' or 'accountance'
-  if (role !== 'Admin' && role !== 'accountance') {
+  if (!canAccessAccounting(role)) {
     return null;
   }
 
@@ -412,3 +413,5 @@ export default function DoiTacPage() {
     </div>
   );
 }
+
+
