@@ -12,6 +12,7 @@ import CreateOrderModal from './modal/CreateOrderModal';
 import CustomerModal from './modal/CustomerModal';
 import DeliverModal from './modal/DeliverModal';
 import { useConfirm } from '@/hooks/useConfirm';
+import { notifyOrderToAdmins } from '../../../actions/notification';
 
 // Types moved to @/types/finance.ts and @/types/inventory.ts
 
@@ -66,6 +67,8 @@ export default function OrdersPage() {
   const [newDeliverPlate, setNewDeliverPlate] = useState('');
   const [submittingCustomer, setSubmittingCustomer] = useState(false);
   const [submittingDeliver, setSubmittingDeliver] = useState(false);
+  const [customerDebt, setCustomerDebt] = useState<number | null>(null);
+  const [loadingCustomerDebt, setLoadingCustomerDebt] = useState(false);
 
   useEffect(() => {
     const r = getCookie('role');
@@ -230,6 +233,33 @@ export default function OrdersPage() {
     setShipcod(remaining);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productOrdersInput, sale, amountCustomerPayment]);
+
+  useEffect(() => {
+    if (customerId === '') {
+      setCustomerDebt(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingCustomerDebt(true);
+    setCustomerDebt(null);
+    financeApi
+      .getCustomerDebtSummary(Number(customerId))
+      .then((balance) => {
+        if (!cancelled) setCustomerDebt(balance ?? 0);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error('Failed to load customer debt:', err);
+          setCustomerDebt(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCustomerDebt(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
 
   // Show blank page if role is not 'Admin' or 'accountance'
   if (!canAccessAccounting(role)) {
@@ -495,6 +525,18 @@ export default function OrdersPage() {
         createdUserId: Number(userId),
       });
 
+      {
+        const customerForNotify = customers.find((c) => c.id === Number(customerId));
+        const companyIdRaw = getCookie('companyId');
+        const companyIdNum = companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null;
+        notifyOrderToAdmins(
+          'Đơn hàng mới',
+          `Đơn hàng #${res.id} từ ${customerForNotify?.name || 'khách hàng'}`,
+          '/icon-192x192.png',
+          companyIdNum,
+        ).catch((e) => console.error('Notify admins failed:', e));
+      }
+
       const now = new Date();
       const customer = customers.find((c) => c.id === Number(customerId));
       const deliver = delivers.find((d) => d.id === Number(deliverId));
@@ -616,6 +658,8 @@ export default function OrdersPage() {
         onClose={handleCloseModal}
         error={error}
         submitting={submitting}
+        customerDebt={customerDebt}
+        loadingCustomerDebt={loadingCustomerDebt}
         customers={customers}
         delivers={delivers}
         products={products}

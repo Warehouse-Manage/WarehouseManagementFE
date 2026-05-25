@@ -30,6 +30,10 @@ export default function CustomersPage() {
   const [endDate, setEndDate] = useState<string>('');
   const [downloadingDebt, setDownloadingDebt] = useState(false);
   const [customerDebts, setCustomerDebts] = useState<Record<number, number>>({});
+  const [filterName, setFilterName] = useState('');
+  const [filterPhone, setFilterPhone] = useState('');
+  const [filterAddress, setFilterAddress] = useState('');
+  const [filterDebt, setFilterDebt] = useState<'all' | 'receivable' | 'payable' | 'zero'>('all');
 
   const customerFormFields: FormField[] = [
     { name: 'name', label: 'Tên khách hàng', type: 'text', required: true, placeholder: 'Nhập tên khách hàng...' },
@@ -231,6 +235,34 @@ export default function CustomersPage() {
 
   const netDebtBalance = totalDebtReceivable - totalDebtPayable;
 
+  const filteredCustomers = useMemo(() => {
+    const name = filterName.trim().toLowerCase();
+    const phone = filterPhone.trim().toLowerCase();
+    const address = filterAddress.trim().toLowerCase();
+
+    return customers.filter((c) => {
+      if (name && !c.name.toLowerCase().includes(name)) return false;
+      if (phone && !c.phoneNumber.toLowerCase().includes(phone)) return false;
+      if (address && !c.address.toLowerCase().includes(address)) return false;
+
+      if (filterDebt !== 'all') {
+        const debt = customerDebts[c.id];
+        if (debt === undefined) return false;
+        if (filterDebt === 'receivable' && debt <= 0) return false;
+        if (filterDebt === 'payable' && debt >= 0) return false;
+        if (filterDebt === 'zero' && debt !== 0) return false;
+      }
+      return true;
+    });
+  }, [customers, filterName, filterPhone, filterAddress, filterDebt, customerDebts]);
+
+  const handleClearFilter = () => {
+    setFilterName('');
+    setFilterPhone('');
+    setFilterAddress('');
+    setFilterDebt('all');
+  };
+
   // Show blank page if role is not 'Admin' or 'accountance'
   if (!canAccessAccounting(role)) {
     return null;
@@ -322,7 +354,63 @@ export default function CustomersPage() {
           </button>
         </div>
         <DataTable
-          data={customers}
+          enableFilter
+          filterContent={
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tên khách hàng</label>
+                <input
+                  value={filterName}
+                  onChange={(e) => setFilterName(e.target.value)}
+                  placeholder="Nhập tên..."
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Số điện thoại</label>
+                <input
+                  value={filterPhone}
+                  onChange={(e) => setFilterPhone(e.target.value)}
+                  placeholder="Nhập SĐT..."
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Địa chỉ</label>
+                <input
+                  value={filterAddress}
+                  onChange={(e) => setFilterAddress(e.target.value)}
+                  placeholder="Nhập địa chỉ..."
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Công nợ</label>
+                <select
+                  value={filterDebt}
+                  onChange={(e) => setFilterDebt(e.target.value as typeof filterDebt)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="receivable">Đang nợ (phải thu)</option>
+                  <option value="payable">Trả thừa (phải trả)</option>
+                  <option value="zero">Đã thanh toán đủ</option>
+                </select>
+              </div>
+              <div className="md:col-span-4 flex flex-wrap gap-2 justify-end">
+                <div className="mr-auto text-xs text-gray-500 font-semibold">
+                  Hiển thị <span className="text-orange-600">{filteredCustomers.length}</span> / {customers.length} khách hàng
+                </div>
+                <button
+                  onClick={handleClearFilter}
+                  className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Xóa lọc
+                </button>
+              </div>
+            </div>
+          }
+          data={filteredCustomers}
           isLoading={loading}
           columns={[
             {
