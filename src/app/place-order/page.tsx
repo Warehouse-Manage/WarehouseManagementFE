@@ -13,6 +13,7 @@ import CustomerModal from './modal/CustomerModal';
 import DeliverModal from './modal/DeliverModal';
 import ForecastWarningModal from './modal/ForecastWarningModal';
 import { useConfirm } from '@/hooks/useConfirm';
+import { notifyOrderToAdmins } from '../../../actions/notification';
 
 // Types moved to @/types/finance.ts and @/types/inventory.ts
 
@@ -68,6 +69,8 @@ export default function PlaceOrderPage() {
   const [showForecastWarning, setShowForecastWarning] = useState(false);
   const [forecastData, setForecastData] = useState<InventoryForecastResponse | null>(null);
   const [pendingCreate, setPendingCreate] = useState(false);
+  const [customerDebt, setCustomerDebt] = useState<number | null>(null);
+  const [loadingCustomerDebt, setLoadingCustomerDebt] = useState(false);
 
   useEffect(() => {
     const r = getCookie('role');
@@ -159,6 +162,33 @@ export default function PlaceOrderPage() {
     loadPackageProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (customerId === '') {
+      setCustomerDebt(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingCustomerDebt(true);
+    setCustomerDebt(null);
+    financeApi
+      .getCustomerDebtSummary(Number(customerId))
+      .then((balance) => {
+        if (!cancelled) setCustomerDebt(balance ?? 0);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error('Failed to load customer debt:', err);
+          setCustomerDebt(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCustomerDebt(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
 
   const updateProductOrderField = (index: number, field: string, value: number | '') => {
     setProductOrdersInput((prev) => {
@@ -455,6 +485,7 @@ export default function PlaceOrderPage() {
       };
 
       let res;
+      const isCreate = !editingOrderId;
       if (editingOrderId) {
         res = await financeApi.updatePlaceOrder(editingOrderId, payload as UpdatePlaceOrderFormData);
         toast.success('Cập nhật đặt hàng thành công');
@@ -464,6 +495,18 @@ export default function PlaceOrderPage() {
           createdUserId: Number(userId),
         } as PlaceOrderFormData);
         toast.success('Tạo đặt hàng thành công');
+      }
+
+      if (isCreate) {
+        const customerForNotify = customers.find((c) => c.id === Number(customerId));
+        const companyIdRaw = getCookie('companyId');
+        const companyIdNum = companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null;
+        notifyOrderToAdmins(
+          'Đặt hàng mới',
+          `Đơn đặt hàng #${res.id} từ ${customerForNotify?.name || 'khách hàng'}`,
+          '/icon-192x192.png',
+          companyIdNum,
+        ).catch((e) => console.error('Notify admins failed:', e));
       }
 
       const now = new Date();
@@ -590,6 +633,8 @@ export default function PlaceOrderPage() {
         onClose={handleCloseModal}
         error={error}
         submitting={submitting}
+        customerDebt={customerDebt}
+        loadingCustomerDebt={loadingCustomerDebt}
         deliveryAddress={deliveryAddress}
         allowAdditionalQuantity={allowAdditionalQuantity}
         onDeliveryAddressChange={setDeliveryAddress}

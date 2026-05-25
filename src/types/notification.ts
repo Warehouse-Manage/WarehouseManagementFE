@@ -21,6 +21,7 @@ export interface ToggleNotificationResponse {
 
 export interface UserWithNotification {
     id: number;
+    companyId?: number | null;
     userName: string;
     name: string;
     role: string;
