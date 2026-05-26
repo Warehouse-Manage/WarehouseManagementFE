@@ -1,10 +1,12 @@
 'use client';
 
+import { productionApi } from '@/api';
 import { canAccessAccounting } from '@/lib/roles';
 import { getCookie } from '@/lib/ultis';
-import { Activity, Box, Flame, Layers, Package, TrainFront, Wind } from 'lucide-react';
+import type { ExtruderDeviceStatus } from '@/types';
+import { Box, Flame, Layers, Package, TrainFront, Wind } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
 type LaneId = 'hook-rail' | 'drying' | 'firing';
 
@@ -17,11 +19,6 @@ interface KilnWagon {
 }
 
 interface KilnSystemSnapshot {
-  extruder: {
-    status: 'running' | 'idle' | 'maintenance';
-    outputToday: number;
-    speed: string;
-  };
   stacking: KilnWagon[];
   lanes: Record<LaneId, KilnWagon[]>;
 }
@@ -38,11 +35,6 @@ type ColorTheme = {
 };
 
 const MOCK_SNAPSHOT: KilnSystemSnapshot = {
-  extruder: {
-    status: 'running',
-    outputToday: 1240,
-    speed: 'Ổn định',
-  },
   stacking: [
     { id: 's1', code: 'G-104', packages: 8, note: 'Đang xếp', progress: 65 },
     { id: 's2', code: 'G-105', packages: 0, note: 'Chờ xếp', progress: 12 },
@@ -222,6 +214,23 @@ export default function KilnSystemPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [snapshot] = useState<KilnSystemSnapshot>(MOCK_SNAPSHOT);
+  const [extruderDevice, setExtruderDevice] = useState<ExtruderDeviceStatus | null>(null);
+  const [loadingDevices, setLoadingDevices] = useState(false);
+  const [devicesError, setDevicesError] = useState<string | null>(null);
+
+  const loadExtruderDevice = useCallback(async () => {
+    setLoadingDevices(true);
+    setDevicesError(null);
+    try {
+      const data = await productionApi.getExtruderDeviceStatus();
+      setExtruderDevice(data);
+    } catch (err) {
+      setDevicesError(err instanceof Error ? err.message : 'Không tải được trạng thái máy đùn');
+      setExtruderDevice(null);
+    } finally {
+      setLoadingDevices(false);
+    }
+  }, []);
 
   useEffect(() => {
     const userId = getCookie('userId');
@@ -237,16 +246,10 @@ export default function KilnSystemPage() {
       return;
     }
     setIsCheckingAuth(false);
-  }, [router]);
+    void loadExtruderDevice();
+  }, [router, loadExtruderDevice]);
 
-  const extruderStatus = useMemo(() => {
-    const map = {
-      running: { label: 'Đang chạy', className: EXTRUDER_THEME.badge },
-      idle: { label: 'Tạm dừng', className: 'bg-gray-300 text-gray-700' },
-      maintenance: { label: 'Bảo trì', className: 'bg-amber-500 text-white' },
-    };
-    return map[snapshot.extruder.status];
-  }, [snapshot.extruder.status]);
+  const extruderStatusText = extruderDevice?.status?.trim() || '—';
 
   if (isCheckingAuth) {
     return (
@@ -272,26 +275,34 @@ export default function KilnSystemPage() {
                 <p className="hidden text-xs text-gray-500 sm:block">Khu đùn & cấp liệu</p>
               </div>
             </div>
-            <span
-              className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold sm:px-2.5 sm:py-1 sm:text-xs ${extruderStatus.className}`}
-            >
-              {extruderStatus.label}
-            </span>
+            {extruderDevice && (
+              <span
+                className={`max-w-[45%] shrink-0 truncate rounded-full px-1.5 py-0.5 text-[9px] font-bold sm:max-w-none sm:px-2.5 sm:py-1 sm:text-xs ${EXTRUDER_THEME.badge}`}
+                title={extruderStatusText}
+              >
+                {extruderStatusText}
+              </span>
+            )}
           </div>
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-            <div className={`rounded-xl border p-2 sm:p-3 ${EXTRUDER_THEME.stat}`}>
-              <p className="text-[9px] font-bold uppercase text-gray-500 sm:text-[10px]">SL hôm nay</p>
-              <p className="mt-0.5 text-base font-black text-emerald-800 sm:text-xl">
-                {snapshot.extruder.outputToday.toLocaleString('vi-VN')}
+          <div className="mt-2 flex flex-1 flex-col justify-center sm:mt-3">
+            {loadingDevices ? (
+              <div className="flex flex-1 items-center justify-center py-6">
+                <div className="h-7 w-7 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+              </div>
+            ) : devicesError ? (
+              <p className="rounded-xl border border-red-100 bg-red-50/80 p-3 text-center text-xs text-red-600">
+                {devicesError}
               </p>
-            </div>
-            <div className={`rounded-xl border p-2 sm:p-3 ${EXTRUDER_THEME.stat}`}>
-              <p className="text-[9px] font-bold uppercase text-gray-500 sm:text-[10px]">Tốc độ</p>
-              <p className="mt-0.5 flex items-center gap-1 text-sm font-black text-gray-900 sm:text-lg">
-                <Activity className="h-3.5 w-3.5 text-emerald-600 sm:h-4 sm:w-4" />
-                <span className="truncate">{snapshot.extruder.speed}</span>
+            ) : !extruderDevice ? (
+              <p className={`rounded-xl border p-4 text-center text-xs text-gray-500 ${EXTRUDER_THEME.wagon}`}>
+                Chưa có thiết bị tên &quot;máy đùn&quot;
               </p>
-            </div>
+            ) : (
+              <div className={`rounded-xl border p-4 text-center sm:p-6 ${EXTRUDER_THEME.wagon}`}>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 sm:text-xs">Trạng thái</p>
+                <p className="mt-2 break-words text-xl font-black text-emerald-800 sm:text-2xl">{extruderStatusText}</p>
+              </div>
+            )}
           </div>
         </article>
 
