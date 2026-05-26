@@ -53,16 +53,78 @@ const MOCK_SNAPSHOT: KilnSystemSnapshot = {
   },
 };
 
-const EXTRUDER_THEME: ColorTheme = {
+type ExtruderStatusDisplay = {
+  label: string;
+  isActive: boolean | null;
+  shell: string;
+  icon: string;
+  spinner: string;
+  emptyBox: string;
+  badge: string;
+  statusText: string;
+  statusBox: string;
+};
+
+const EXTRUDER_NEUTRAL = {
+  shell: 'border-gray-200/90 bg-gradient-to-br from-gray-50 via-white to-white shadow-sm shadow-gray-100/50',
+  icon: 'bg-gray-100 text-gray-600',
+  spinner: 'border-gray-200 border-t-gray-600',
+  emptyBox: 'border-gray-200/80 bg-gray-50/90',
+};
+
+const EXTRUDER_ACTIVE = {
   shell: 'border-emerald-200/90 bg-gradient-to-br from-emerald-50 via-white to-white shadow-sm shadow-emerald-100/50',
   icon: 'bg-emerald-100 text-emerald-700',
-  accent: 'text-emerald-600',
-  badge: 'bg-emerald-600 text-white',
-  stat: 'border-emerald-100/80 bg-emerald-50/60',
-  progress: 'bg-emerald-500',
-  wagon: 'border-emerald-200/80 bg-emerald-100/55',
-  progressTrack: 'bg-emerald-200/50',
+  spinner: 'border-emerald-200 border-t-emerald-600',
+  emptyBox: 'border-emerald-200/80 bg-emerald-50/90',
 };
+
+const EXTRUDER_INACTIVE = {
+  shell: 'border-red-200/90 bg-gradient-to-br from-red-50 via-white to-white shadow-sm shadow-red-100/50',
+  icon: 'bg-red-100 text-red-700',
+  spinner: 'border-red-200 border-t-red-600',
+  emptyBox: 'border-red-200/80 bg-red-50/90',
+};
+
+function parseExtruderStatus(raw: string | null | undefined): ExtruderStatusDisplay {
+  const original = raw?.trim() ?? '';
+  const v = original.toLowerCase();
+
+  const isActive =
+    v === 'true' || v === '1' || v === 'on' || v === 'yes' || v === 'hoạt động' || v === 'hoat dong';
+  const isInactive =
+    v === 'false' || v === '0' || v === 'off' || v === 'no' || v === 'không hoạt động' || v === 'khong hoat dong';
+
+  if (isActive) {
+    return {
+      label: 'Hoạt động',
+      isActive: true,
+      ...EXTRUDER_ACTIVE,
+      badge: 'bg-emerald-600 text-white',
+      statusText: 'text-emerald-700',
+      statusBox: 'border-emerald-300/80 bg-emerald-50/90',
+    };
+  }
+  if (isInactive) {
+    return {
+      label: 'Không hoạt động',
+      isActive: false,
+      ...EXTRUDER_INACTIVE,
+      badge: 'bg-red-600 text-white',
+      statusText: 'text-red-700',
+      statusBox: 'border-red-300/80 bg-red-50/90',
+    };
+  }
+
+  return {
+    label: original || '—',
+    isActive: null,
+    ...EXTRUDER_NEUTRAL,
+    badge: 'bg-gray-500 text-white',
+    statusText: 'text-gray-600',
+    statusBox: 'border-gray-200/80 bg-gray-50/90',
+  };
+}
 
 const STACKING_THEME: ColorTheme = {
   shell: 'border-violet-200/90 bg-gradient-to-br from-violet-50 via-white to-white shadow-sm shadow-violet-100/50',
@@ -249,7 +311,7 @@ export default function KilnSystemPage() {
     void loadExtruderDevice();
   }, [router, loadExtruderDevice]);
 
-  const extruderStatusText = extruderDevice?.status?.trim() || '—';
+  const extruderStatus = parseExtruderStatus(extruderDevice?.status);
 
   if (isCheckingAuth) {
     return (
@@ -262,11 +324,11 @@ export default function KilnSystemPage() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2 sm:gap-4">
-        <article className={`flex flex-col rounded-2xl border p-3 sm:p-5 ${EXTRUDER_THEME.shell}`}>
+        <article className={`flex flex-col rounded-2xl border p-3 sm:p-5 ${extruderStatus.shell}`}>
           <div className="flex items-start justify-between gap-1">
             <div className="flex min-w-0 items-center gap-2">
               <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 ${EXTRUDER_THEME.icon}`}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 ${extruderStatus.icon}`}
               >
                 <Box className="h-4 w-4 sm:h-5 sm:w-5" />
               </span>
@@ -277,30 +339,32 @@ export default function KilnSystemPage() {
             </div>
             {extruderDevice && (
               <span
-                className={`max-w-[45%] shrink-0 truncate rounded-full px-1.5 py-0.5 text-[9px] font-bold sm:max-w-none sm:px-2.5 sm:py-1 sm:text-xs ${EXTRUDER_THEME.badge}`}
-                title={extruderStatusText}
+                className={`max-w-[45%] shrink-0 truncate rounded-full px-1.5 py-0.5 text-[9px] font-bold sm:max-w-none sm:px-2.5 sm:py-1 sm:text-xs ${extruderStatus.badge}`}
+                title={extruderStatus.label}
               >
-                {extruderStatusText}
+                {extruderStatus.label}
               </span>
             )}
           </div>
           <div className="mt-2 flex flex-1 flex-col justify-center sm:mt-3">
             {loadingDevices ? (
               <div className="flex flex-1 items-center justify-center py-6">
-                <div className="h-7 w-7 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+                <div className={`h-7 w-7 animate-spin rounded-full border-2 ${extruderStatus.spinner}`} />
               </div>
             ) : devicesError ? (
               <p className="rounded-xl border border-red-100 bg-red-50/80 p-3 text-center text-xs text-red-600">
                 {devicesError}
               </p>
             ) : !extruderDevice ? (
-              <p className={`rounded-xl border p-4 text-center text-xs text-gray-500 ${EXTRUDER_THEME.wagon}`}>
+              <p className={`rounded-xl border p-4 text-center text-xs text-gray-500 ${extruderStatus.emptyBox}`}>
                 Chưa có thiết bị tên &quot;máy đùn&quot;
               </p>
             ) : (
-              <div className={`rounded-xl border p-4 text-center sm:p-6 ${EXTRUDER_THEME.wagon}`}>
+              <div className={`rounded-xl border p-4 text-center sm:p-6 ${extruderStatus.statusBox}`}>
                 <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 sm:text-xs">Trạng thái</p>
-                <p className="mt-2 break-words text-xl font-black text-emerald-800 sm:text-2xl">{extruderStatusText}</p>
+                <p className={`mt-2 break-words text-xl font-black sm:text-2xl ${extruderStatus.statusText}`}>
+                  {extruderStatus.label}
+                </p>
               </div>
             )}
           </div>
