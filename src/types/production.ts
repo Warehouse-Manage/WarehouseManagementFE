@@ -52,6 +52,7 @@ export interface DeviceFormData {
     name: string;
     description: string;
     deviceUnitId: number;
+    companyId?: number;
     lowLimit: number;
     highLimit: number;
     value: string;
@@ -68,4 +69,10 @@ export interface BrickYardStatusFormData {
 export interface DeviceActivity {
     id: number;
     timestamps: string[];
+}
+
+export interface ExtruderDeviceStatus {
+    id: number;
+    name: string | null;
+    status: string | null;
 }
