@@ -170,6 +170,9 @@ class PushNotificationService {
   // Unsubscribe from push notifications
   public async unsubscribeFromPush(): Promise<boolean> {
     if (!this.registration) {
+      this.registration = (await navigator.serviceWorker.getRegistration('/')) ?? null;
+    }
+    if (!this.registration) {
       return false;
     }
 
@@ -251,6 +254,9 @@ class PushNotificationService {
 
   // Get subscription status
   public async getSubscriptionStatus(): Promise<boolean> {
+    if (!this.registration) {
+      this.registration = (await navigator.serviceWorker.getRegistration('/')) ?? null;
+    }
     if (!this.registration) {
       return false;
     }

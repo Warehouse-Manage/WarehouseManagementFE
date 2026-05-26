@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import { Factory, Cpu, Wallet } from 'lucide-react';
+import { Factory, Cpu, Wallet, Flame } from 'lucide-react';
 
 export default function SanXuatLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -18,6 +18,11 @@ export default function SanXuatLayout({ children }: { children: React.ReactNode 
       href: '/production/equipment',
       label: 'Thiết bị & IoT',
       icon: <Cpu className="w-5 h-5" />,
+    },
+    {
+      href: '/production/kiln-system',
+      label: 'Hệ thống lò gạch',
+      icon: <Flame className="w-5 h-5" />,
     },
     {
       href: '/production/team-payment',
