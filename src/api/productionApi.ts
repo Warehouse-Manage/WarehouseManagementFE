@@ -1,4 +1,5 @@
 import { api } from './api';
+import { getCookie } from '@/lib/ultis';
 import {
     Device,
     DeviceUnit,
@@ -38,7 +39,11 @@ export const productionApi = {
     },
 
     createDevice: async (data: DeviceFormData): Promise<Device> => {
-        return api.post<Device>('/api/devices', data);
+        const companyIdRaw = getCookie('companyId');
+        const companyIdFromCookie =
+            companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : 0;
+        const companyId = data.companyId ?? companyIdFromCookie;
+        return api.post<Device>('/api/devices', { ...data, companyId });
     },
 
     updateDevice: async (id: number, data: DeviceFormData | Partial<Device>): Promise<Device> => {
