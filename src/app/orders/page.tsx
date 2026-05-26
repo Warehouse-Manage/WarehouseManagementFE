@@ -1,10 +1,10 @@
 'use client';
 
 import { canAccessAccounting } from '@/lib/roles';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { financeApi, inventoryApi } from '@/api';
-import { Order, Customer, Deliver, Product, PackageProduct, UpdateOrderFormData, OrderDetailsResponse } from '@/types';
+import { Order, Customer, Deliver, Product, PackageProduct, UpdateOrderFormData } from '@/types';
 import { DataTable } from '@/components/shared';
 import { toast } from 'sonner';
 import { CalendarDays, Pencil, Printer, Trash2 } from 'lucide-react';
@@ -13,6 +13,7 @@ import CustomerModal from './modal/CustomerModal';
 import DeliverModal from './modal/DeliverModal';
 import { useConfirm } from '@/hooks/useConfirm';
 import { notifyOrderToAdmins } from '../../../actions/notification';
+import { useOrderNotificationDeepLink } from '@/lib/orderNotificationDeepLink';
 
 // Types moved to @/types/finance.ts and @/types/inventory.ts
 
@@ -261,6 +262,41 @@ export default function OrdersPage() {
     };
   }, [customerId]);
 
+  const handleEditOrder = useCallback(async (orderId: number) => {
+    setError(null);
+    setLoading(true);
+    try {
+      const orderDetail = await financeApi.getOrderById(orderId);
+      setEditingOrderId(orderId);
+      setOriginalPayment(orderDetail.amountCustomerPayment);
+      setCustomerId(orderDetail.customerId);
+      setDeliverId(orderDetail.deliverId);
+      setSale(orderDetail.sale);
+      setAmountCustomerPayment(orderDetail.amountCustomerPayment);
+      setShipCost(orderDetail.shipCost ?? 0);
+      setProductOrdersInput(
+        (orderDetail.productOrders || []).map((po) => {
+          const isPackage = !!po.packageProductId;
+          return {
+            productId: po.productId ?? '',
+            packageProductId: po.packageProductId ?? '',
+            selectionKey: isPackage ? `k:${po.packageProductId}` : `p:${po.productId}`,
+            amount: po.amount,
+            price: po.price,
+            sale: po.sale ?? 0,
+          };
+        }),
+      );
+      setShowModal(true);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Không thể tải đơn hàng');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useOrderNotificationDeepLink('order', handleEditOrder);
+
   // Show blank page if role is not 'Admin' or 'accountance'
   if (!canAccessAccounting(role)) {
     return null;
@@ -287,43 +323,6 @@ export default function OrdersPage() {
   const handleCloseModal = () => {
     setShowModal(false);
     resetForm();
-  };
-
-  const hydrateFormFromOrder = (order: OrderDetailsResponse) => {
-    setCustomerId(order.customerId);
-    setDeliverId(order.deliverId);
-    setSale(order.sale);
-    setAmountCustomerPayment(order.amountCustomerPayment);
-    setShipCost(order.shipCost ?? 0);
-    setProductOrdersInput(
-      (order.productOrders || []).map((po) => {
-        const isPackage = !!po.packageProductId;
-        return {
-          productId: po.productId ?? '',
-          packageProductId: po.packageProductId ?? '',
-          selectionKey: isPackage ? `k:${po.packageProductId}` : `p:${po.productId}`,
-          amount: po.amount,
-          price: po.price,
-          sale: po.sale ?? 0
-        };
-      })
-    );
-  };
-
-  const handleEditOrder = async (orderId: number) => {
-    setError(null);
-    setLoading(true);
-    try {
-      const orderDetail = await financeApi.getOrderById(orderId);
-      setEditingOrderId(orderId);
-      setOriginalPayment(orderDetail.amountCustomerPayment);
-      hydrateFormFromOrder(orderDetail);
-      setShowModal(true);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err) || 'Không thể tải đơn hàng');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleCreateCustomer = async () => {
@@ -526,15 +525,13 @@ export default function OrdersPage() {
       });
 
       {
-        const customerForNotify = customers.find((c) => c.id === Number(customerId));
+        const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+        const creatorName = decodeURIComponent(nameRaw);
         const companyIdRaw = getCookie('companyId');
         const companyIdNum = companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null;
-        notifyOrderToAdmins(
-          'Đơn hàng mới',
-          `Đơn hàng #${res.id} từ ${customerForNotify?.name || 'khách hàng'}`,
-          '/icon-192x192.png',
-          companyIdNum,
-        ).catch((e) => console.error('Notify admins failed:', e));
+        notifyOrderToAdmins(creatorName, 'order', res.id, '/icon512_rounded.png', companyIdNum).catch((e) =>
+          console.error('Notify admins failed:', e),
+        );
       }
 
       const now = new Date();

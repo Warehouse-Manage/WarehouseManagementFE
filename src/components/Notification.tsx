@@ -30,27 +30,24 @@ export default function NotificationRequest() {
 		setIsLoading(true);
 
 		try {
-			// Request permission
 			const granted = await pushNotificationService.requestPermission();
 
 			if (granted) {
-				// Register service worker
 				await pushNotificationService.registerServiceWorker();
 
-				// Subscribe to push notifications
 				const userId = getCookie('userId');
-				if (userId) {
-					await pushNotificationService.subscribeToPush(userId);
-
-					// Enable notifications in backend
-					await toggleNotificationStatus(true);
-
-					setIsSubscribed(true);
-					setNotificationPermission('granted');
-					toast.success('Notifications enabled successfully!');
-				} else {
+				if (!userId) {
 					toast.error('User not authenticated');
+					return;
 				}
+
+				await pushNotificationService.subscribeToPush(userId);
+				await notificationApi.toggleNotifications(userId, true);
+
+				setNotificationPermission('granted');
+				setIsSubscribed(true);
+				setBackendNotificationEnabled(true);
+				toast.success('Đã bật thông báo');
 			} else {
 				setNotificationPermission('denied');
 				toast.error('Permission denied. You can enable notifications in your browser settings.');
@@ -58,6 +55,7 @@ export default function NotificationRequest() {
 		} catch (error) {
 			console.error('Error enabling notifications:', error);
 			toast.error('Failed to enable notifications');
+			await refreshNotificationStatus();
 		} finally {
 			setIsLoading(false);
 		}
@@ -73,19 +71,19 @@ export default function NotificationRequest() {
 				return;
 			}
 
-			// Unsubscribe from push notifications
 			await pushNotificationService.unsubscribeFromPush();
 
-			// Call backend API to unsubscribe
 			const result = await notificationApi.unsubscribe({ userId });
 			if (result) {
-				toast.success(result.message || 'Hủy đăng ký thông báo thành công');
-				// Also toggle the notification status in backend
-				await toggleNotificationStatus(false);
+				await notificationApi.toggleNotifications(userId, false);
+				setIsSubscribed(false);
+				setBackendNotificationEnabled(false);
+				toast.success(result.message || 'Đã tắt thông báo');
 			}
 		} catch (error) {
 			console.error('Error disabling notifications:', error);
 			toast.error('Failed to disable notifications');
+			await refreshNotificationStatus();
 		} finally {
 			setIsLoading(false);
 		}
@@ -105,20 +103,42 @@ export default function NotificationRequest() {
 		}
 	};
 
+	const applyNotificationState = useCallback(
+		async (permission: NotificationPermission, userStatus: { notificationEnabled: boolean; hasSubscription: boolean }) => {
+			setNotificationPermission(permission);
+			setBackendNotificationEnabled(userStatus.notificationEnabled);
+			const active =
+				permission === 'granted' &&
+				userStatus.notificationEnabled &&
+				userStatus.hasSubscription;
+			setIsSubscribed(active);
+		},
+		[],
+	);
+
 	// Refresh notification status from backend
 	const refreshNotificationStatus = useCallback(async () => {
+		if (!pushNotificationService.isPushSupported()) return;
+
+		const permission = pushNotificationService.getPermissionStatus();
 		const userId = getCookie('userId');
-		if (userId) {
-			const userStatus = await fetchUserNotificationStatus(userId);
-			setIsSubscribed(userStatus.hasSubscription);
-			setBackendNotificationEnabled(userStatus.notificationEnabled);
+		if (!userId) {
+			setNotificationPermission(permission);
+			if (permission === 'granted') {
+				const localSub = await pushNotificationService.getSubscriptionStatus();
+				setIsSubscribed(localSub);
+			} else {
+				setIsSubscribed(false);
+			}
+			return;
 		}
-	}, []);
 
-	// Toggle notification status (enable/disable)
-	const toggleNotificationStatus = async (enabled: boolean) => {
+		const userStatus = await fetchUserNotificationStatus(userId);
+		await applyNotificationState(permission, userStatus);
+	}, [applyNotificationState]);
+
+	const enableBackendNotifications = async () => {
 		setIsLoading(true);
-
 		try {
 			const userId = getCookie('userId');
 			if (!userId) {
@@ -126,11 +146,22 @@ export default function NotificationRequest() {
 				return;
 			}
 
-			await notificationApi.toggleNotifications(userId, enabled);
+			const permission = pushNotificationService.getPermissionStatus();
+			const hasLocalSub = permission === 'granted' && (await pushNotificationService.getSubscriptionStatus());
 
+			if (permission !== 'granted' || !hasLocalSub) {
+				await showNotification();
+				return;
+			}
+
+			await notificationApi.toggleNotifications(userId, true);
+			setBackendNotificationEnabled(true);
+			setIsSubscribed(true);
+			toast.success('Đã bật thông báo');
 		} catch (error) {
-			console.error('Error toggling notification status:', error);
-			toast.error(error instanceof Error ? error.message : 'Failed to toggle notification status');
+			console.error('Error enabling backend notifications:', error);
+			toast.error(error instanceof Error ? error.message : 'Không thể bật thông báo');
+			await refreshNotificationStatus();
 		} finally {
 			setIsLoading(false);
 		}
@@ -146,24 +177,7 @@ export default function NotificationRequest() {
 				return;
 			}
 
-			const permission = pushNotificationService.getPermissionStatus();
-			setNotificationPermission(permission);
-
-			// Fetch user's notification status from backend
-			const userId = getCookie('userId');
-			if (userId) {
-				const userStatus = await fetchUserNotificationStatus(userId);
-
-				// Update subscription status and backend notification status
-				setIsSubscribed(userStatus.hasSubscription);
-				setBackendNotificationEnabled(userStatus.notificationEnabled);
-			} else {
-				// Fallback to local subscription status if no userId
-				if (permission === 'granted') {
-					const isSubscribed = await pushNotificationService.getSubscriptionStatus();
-					setIsSubscribed(isSubscribed);
-				}
-			}
+			await refreshNotificationStatus();
 		};
 
 		checkStatus();
@@ -211,7 +225,7 @@ export default function NotificationRequest() {
 				) : !backendNotificationEnabled ? (
 					<div title="Notifications disabled in settings - click to enable">
 						<BellOff
-							onClick={() => toggleNotificationStatus(true)}
+							onClick={enableBackendNotifications}
 							className={isLoading ? "animate-pulse" : ""}
 						/>
 					</div>

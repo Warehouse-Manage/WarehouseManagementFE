@@ -52,12 +52,19 @@ const fetchSubscriptionDetail = async (userId: string): Promise<SubscriptionInpu
     }
 };
 
+type OrderPushMeta = {
+    orderId: number;
+    orderType: "order" | "place-order";
+    url: string;
+};
+
 export const sendNotification = async (
     message: string,
     userId: string,
     icon: string,
     title: string,
     subscriptionData?: SubscriptionInput,
+    orderMeta?: OrderPushMeta,
 ) => {
     try {
         ensureVapidConfigured();
@@ -93,7 +100,11 @@ export const sendNotification = async (
                 body: message,
                 icon,
                 badge: icon,
-                data: { userId: resolvedUserId, timestamp: new Date().toISOString() },
+                data: {
+                    userId: resolvedUserId,
+                    timestamp: new Date().toISOString(),
+                    ...(orderMeta ?? {}),
+                },
             }),
         );
         return { success: true };
@@ -119,11 +130,17 @@ type AdminTarget = {
 };
 
 export const notifyOrderToAdmins = async (
-    title: string,
-    message: string,
+    creatorName: string,
+    orderType: "order" | "place-order",
+    orderId: number,
     icon: string,
     companyId: number | null | undefined,
 ): Promise<{ sent: number; expired: number; failed: number; total: number }> => {
+    const orderLabel = orderType === "place-order" ? "đơn đặt hàng" : "đơn hàng";
+    const title = `${creatorName} Đã tạo ${orderLabel} mới`;
+    const message = "Click vào để xem thêm";
+    const path = orderType === "place-order" ? "/place-order" : "/orders";
+    const orderMeta: OrderPushMeta = { orderId, orderType, url: `${path}?edit=${orderId}` };
     const counters = { sent: 0, expired: 0, failed: 0, total: 0 };
 
     try {
@@ -185,7 +202,7 @@ export const notifyOrderToAdmins = async (
                     endpoint: u.notificationEndpoint!,
                     p256dh: u.notificationP256dh!,
                     auth: u.notificationAuth!,
-                }),
+                }, orderMeta),
             ),
         );
 
