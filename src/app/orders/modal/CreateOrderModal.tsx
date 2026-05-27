@@ -21,6 +21,8 @@ interface CreateOrderModalProps {
   submitLabel?: string;
   error: string | null;
   submitting: boolean;
+  customerDebt?: number | null;
+  loadingCustomerDebt?: boolean;
   customers: Customer[];
   delivers: Deliver[];
   products: Product[];
@@ -60,6 +62,8 @@ export default function CreateOrderModal({
   submitLabel,
   error,
   submitting,
+  customerDebt,
+  loadingCustomerDebt,
   customers,
   delivers,
   products,
@@ -176,6 +180,25 @@ export default function CreateOrderModal({
                   +
                 </button>
               </div>
+              {customerId !== '' && (
+                <div className="mt-1.5 text-xs font-semibold">
+                  {loadingCustomerDebt ? (
+                    <span className="text-gray-400">Đang tải công nợ...</span>
+                  ) : customerDebt === null || customerDebt === undefined ? (
+                    <span className="text-gray-400">Không tải được công nợ</span>
+                  ) : customerDebt > 0 ? (
+                    <span className="text-orange-600">
+                      Công nợ phải thu: <span className="font-black">{customerDebt.toLocaleString('en-US')}đ</span>
+                    </span>
+                  ) : customerDebt < 0 ? (
+                    <span className="text-red-600">
+                      Khách trả thừa: <span className="font-black">{Math.abs(customerDebt).toLocaleString('en-US')}đ</span>
+                    </span>
+                  ) : (
+                    <span className="text-green-600">Đã thanh toán đủ</span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="w-full">

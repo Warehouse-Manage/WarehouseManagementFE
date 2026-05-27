@@ -1,4 +1,5 @@
 import { api } from './api';
+import { getCookie } from '@/lib/ultis';
 import {
     Device,
     DeviceUnit,
@@ -7,7 +8,8 @@ import {
     BrickYardAggregated,
     DeviceFormData,
     BrickYardStatusFormData,
-    DeviceActivity
+    DeviceActivity,
+    ExtruderDeviceStatus
 } from '@/types';
 
 export const productionApi = {
@@ -20,8 +22,28 @@ export const productionApi = {
         }));
     },
 
+    getExtruderDeviceStatus: async (): Promise<ExtruderDeviceStatus | null> => {
+        try {
+            const d = await api.get<Record<string, unknown>>('/api/devices/kiln-status');
+            return {
+                id: Number(d.id ?? d.Id ?? 0),
+                name: (d.name ?? d.Name ?? null) as string | null,
+                status: (d.status ?? d.Status ?? d.value ?? d.Value ?? null) as string | null,
+            };
+        } catch (err) {
+            if (err instanceof Error && (err.message.includes('404') || err.message.includes('Không tìm thấy'))) {
+                return null;
+            }
+            throw err;
+        }
+    },
+
     createDevice: async (data: DeviceFormData): Promise<Device> => {
-        return api.post<Device>('/api/devices', data);
+        const companyIdRaw = getCookie('companyId');
+        const companyIdFromCookie =
+            companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : 0;
+        const companyId = data.companyId ?? companyIdFromCookie;
+        return api.post<Device>('/api/devices', { ...data, companyId });
     },
 
     updateDevice: async (id: number, data: DeviceFormData | Partial<Device>): Promise<Device> => {

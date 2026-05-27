@@ -1,10 +1,10 @@
 'use client';
 
 import { canAccessAccounting } from '@/lib/roles';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { financeApi, inventoryApi } from '@/api';
-import { Order, Customer, Deliver, Product, PackageProduct, InventoryForecastResponse, PlaceOrderDetailsResponse, PlaceOrderFormData, UpdatePlaceOrderFormData, PlaceOrderProductOrderResponse } from '@/types';
+import { Order, Customer, Deliver, Product, PackageProduct, InventoryForecastResponse, PlaceOrderFormData, UpdatePlaceOrderFormData, PlaceOrderProductOrderResponse } from '@/types';
 import { DataTable } from '@/components/shared';
 import { toast } from 'sonner';
 import { Pencil, Printer, Trash2 } from 'lucide-react';
@@ -13,6 +13,8 @@ import CustomerModal from './modal/CustomerModal';
 import DeliverModal from './modal/DeliverModal';
 import ForecastWarningModal from './modal/ForecastWarningModal';
 import { useConfirm } from '@/hooks/useConfirm';
+import { notifyOrderToAdmins } from '../../../actions/notification';
+import { useOrderNotificationDeepLink } from '@/lib/orderNotificationDeepLink';
 
 // Types moved to @/types/finance.ts and @/types/inventory.ts
 
@@ -68,6 +70,8 @@ export default function PlaceOrderPage() {
   const [showForecastWarning, setShowForecastWarning] = useState(false);
   const [forecastData, setForecastData] = useState<InventoryForecastResponse | null>(null);
   const [pendingCreate, setPendingCreate] = useState(false);
+  const [customerDebt, setCustomerDebt] = useState<number | null>(null);
+  const [loadingCustomerDebt, setLoadingCustomerDebt] = useState(false);
 
   useEffect(() => {
     const r = getCookie('role');
@@ -159,6 +163,70 @@ export default function PlaceOrderPage() {
     loadPackageProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (customerId === '') {
+      setCustomerDebt(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingCustomerDebt(true);
+    setCustomerDebt(null);
+    financeApi
+      .getCustomerDebtSummary(Number(customerId))
+      .then((balance) => {
+        if (!cancelled) setCustomerDebt(balance ?? 0);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error('Failed to load customer debt:', err);
+          setCustomerDebt(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCustomerDebt(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
+
+  const handleEditOrder = useCallback(async (orderId: number) => {
+    setError(null);
+    setLoading(true);
+    try {
+      const orderDetail = await financeApi.getPlaceOrderById(orderId);
+      setEditingOrderId(orderId);
+      setOriginalPayment(orderDetail.amountCustomerPayment);
+      setCustomerId(orderDetail.customerId);
+      setDeliverId(orderDetail.deliverId ?? '');
+      setSale(orderDetail.sale);
+      setAmountCustomerPayment(orderDetail.amountCustomerPayment);
+      setDeliveryDate(orderDetail.deliveryDate ? orderDetail.deliveryDate.split('T')[0] : '');
+      setDeliveryAddress(orderDetail.deliveryAddress || '');
+      setAllowAdditionalQuantity(orderDetail.allowAdditionalQuantity);
+      setProductOrdersInput(
+        (orderDetail.placeOrderProductOrders || []).map((po: PlaceOrderProductOrderResponse) => {
+          const isPackage = !!po.packageProductId;
+          return {
+            productId: po.productId ?? '',
+            packageProductId: po.packageProductId ?? '',
+            selectionKey: isPackage ? `k:${po.packageProductId}` : `p:${po.productId}`,
+            amount: po.amount,
+            price: po.price,
+            sale: po.sale ?? 0,
+          };
+        }),
+      );
+      setShowModal(true);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Không thể tải đặt hàng');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useOrderNotificationDeepLink('place-order', handleEditOrder);
 
   const updateProductOrderField = (index: number, field: string, value: number | '') => {
     setProductOrdersInput((prev) => {
@@ -300,45 +368,6 @@ export default function PlaceOrderPage() {
     ]);
   };
 
-  const hydrateFormFromOrder = (order: PlaceOrderDetailsResponse) => {
-    setCustomerId(order.customerId);
-    setDeliverId(order.deliverId ?? '');
-    setSale(order.sale);
-    setAmountCustomerPayment(order.amountCustomerPayment);
-    setDeliveryDate(order.deliveryDate ? order.deliveryDate.split('T')[0] : '');
-    setDeliveryAddress(order.deliveryAddress || '');
-    setAllowAdditionalQuantity(order.allowAdditionalQuantity);
-    setProductOrdersInput(
-      (order.placeOrderProductOrders || []).map((po: PlaceOrderProductOrderResponse) => {
-        const isPackage = !!po.packageProductId;
-        return {
-          productId: po.productId ?? '',
-          packageProductId: po.packageProductId ?? '',
-          selectionKey: isPackage ? `k:${po.packageProductId}` : `p:${po.productId}`,
-          amount: po.amount,
-          price: po.price,
-          sale: po.sale ?? 0
-        };
-      })
-    );
-  };
-
-  const handleEditOrder = async (orderId: number) => {
-    setError(null);
-    setLoading(true);
-    try {
-      const orderDetail = await financeApi.getPlaceOrderById(orderId);
-      setEditingOrderId(orderId);
-      setOriginalPayment(orderDetail.amountCustomerPayment);
-      hydrateFormFromOrder(orderDetail);
-      setShowModal(true);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err) || 'Không thể tải đặt hàng');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handlePrintOrderForm = async (id: number) => {
     try {
       const html = await financeApi.printPlaceOrderForm(id);
@@ -455,6 +484,7 @@ export default function PlaceOrderPage() {
       };
 
       let res;
+      const isCreate = !editingOrderId;
       if (editingOrderId) {
         res = await financeApi.updatePlaceOrder(editingOrderId, payload as UpdatePlaceOrderFormData);
         toast.success('Cập nhật đặt hàng thành công');
@@ -464,6 +494,16 @@ export default function PlaceOrderPage() {
           createdUserId: Number(userId),
         } as PlaceOrderFormData);
         toast.success('Tạo đặt hàng thành công');
+      }
+
+      if (isCreate) {
+        const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+        const creatorName = decodeURIComponent(nameRaw);
+        const companyIdRaw = getCookie('companyId');
+        const companyIdNum = companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null;
+        notifyOrderToAdmins(creatorName, 'place-order', res.id, '/icon512_rounded.png', companyIdNum).catch((e) =>
+          console.error('Notify admins failed:', e),
+        );
       }
 
       const now = new Date();
@@ -590,6 +630,8 @@ export default function PlaceOrderPage() {
         onClose={handleCloseModal}
         error={error}
         submitting={submitting}
+        customerDebt={customerDebt}
+        loadingCustomerDebt={loadingCustomerDebt}
         deliveryAddress={deliveryAddress}
         allowAdditionalQuantity={allowAdditionalQuantity}
         onDeliveryAddressChange={setDeliveryAddress}

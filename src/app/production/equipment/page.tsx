@@ -92,16 +92,24 @@ export default function ThietBiPage() {
         return;
       }
 
+      const companyIdRaw = getCookie('companyId');
+      const companyId = companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : 0;
+      if (!companyId) {
+        toast.warning('Thiếu thông tin công ty. Vui lòng đăng nhập lại.');
+        return;
+      }
+
       await productionApi.createDevice({
         name: newDevice.name,
         description: newDevice.description,
         deviceUnitId: Number(newDevice.deviceUnitId),
+        companyId,
         lowLimit: Number(newDevice.lowLimit),
         highLimit: Number(newDevice.highLimit),
         value: newDevice.value,
         start: newDevice.start || null,
         end: newDevice.end || null,
-        isAuto: !!newDevice.isAuto
+        isAuto: !!newDevice.isAuto,
       });
 
       setShowAddForm(false);
