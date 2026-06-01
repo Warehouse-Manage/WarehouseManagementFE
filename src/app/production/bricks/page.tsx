@@ -32,7 +32,8 @@ export default function LoGachPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterOptions>({ type: 'today' });
   const [showAddForm, setShowAddForm] = useState(false);
-  
+  const [activeTab, setActiveTab] = useState<'Ra' | 'Vô'>('Ra');
+
   const getLocalDateString = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -52,7 +53,7 @@ export default function LoGachPage() {
     const seconds = String(now.getSeconds()).padStart(2, '0');
     return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
   };
-  
+
   const [newStatus, setNewStatus] = useState({
     packageQuantity: 0,
     dateTime: getLocalDateTimeString()
@@ -138,6 +139,8 @@ export default function LoGachPage() {
         params.append('type', apiType);
       }
 
+      params.append('brickYardType', activeTab);
+
       const data = await productionApi.getBrickYardStatuses(Object.fromEntries(params));
 
       if (Array.isArray(data) && data.length > 0 && 'totalPackageQuantity' in data[0]) {
@@ -180,13 +183,13 @@ export default function LoGachPage() {
         setStatuses(items);
         const chart = items.map(item => ({
           label: item.dateTime
-                 ? new Date(item.dateTime).toLocaleTimeString('vi-VN', {
-                     hour: '2-digit',
-                     minute: '2-digit',
-                     second: '2-digit',
-                     hour12: false,
-                   })
-                 : '',
+            ? new Date(item.dateTime).toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false,
+            })
+            : '',
           value: item.packageQuantity
         }));
         setChartData(chart);
@@ -196,13 +199,14 @@ export default function LoGachPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, activeTab]);
 
   const addNewStatus = async () => {
     try {
       await productionApi.createBrickYardStatus({
         packageQuantity: newStatus.packageQuantity,
         dateTime: new Date(newStatus.dateTime).toISOString(),
+        type: activeTab
       });
 
       setShowAddForm(false);
@@ -316,27 +320,27 @@ export default function LoGachPage() {
             const y = height - barHeight;
             return (
               <g key={i} className="transition-all duration-300 hover:scale-105 origin-bottom cursor-pointer">
-                <rect 
-                  x={x} 
-                  y={y} 
-                  width={barWidth} 
-                  height={barHeight} 
-                  rx={8} 
+                <rect
+                  x={x}
+                  y={y}
+                  width={barWidth}
+                  height={barHeight}
+                  rx={8}
                   fill="url(#barGradient)"
                   filter="url(#shadow)"
                 />
-                <text 
-                  x={x + barWidth / 2} 
-                  y={height + 25} 
-                  textAnchor="middle" 
+                <text
+                  x={x + barWidth / 2}
+                  y={height + 25}
+                  textAnchor="middle"
                   className="fill-gray-600 font-semibold text-[10px] sm:text-[12px]"
                 >
                   {d.label}
                 </text>
-                <text 
-                  x={x + barWidth / 2} 
-                  y={y - 12} 
-                  textAnchor="middle" 
+                <text
+                  x={x + barWidth / 2}
+                  y={y - 12}
+                  textAnchor="middle"
                   className="fill-orange-700 font-black text-[12px] sm:text-[14px]"
                 >
                   {d.value}
@@ -344,7 +348,7 @@ export default function LoGachPage() {
               </g>
             );
           })}
-          
+
           {/* x-axis base line */}
           <line x1={0} y1={height} x2={contentWidth} y2={height} className="stroke-gray-400" strokeWidth={1} />
         </svg>
@@ -390,6 +394,28 @@ export default function LoGachPage() {
           </svg>
           <span className="hidden sm:inline">Thêm dữ liệu</span>
           <span className="sm:hidden">Thêm</span>
+        </button>
+      </div>
+
+      {/* Tab Switcher */}
+      <div className="flex border border-gray-200 bg-white p-1.5 rounded-2xl shadow-sm gap-2 w-full sm:w-fit">
+        <button
+          onClick={() => setActiveTab('Ra')}
+          className={`flex-1 sm:flex-none py-2.5 px-6 font-black text-sm sm:text-base rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 ${activeTab === 'Ra'
+            ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md shadow-orange-100'
+            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+        >
+          <span>Lò gạch ra</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('Vô')}
+          className={`flex-1 sm:flex-none py-2.5 px-6 font-black text-sm sm:text-base rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 ${activeTab === 'Vô'
+            ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md shadow-orange-100'
+            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+        >
+          <span>Lò gạch vô</span>
         </button>
       </div>
 
@@ -566,7 +592,9 @@ export default function LoGachPage() {
       {/* Data Table */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900">Dữ liệu tình trạng lò gạch</h2>
+          <h2 className="text-lg font-bold text-gray-900">
+            Dữ liệu tình trạng lò gạch {activeTab === 'Ra' ? '— Tổ Ra (Xuất)' : '— Tổ Vô (Vào)'}
+          </h2>
         </div>
 
         {/* Column Chart */}
