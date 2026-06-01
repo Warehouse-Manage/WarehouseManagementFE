@@ -37,6 +37,7 @@ export interface BrickYardStatus {
     id: number;
     packageQuantity: number;
     dateTime: string;
+    type?: string;
 }
 
 export interface BrickYardAggregated {
@@ -64,6 +65,7 @@ export interface DeviceFormData {
 export interface BrickYardStatusFormData {
     packageQuantity: number;
     dateTime: string;
+    type?: string;
 }
 
 export interface DeviceActivity {
