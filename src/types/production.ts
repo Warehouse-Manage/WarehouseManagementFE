@@ -77,4 +77,13 @@ export interface ExtruderDeviceStatus {
     id: number;
     name: string | null;
     status: string | null;
+    isInactiveWarning?: boolean;
+    warningMessage?: string | null;
+}
+
+export interface ExtruderTimeRange {
+    id: number;
+    companyId: number;
+    startTime: string;
+    endTime: string;
 }

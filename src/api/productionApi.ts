@@ -9,7 +9,8 @@ import {
     DeviceFormData,
     BrickYardStatusFormData,
     DeviceActivity,
-    ExtruderDeviceStatus
+    ExtruderDeviceStatus,
+    ExtruderTimeRange
 } from '@/types';
 
 export const productionApi = {
@@ -29,6 +30,8 @@ export const productionApi = {
                 id: Number(d.id ?? d.Id ?? 0),
                 name: (d.name ?? d.Name ?? null) as string | null,
                 status: (d.status ?? d.Status ?? d.value ?? d.Value ?? null) as string | null,
+                isInactiveWarning: Boolean(d.isInactiveWarning ?? d.IsInactiveWarning ?? false),
+                warningMessage: (d.warningMessage ?? d.WarningMessage ?? null) as string | null,
             };
         } catch (err) {
             if (err instanceof Error && (err.message.includes('404') || err.message.includes('Không tìm thấy'))) {
@@ -76,5 +79,18 @@ export const productionApi = {
     // Device Activities
     getDeviceActivities: async (date: string): Promise<DeviceActivity> => {
         return api.get<DeviceActivity>(`/api/deviceactivity?date=${date}`);
+    },
+
+    // Extruder Time Ranges
+    getExtruderTimeRanges: async (): Promise<ExtruderTimeRange[]> => {
+        return api.get<ExtruderTimeRange[]>('/api/extrudertimeranges');
+    },
+
+    createExtruderTimeRange: async (data: { startTime: string; endTime: string }): Promise<ExtruderTimeRange> => {
+        return api.post<ExtruderTimeRange>('/api/extrudertimeranges', data);
+    },
+
+    deleteExtruderTimeRange: async (id: number): Promise<void> => {
+        return api.delete(`/api/extrudertimeranges/${id}`);
     }
 };
