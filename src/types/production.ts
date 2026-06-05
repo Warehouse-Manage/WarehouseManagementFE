@@ -71,6 +71,7 @@ export interface BrickYardStatusFormData {
 export interface DeviceActivity {
     id: number;
     timestamps: string[];
+    type?: string;
 }
 
 export interface ExtruderDeviceStatus {

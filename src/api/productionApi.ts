@@ -77,8 +77,9 @@ export const productionApi = {
     },
 
     // Device Activities
-    getDeviceActivities: async (date: string): Promise<DeviceActivity> => {
-        return api.get<DeviceActivity>(`/api/deviceactivity?date=${date}`);
+    getDeviceActivities: async (date: string, type?: string): Promise<DeviceActivity> => {
+        const query = type ? `?date=${date}&type=${type}` : `?date=${date}`;
+        return api.get<DeviceActivity>(`/api/deviceactivity${query}`);
     },
 
     // Extruder Time Ranges

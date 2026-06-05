@@ -179,7 +179,7 @@ export default function LoGachPage() {
         setChartData(chart);
       } else {
         // Raw data fallback
-        const items = (data as BrickYardStatus[]);
+        const items = (data as BrickYardStatus[]).filter(s => s.type?.toLowerCase() === activeTab.toLowerCase());
         setStatuses(items);
         const chart = items.map(item => ({
           label: item.dateTime
@@ -230,14 +230,14 @@ export default function LoGachPage() {
     if (!canFetch) return;
     try {
       setActivityLoading(true);
-      const data = await productionApi.getDeviceActivities(activityDate);
+      const data = await productionApi.getDeviceActivities(activityDate, activeTab);
       setActivityData(data);
     } catch (err) {
       console.error('Lỗi khi lấy hoạt động thiết bị:', err);
     } finally {
       setActivityLoading(false);
     }
-  }, [activityDate, canFetch]);
+  }, [activityDate, activeTab, canFetch]);
 
   useEffect(() => {
     fetchDeviceActivities();
@@ -639,9 +639,9 @@ export default function LoGachPage() {
         <div className="px-6 py-4 border-b border-white/50 bg-white/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
-              Biểu đồ hoạt động của thiết bị
+              Biểu đồ hoạt động của thiết bị ({activeTab === 'Ra' ? 'Tổ Ra' : 'Tổ Vô'})
             </h2>
-            <p className="text-sm text-gray-500">Tần suất tín hiệu IoT nhận được theo giờ trong ngày</p>
+            <p className="text-sm text-gray-500">Tần suất tín hiệu IoT nhận được theo giờ trong ngày cho {activeTab === 'Ra' ? 'chiều ra lò' : 'chiều vô lò'}</p>
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-600">Chọn ngày:</label>
@@ -662,7 +662,9 @@ export default function LoGachPage() {
               </svg>
             </div>
           ) : (() => {
-            const timestamps = activityData?.timestamps || [];
+            const timestamps = (activityData && activityData.type && activityData.type.toLowerCase() === activeTab.toLowerCase())
+              ? activityData.timestamps
+              : [];
             const hourMap: Record<number, number> = {};
             for (let i = 0; i < 24; i++) hourMap[i] = 0;
 
