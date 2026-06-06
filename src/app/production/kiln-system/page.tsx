@@ -4,9 +4,11 @@ import { productionApi } from '@/api';
 import { canAccessAccounting } from '@/lib/roles';
 import { getCookie } from '@/lib/ultis';
 import type { ExtruderDeviceStatus } from '@/types';
-import { Box, Flame, Layers, Package, TrainFront, Wind } from 'lucide-react';
+import { Box, Flame, Layers, Package, Settings, TrainFront, Wind } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
+import ExtruderTimeRangesModal from './modal/ExtruderTimeRangesModal';
 
 type LaneId = 'hook-rail' | 'drying' | 'firing';
 
@@ -279,18 +281,38 @@ export default function KilnSystemPage() {
   const [extruderDevice, setExtruderDevice] = useState<ExtruderDeviceStatus | null>(null);
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [devicesError, setDevicesError] = useState<string | null>(null);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const hasAlertedRef = useRef(false);
 
-  const loadExtruderDevice = useCallback(async () => {
-    setLoadingDevices(true);
+  const loadExtruderDevice = useCallback(async (silent = false) => {
+    if (!silent) setLoadingDevices(true);
     setDevicesError(null);
     try {
       const data = await productionApi.getExtruderDeviceStatus();
       setExtruderDevice(data);
+      
+      // Trigger browser system notification if warning is active
+      if (data?.isInactiveWarning && data?.warningMessage) {
+        if (!hasAlertedRef.current) {
+          if (typeof window !== 'undefined' && 'Notification' in window) {
+            if (Notification.permission === 'granted') {
+              new Notification('Cảnh báo Hệ thống Lò gạch', {
+                body: data.warningMessage || 'Máy đùn không hoạt động trong 10p',
+              });
+              hasAlertedRef.current = true;
+            }
+          }
+        }
+      } else {
+        hasAlertedRef.current = false;
+      }
     } catch (err) {
-      setDevicesError(err instanceof Error ? err.message : 'Không tải được trạng thái máy đùn');
-      setExtruderDevice(null);
+      if (!silent) {
+        setDevicesError(err instanceof Error ? err.message : 'Không tải được trạng thái máy đùn');
+        setExtruderDevice(null);
+      }
     } finally {
-      setLoadingDevices(false);
+      if (!silent) setLoadingDevices(false);
     }
   }, []);
 
@@ -310,6 +332,29 @@ export default function KilnSystemPage() {
     setIsCheckingAuth(false);
     void loadExtruderDevice();
   }, [router, loadExtruderDevice]);
+
+  // Request browser notification permission on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        void Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  // Polling interval ngầm mỗi 5 giây để cập nhật trạng thái ngầm và cảnh báo real-time
+  useEffect(() => {
+    if (isCheckingAuth) return;
+
+    const intervalId = setInterval(() => {
+      void loadExtruderDevice(true);
+    }, 5000);
+
+    return () => {
+      clearInterval(intervalId);
+      toast.dismiss('extruder-inactive-warning');
+    };
+  }, [isCheckingAuth, loadExtruderDevice]);
 
   const extruderStatus = parseExtruderStatus(extruderDevice?.status);
 
@@ -337,14 +382,23 @@ export default function KilnSystemPage() {
                 <p className="hidden text-xs text-gray-500 sm:block">Khu đùn & cấp liệu</p>
               </div>
             </div>
-            {extruderDevice && (
-              <span
-                className={`max-w-[45%] shrink-0 truncate rounded-full px-1.5 py-0.5 text-[9px] font-bold sm:max-w-none sm:px-2.5 sm:py-1 sm:text-xs ${extruderStatus.badge}`}
-                title={extruderStatus.label}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => setShowSettingsModal(true)}
+                className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 hover:bg-orange-50 hover:text-orange-600 transition-colors shadow-sm cursor-pointer"
+                title="Cài đặt giám sát"
               >
-                {extruderStatus.label}
-              </span>
-            )}
+                <Settings className="h-4 w-4" />
+              </button>
+              {extruderDevice && (
+                <span
+                  className={`max-w-[45%] shrink-0 truncate rounded-full px-1.5 py-0.5 text-[9px] font-bold sm:max-w-none sm:px-2.5 sm:py-1 sm:text-xs ${extruderStatus.badge}`}
+                  title={extruderStatus.label}
+                >
+                  {extruderStatus.label}
+                </span>
+              )}
+            </div>
           </div>
           <div className="mt-2 flex flex-1 flex-col justify-center sm:mt-3">
             {loadingDevices ? (
@@ -399,6 +453,11 @@ export default function KilnSystemPage() {
       <p className="text-center text-[10px] text-gray-400 sm:text-xs">
         Dữ liệu mẫu — sẽ kết nối IoT / API khi backend sẵn sàng.
       </p>
+
+      <ExtruderTimeRangesModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+      />
     </div>
   );
 }

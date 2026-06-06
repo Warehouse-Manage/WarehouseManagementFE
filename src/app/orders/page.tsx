@@ -398,12 +398,56 @@ export default function OrdersPage() {
     ]);
   };
 
-  const handlePrintDeliveryNote = async (id: number) => {
+  const handlePrintDeliveryNote = async (o: Order) => {
     try {
-      const html = await financeApi.printOrderDeliveryNote(id);
-      printHtmlContent(html);
+      const promises: { key: string; promise: Promise<string> }[] = [];
+
+      // Nếu còn nợ, in phiếu thu chưa thu trước
+      if (o.remainingAmount > 0) {
+        const customer = customers.find((c) => c.id === o.customerId);
+        const date = new Date(o.dateCreated);
+
+        const formatDateTimeStr = (d: Date): string => {
+          const day = d.getDate().toString().padStart(2, '0');
+          const month = (d.getMonth() + 1).toString().padStart(2, '0');
+          const year = d.getFullYear();
+          const hours = d.getHours().toString().padStart(2, '0');
+          const minutes = d.getMinutes().toString().padStart(2, '0');
+          return `${day}/${month}/${year} ${hours}:${minutes}`;
+        };
+
+        const remainingReceiptModel = {
+          Tieu_De: 'PHIẾU THU (CHƯA THU)',
+          Nhan_Doi_Tac: 'Người nộp tiền',
+          Ngay_Thang_Nam: formatDateTimeStr(date),
+          Doi_Tac: customer?.name || o.customerName || 'Khách hàng',
+          Dia_Chi: customer?.address || '',
+          Ly_Do: `Thanh toán phần còn nợ cho đơn hàng #${o.id}`,
+          Gia_Tri_Phieu: o.remainingAmount.toLocaleString('en-US'),
+          Ngay: date.getDate().toString().padStart(2, '0'),
+          Thang: (date.getMonth() + 1).toString().padStart(2, '0'),
+          Nam: date.getFullYear().toString(),
+          Nhan_Ky_Ten: 'NGƯỜI NỘP TIỀN'
+        };
+
+        promises.push({
+          key: 'remainingReceipt',
+          promise: financeApi.printOrderReceiptModel(remainingReceiptModel)
+        });
+      }
+
+      // Luôn in phiếu xuất kho
+      promises.push({
+        key: 'delivery',
+        promise: financeApi.printOrderDeliveryNote(o.id)
+      });
+
+      const results = await Promise.all(promises.map(p => p.promise));
+      results.forEach((html) => {
+        if (html) printHtmlContent(html);
+      });
     } catch (err) {
-      toast.error('Không thể tải phiếu xuất kho: ' + getErrorMessage(err));
+      toast.error('Không thể tải phiếu in: ' + getErrorMessage(err));
     }
   };
 
@@ -592,19 +636,13 @@ export default function OrdersPage() {
         Items: deliveryItems
       };
 
-      const [receiptHtml, deliveryHtml] = await Promise.all([
-        financeApi.printOrderReceiptModel(receiptModel),
-        financeApi.printOrderDeliveryNoteModel(deliveryModel)
-      ]);
-
-      if (receiptHtml) printHtmlContent(receiptHtml);
-      if (deliveryHtml) printHtmlContent(deliveryHtml);
-
       // Tính toán số tiền còn nợ
       const orderTotal = calculateOrderTotal();
       const remainingAmount = orderTotal - Number(amountCustomerPayment || 0);
 
-      // Nếu còn nợ, in thêm phiếu thu cho phần còn nợ
+      const promises: { key: string; promise: Promise<string> }[] = [];
+
+      // 1. Phiếu thu chưa thu (nợ) - Đưa lên đầu tiên
       if (remainingAmount > 0) {
         const remainingReceiptModel = {
           Tieu_De: 'PHIẾU THU (CHƯA THU)',
@@ -619,10 +657,30 @@ export default function OrdersPage() {
           Nam: now.getFullYear().toString(),
           Nhan_Ky_Ten: 'NGƯỜI NỘP TIỀN'
         };
-
-        const remainingReceiptHtml = await financeApi.printOrderReceiptModel(remainingReceiptModel);
-        if (remainingReceiptHtml) printHtmlContent(remainingReceiptHtml);
+        promises.push({
+          key: 'remainingReceipt',
+          promise: financeApi.printOrderReceiptModel(remainingReceiptModel)
+        });
       }
+
+      // 2. Phiếu thu (Đơn hàng) khi khách thanh toán trả tiền trước
+      if (Number(amountCustomerPayment || 0) > 0) {
+        promises.push({
+          key: 'receipt',
+          promise: financeApi.printOrderReceiptModel(receiptModel)
+        });
+      }
+
+      // 3. Phiếu xuất kho
+      promises.push({
+        key: 'delivery',
+        promise: financeApi.printOrderDeliveryNoteModel(deliveryModel)
+      });
+
+      const printResults = await Promise.all(promises.map(p => p.promise));
+      printResults.forEach((html) => {
+        if (html) printHtmlContent(html);
+      });
 
       resetForm();
       setShowModal(false);
@@ -930,7 +988,7 @@ export default function OrdersPage() {
             {
               label: 'In đơn hàng',
               icon: <Printer className="h-4 w-4" />,
-              onClick: () => handlePrintDeliveryNote(o.id)
+              onClick: () => handlePrintDeliveryNote(o)
             },
             {
               label: 'Xóa',

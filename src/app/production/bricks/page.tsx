@@ -32,7 +32,7 @@ export default function LoGachPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterOptions>({ type: 'today' });
   const [showAddForm, setShowAddForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'Ra' | 'Vô'>('Ra');
+  const [activeTab, setActiveTab] = useState<'radot' | 'vodot'>('radot');
 
   const getLocalDateString = () => {
     const now = new Date();
@@ -179,7 +179,7 @@ export default function LoGachPage() {
         setChartData(chart);
       } else {
         // Raw data fallback
-        const items = (data as BrickYardStatus[]);
+        const items = (data as BrickYardStatus[]).filter(s => s.type?.toLowerCase() === activeTab.toLowerCase());
         setStatuses(items);
         const chart = items.map(item => ({
           label: item.dateTime
@@ -230,14 +230,14 @@ export default function LoGachPage() {
     if (!canFetch) return;
     try {
       setActivityLoading(true);
-      const data = await productionApi.getDeviceActivities(activityDate);
+      const data = await productionApi.getDeviceActivities(activityDate, activeTab);
       setActivityData(data);
     } catch (err) {
       console.error('Lỗi khi lấy hoạt động thiết bị:', err);
     } finally {
       setActivityLoading(false);
     }
-  }, [activityDate, canFetch]);
+  }, [activityDate, activeTab, canFetch]);
 
   useEffect(() => {
     fetchDeviceActivities();
@@ -400,8 +400,8 @@ export default function LoGachPage() {
       {/* Tab Switcher */}
       <div className="flex border border-gray-200 bg-white p-1.5 rounded-2xl shadow-sm gap-2 w-full sm:w-fit">
         <button
-          onClick={() => setActiveTab('Ra')}
-          className={`flex-1 sm:flex-none py-2.5 px-6 font-black text-sm sm:text-base rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 ${activeTab === 'Ra'
+          onClick={() => setActiveTab('radot')}
+          className={`flex-1 sm:flex-none py-2.5 px-6 font-black text-sm sm:text-base rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 ${activeTab === 'radot'
             ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md shadow-orange-100'
             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
@@ -409,8 +409,8 @@ export default function LoGachPage() {
           <span>Lò gạch ra</span>
         </button>
         <button
-          onClick={() => setActiveTab('Vô')}
-          className={`flex-1 sm:flex-none py-2.5 px-6 font-black text-sm sm:text-base rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 ${activeTab === 'Vô'
+          onClick={() => setActiveTab('vodot')}
+          className={`flex-1 sm:flex-none py-2.5 px-6 font-black text-sm sm:text-base rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 ${activeTab === 'vodot'
             ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md shadow-orange-100'
             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
@@ -593,7 +593,7 @@ export default function LoGachPage() {
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-bold text-gray-900">
-            Dữ liệu tình trạng lò gạch {activeTab === 'Ra' ? '— Tổ Ra (Xuất)' : '— Tổ Vô (Vào)'}
+            Dữ liệu tình trạng lò gạch {activeTab === 'radot' ? '— Tổ Ra (Xuất)' : '— Tổ Vô (Vào)'}
           </h2>
         </div>
 
@@ -639,9 +639,9 @@ export default function LoGachPage() {
         <div className="px-6 py-4 border-b border-white/50 bg-white/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
-              Biểu đồ hoạt động của thiết bị
+              Biểu đồ hoạt động của thiết bị ({activeTab === 'radot' ? 'Tổ Ra' : 'Tổ Vô'})
             </h2>
-            <p className="text-sm text-gray-500">Tần suất tín hiệu IoT nhận được theo giờ trong ngày</p>
+            <p className="text-sm text-gray-500">Thời gian chi tiết tín hiệu IoT nhận được cho {activeTab === 'radot' ? 'chiều ra lò' : 'chiều vô lò'}</p>
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-600">Chọn ngày:</label>
@@ -662,20 +662,28 @@ export default function LoGachPage() {
               </svg>
             </div>
           ) : (() => {
-            const timestamps = activityData?.timestamps || [];
-            const hourMap: Record<number, number> = {};
-            for (let i = 0; i < 24; i++) hourMap[i] = 0;
+            const timestamps = (activityData && activityData.type && activityData.type.toLowerCase() === activeTab.toLowerCase())
+              ? activityData.timestamps
+              : [];
 
+            const timeMap: Record<string, number> = {};
             timestamps.forEach(ts => {
-              const hour = new Date(ts).getHours();
-              hourMap[hour]++;
+              const d = new Date(ts);
+              const label = d.toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+              });
+              timeMap[label] = (timeMap[label] || 0) + 1;
             });
 
-            const chartItems: ChartDatum[] = Object.entries(hourMap)
-              .map(([hour, count]) => ({
-                label: `${hour.padStart(2, '0')}:00`,
+            const chartItems: ChartDatum[] = Object.entries(timeMap)
+              .map(([timeStr, count]) => ({
+                label: timeStr,
                 value: count
-              }));
+              }))
+              .sort((a, b) => a.label.localeCompare(b.label));
 
             if (timestamps.length === 0) {
               return (

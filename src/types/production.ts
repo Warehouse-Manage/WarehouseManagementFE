@@ -71,10 +71,20 @@ export interface BrickYardStatusFormData {
 export interface DeviceActivity {
     id: number;
     timestamps: string[];
+    type?: string;
 }
 
 export interface ExtruderDeviceStatus {
     id: number;
     name: string | null;
     status: string | null;
+    isInactiveWarning?: boolean;
+    warningMessage?: string | null;
+}
+
+export interface ExtruderTimeRange {
+    id: number;
+    companyId: number;
+    startTime: string;
+    endTime: string;
 }
