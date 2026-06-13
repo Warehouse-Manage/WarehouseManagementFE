@@ -11,6 +11,8 @@ import { Product, PackageProduct, RawMaterial, Partner, RawMaterialImport, Inven
 import { toast } from 'sonner';
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import SelectChartProductsModal from './modal/SelectChartProductsModal';
+import { useConfirm } from '@/hooks/useConfirm';
+import RawMaterialFormModal from '@/app/raw-materials/modal/RawMaterialFormModal';
 
 interface NhapHangItem {
   id: number;
@@ -156,6 +158,18 @@ export default function NhapHangPage() {
   const [chartSelections, setChartSelections] = useState<ImportProductChart[]>([]);
   const [showChartModal, setShowChartModal] = useState(false);
   const [submittingChartSettings, setSubmittingChartSettings] = useState(false);
+
+  const { confirm, ConfirmDialog } = useConfirm();
+
+  // State cho modal thêm nguyên liệu mới
+  const [showRawMaterialForm, setShowRawMaterialForm] = useState(false);
+  const [newRawMaterialName, setNewRawMaterialName] = useState('');
+  const [newRawMaterialUnit, setNewRawMaterialUnit] = useState('');
+  const [newRawMaterialQuantity, setNewRawMaterialQuantity] = useState<number | ''>('');
+  const [newRawMaterialDescription, setNewRawMaterialDescription] = useState('');
+  const [newRawMaterialPartnerId, setNewRawMaterialPartnerId] = useState<number | ''>('');
+  const [submittingNewRawMaterial, setSubmittingNewRawMaterial] = useState(false);
+  const [newRawMaterialError, setNewRawMaterialError] = useState<string | null>(null);
 
   useEffect(() => {
     const r = getCookie('role');
@@ -658,63 +672,75 @@ export default function NhapHangPage() {
     });
   };
 
+  const handleDeleteRawMaterialImport = async (id: number) => {
+    const confirmed = await confirm({
+      title: 'Xác nhận xóa',
+      message: 'Bạn có chắc chắn muốn xóa bản ghi nhập nguyên liệu này? Hành động này sẽ hoàn trả tồn kho và công nợ liên quan.',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
+    try {
+      await inventoryApi.deleteRawMaterialImport(id);
+      toast.success('Xóa bản ghi nhập nguyên liệu thành công');
+      await Promise.all([loadRawMaterialImports(currentPageRawMaterialImport), loadChartRawMaterialImports()]);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      toast.error(errorMessage || 'Có lỗi xảy ra khi xóa bản ghi nhập nguyên liệu');
+      console.error(err);
+    }
+  };
+
+  const resetNewRawMaterialForm = () => {
+    setNewRawMaterialName('');
+    setNewRawMaterialUnit('');
+    setNewRawMaterialQuantity('');
+    setNewRawMaterialDescription('');
+    setNewRawMaterialPartnerId('');
+    setNewRawMaterialError(null);
+  };
+
+  const handleCreateRawMaterial = async () => {
+    if (!newRawMaterialName || !newRawMaterialUnit || newRawMaterialQuantity === '') {
+      setNewRawMaterialError('Vui lòng nhập đầy đủ thông tin (Tên, Đơn vị, Số lượng)');
+      return;
+    }
+    const userId = getCookie('userId');
+    if (!userId) {
+      setNewRawMaterialError('Không tìm thấy thông tin người dùng');
+      return;
+    }
+    setSubmittingNewRawMaterial(true);
+    setNewRawMaterialError(null);
+    try {
+      await inventoryApi.createRawMaterial({
+        name: newRawMaterialName,
+        unit: newRawMaterialUnit,
+        quantity: Number(newRawMaterialQuantity),
+        description: newRawMaterialDescription || '',
+        createdUserId: Number(userId),
+        partnerId: newRawMaterialPartnerId ? Number(newRawMaterialPartnerId) : undefined,
+      });
+      await loadRawMaterials();
+      setShowRawMaterialForm(false);
+      resetNewRawMaterialForm();
+      toast.success('Thêm nguyên liệu mới thành công');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setNewRawMaterialError(errorMessage || 'Không thể tạo nguyên liệu');
+    } finally {
+      setSubmittingNewRawMaterial(false);
+    }
+  };
+
   // Lấy đơn vị của nguyên liệu được chọn
   const selectedUnit = useMemo(() => {
     if (!nguyenLieuFormData.rawMaterialId) return '';
     const selectedMaterial = rawMaterials.find(rm => rm.id === Number(nguyenLieuFormData.rawMaterialId));
     return selectedMaterial?.unit || '';
   }, [nguyenLieuFormData.rawMaterialId, rawMaterials]);
-
-  const nguyenLieuFormFields: FormField[] = useMemo(() => [
-    {
-      name: 'rawMaterialId',
-      label: 'Nguyên liệu',
-      type: 'select',
-      required: true,
-      placeholder: 'Chọn nguyên liệu...',
-      options: rawMaterials.map(rm => ({ value: rm.id, label: rm.name }))
-    },
-    {
-      name: 'quantity',
-      label: selectedUnit ? `Số lượng (${selectedUnit})` : 'Số lượng (đơn vị)',
-      type: 'number',
-      required: true,
-      placeholder: 'Nhập số lượng...',
-      min: 1
-    },
-    {
-      name: 'unitPrice',
-      label: selectedUnit ? `Giá thành (/${selectedUnit})` : 'Giá thành (/đơn vị)',
-      type: 'number',
-      required: true,
-      placeholder: 'Nhập giá thành...',
-      min: 0
-    },
-    {
-      name: 'discount',
-      label: 'Giảm giá',
-      type: 'number',
-      required: false,
-      placeholder: 'Nhập giảm giá...',
-      min: 0
-    },
-    {
-      name: 'partnerId',
-      label: 'Đối tác',
-      type: 'select',
-      required: true,
-      placeholder: 'Chọn đối tác...',
-      options: partners.map(p => ({ value: p.id, label: p.name }))
-    },
-    {
-      name: 'paidAmount',
-      label: 'Đã trả',
-      type: 'number',
-      required: false,
-      placeholder: 'Nhập số tiền đã trả...',
-      min: 0
-    },
-  ], [selectedUnit, rawMaterials, partners]);
 
   const columns = [
     {
@@ -1362,6 +1388,16 @@ export default function NhapHangPage() {
                 ),
                 onClick: () => handleEditRawMaterialImport(item),
               },
+              {
+                label: 'Xóa',
+                variant: 'danger',
+                icon: (
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                ),
+                onClick: () => handleDeleteRawMaterialImport(item.id),
+              },
             ]}
           />
         </>
@@ -1387,7 +1423,6 @@ export default function NhapHangPage() {
         isOpen={showNguyenLieuModal}
         onClose={handleCloseNguyenLieuModal}
         editingRawMaterialImport={editingRawMaterialImport}
-        nguyenLieuFormFields={nguyenLieuFormFields}
         nguyenLieuFormData={nguyenLieuFormData}
         submittingNguyenLieu={submittingNguyenLieu}
         onFormChange={(name, value) => {
@@ -1395,7 +1430,42 @@ export default function NhapHangPage() {
         }}
         onSubmit={handleNguyenLieuSubmit}
         calculateTotalAmount={calculateTotalAmount}
+        onAddRawMaterial={() => {
+          resetNewRawMaterialForm();
+          setShowRawMaterialForm(true);
+        }}
+        rawMaterialOptions={rawMaterials.map(rm => ({ value: rm.id, label: rm.name }))}
+        partnerOptions={partners.map(p => ({ value: p.id, label: p.name }))}
+        selectedUnit={selectedUnit}
       />
+
+      <RawMaterialFormModal
+        isOpen={showRawMaterialForm}
+        onClose={() => {
+          setShowRawMaterialForm(false);
+          resetNewRawMaterialForm();
+        }}
+        partners={partners}
+        formValues={{
+          name: newRawMaterialName,
+          unit: newRawMaterialUnit,
+          quantity: newRawMaterialQuantity,
+          description: newRawMaterialDescription,
+          partnerId: newRawMaterialPartnerId,
+        }}
+        error={newRawMaterialError}
+        submitting={submittingNewRawMaterial}
+        onFieldChange={(field, value) => {
+          if (field === 'name') setNewRawMaterialName(value as string);
+          if (field === 'unit') setNewRawMaterialUnit(value as string);
+          if (field === 'quantity') setNewRawMaterialQuantity(value as number);
+          if (field === 'description') setNewRawMaterialDescription(value as string);
+          if (field === 'partnerId') setNewRawMaterialPartnerId(value === '' ? '' : Number(value));
+        }}
+        onSubmit={handleCreateRawMaterial}
+      />
+
+      {ConfirmDialog}
 
       <SelectChartProductsModal
         isOpen={showChartModal}
