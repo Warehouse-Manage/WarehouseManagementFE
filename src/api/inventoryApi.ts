@@ -92,5 +92,9 @@ export const inventoryApi = {
 
     updateRawMaterialImport: async (id: number, data: RawMaterialImportFormData): Promise<RawMaterialImport> => {
         return api.put<RawMaterialImport>(`/api/rawmaterialimport/${id}`, data);
+    },
+
+    deleteRawMaterialImport: async (id: number): Promise<void> => {
+        return api.delete<void>(`/api/rawmaterialimport/${id}`);
     }
 };
