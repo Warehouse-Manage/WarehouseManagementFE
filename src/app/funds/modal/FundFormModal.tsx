@@ -22,6 +22,7 @@ interface FundFormModalProps {
   onFieldChange: (name: string, value: unknown) => void;
   onSuggestionClick: (suggestion: { id: number; name: string }) => void;
   onSubmit: () => void;
+  onQuickCreateClick: () => void;
 }
 
 export default function FundFormModal({
@@ -36,7 +37,8 @@ export default function FundFormModal({
   loadingSuggestions,
   onFieldChange,
   onSuggestionClick,
-  onSubmit
+  onSubmit,
+  onQuickCreateClick
 }: FundFormModalProps) {
   return (
     <Modal
@@ -73,26 +75,43 @@ export default function FundFormModal({
         />
 
         {formValues.objectType && (
-          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-wider text-blue-600">Gợi ý đối tượng</h3>
-              {loadingSuggestions && <span className="text-[10px] text-blue-400 italic">Đang tải...</span>}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {suggestions.map((s) => (
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-blue-600">Chọn đối tượng</h3>
+              <div className="flex items-center gap-2">
+                {loadingSuggestions && <span className="text-[10px] text-blue-400 italic">Đang tải...</span>}
                 <button
-                  key={s.id}
                   type="button"
-                  onClick={() => onSuggestionClick(s)}
-                  className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
+                  onClick={onQuickCreateClick}
+                  className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700 transition-colors cursor-pointer"
+                  title={`Thêm ${formValues.objectType} mới`}
                 >
-                  {s.name}
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  <span>Thêm mới</span>
                 </button>
-              ))}
-              {!loadingSuggestions && suggestions.length === 0 && (
-                <span className="text-xs text-gray-400">Không tìm thấy gợi ý nào</span>
-              )}
+              </div>
             </div>
+            <select
+              value={suggestions.find(s => s.name === formValues.objectName)?.id || ''}
+              onChange={(e) => {
+                const selected = suggestions.find(s => s.id === Number(e.target.value));
+                if (selected) onSuggestionClick(selected);
+              }}
+              className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={loadingSuggestions || suggestions.length === 0}
+            >
+              <option value="">-- Chọn đối tượng --</option>
+              {suggestions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            {!loadingSuggestions && suggestions.length === 0 && formValues.objectType && (
+              <span className="text-xs text-gray-400 mt-2 block">Không tìm thấy gợi ý nào</span>
+            )}
           </div>
         )}
       </div>

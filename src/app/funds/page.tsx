@@ -3,11 +3,12 @@
 import { canAccessAccounting } from '@/lib/roles';
 import { useEffect, useMemo, useState } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
-import { financeApi, workerApi, userApi } from '@/api';
+import { financeApi, workerApi, userApi, partnerApi } from '@/api';
 import { Fund, Deliver, Worker, Customer, User } from '@/types';
 import { toast } from 'sonner';
 import { DataTable, FormField } from '@/components/shared';
 import FundFormModal from './modal/FundFormModal';
+import QuickCreateObjectModal, { QuickObjectType } from './modal/QuickCreateObjectModal';
 import { CalendarDays, Printer, Edit, Trash2 } from 'lucide-react';
 import { useConfirm } from '@/hooks/useConfirm';
 
@@ -59,6 +60,13 @@ export default function FundsPage() {
   // apiHost removed, handled in API modules
   const [suggestions, setSuggestions] = useState<{ id: number; name: string }[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  // Quick create object state
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
+  const [quickCreateType, setQuickCreateType] = useState<QuickObjectType>('Khách hàng');
+  const [quickCreateData, setQuickCreateData] = useState<Record<string, string | number>>({});
+  const [quickCreateError, setQuickCreateError] = useState<string | null>(null);
+  const [quickCreateSubmitting, setQuickCreateSubmitting] = useState(false);
 
   const fundFormFields: FormField[] = [
     {
@@ -287,6 +295,156 @@ export default function FundsPage() {
     setShowForm(false);
   };
 
+  const handleOpenQuickCreate = () => {
+    if (!objectType) {
+      toast.error('Vui lòng chọn loại đối tượng trước');
+      return;
+    }
+    setQuickCreateType(objectType as QuickObjectType);
+    setQuickCreateData({});
+    setQuickCreateError(null);
+    setShowQuickCreate(true);
+  };
+
+  const handleQuickCreateSubmit = async () => {
+    const userId = getCookie('userId');
+    if (!userId) {
+      setQuickCreateError('Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.');
+      return;
+    }
+    const createdUserId = Number(userId);
+
+    setQuickCreateSubmitting(true);
+    setQuickCreateError(null);
+
+    try {
+      let newId: number;
+      let newName: string;
+
+      switch (quickCreateType) {
+        case 'Khách hàng': {
+          const name = String(quickCreateData.name || '').trim();
+          const address = String(quickCreateData.address || '').trim();
+          const phone = String(quickCreateData.phone || '').trim();
+          if (!name || !address || !phone) {
+            setQuickCreateError('Vui lòng nhập đầy đủ thông tin');
+            setQuickCreateSubmitting(false);
+            return;
+          }
+          const customer = await financeApi.createCustomer({ name, address, phoneNumber: phone, createdUserId });
+          newId = customer.id;
+          newName = customer.name;
+          break;
+        }
+        case 'Đối tác': {
+          const name = String(quickCreateData.name || '').trim();
+          const phone = String(quickCreateData.phone || '').trim();
+          const address = String(quickCreateData.address || '').trim();
+          if (!name || !phone) {
+            setQuickCreateError('Vui lòng nhập đầy đủ thông tin');
+            setQuickCreateSubmitting(false);
+            return;
+          }
+          const partner = await partnerApi.createPartner({ name, phoneNumber: phone, address, createdUserId });
+          newId = partner.id;
+          newName = partner.name;
+          break;
+        }
+        case 'Nhân viên': {
+          const name = String(quickCreateData.name || '').trim();
+          const age = Number(quickCreateData.age) || 0;
+          const phone = String(quickCreateData.phone || '').trim();
+          const salary = Number(quickCreateData.salary) || 0;
+          if (!name || !age || !phone || !salary) {
+            setQuickCreateError('Vui lòng nhập đầy đủ thông tin');
+            setQuickCreateSubmitting(false);
+            return;
+          }
+          const worker = await workerApi.createWorker({ name, age, phoneNumber: phone, salary });
+          newId = worker.id;
+          newName = worker.name;
+          break;
+        }
+        case 'Vật tư': {
+          const name = String(quickCreateData.name || '').trim();
+          const phone = String(quickCreateData.phone || '').trim();
+          if (!name || !phone) {
+            setQuickCreateError('Vui lòng nhập đầy đủ thông tin');
+            setQuickCreateSubmitting(false);
+            return;
+          }
+          const companyId = Number(getCookie('companyId')) || 0;
+          const userName = name.toLowerCase().replace(/\s+/g, '.') + '.' + Date.now().toString().slice(-4);
+          const user = await userApi.createUser({
+            userName,
+            name,
+            role: 'approver',
+            department: 'Vật tư',
+            password: '123456',
+            companyId
+          });
+          newId = user.id || 0;
+          newName = name;
+          break;
+        }
+        case 'Giao hàng': {
+          const name = String(quickCreateData.name || '').trim();
+          const phone = String(quickCreateData.phone || '').trim();
+          const plateNumber = String(quickCreateData.plateNumber || '').trim();
+          if (!name || !phone || !plateNumber) {
+            setQuickCreateError('Vui lòng nhập đầy đủ thông tin');
+            setQuickCreateSubmitting(false);
+            return;
+          }
+          const deliver = await financeApi.createDeliver({ name, phoneNumber: phone, plateNumber, createdUserId });
+          newId = deliver.id;
+          newName = deliver.name;
+          break;
+        }
+        case 'Giám đốc': {
+          const name = String(quickCreateData.name || '').trim();
+          const phone = String(quickCreateData.phone || '').trim();
+          if (!name || !phone) {
+            setQuickCreateError('Vui lòng nhập đầy đủ thông tin');
+            setQuickCreateSubmitting(false);
+            return;
+          }
+          const companyId = Number(getCookie('companyId')) || 0;
+          const userName = name.toLowerCase().replace(/\s+/g, '.') + '.' + Date.now().toString().slice(-4);
+          const user = await userApi.createUser({
+            userName,
+            name,
+            role: 'Admin',
+            department: 'Giám đốc',
+            password: '123456',
+            companyId
+          });
+          newId = user.id || 0;
+          newName = name;
+          break;
+        }
+        default:
+          setQuickCreateError('Loại đối tượng không hợp lệ');
+          setQuickCreateSubmitting(false);
+          return;
+      }
+
+      // Set the newly created object as selected
+      setObjectId(newId);
+      setObjectName(newName);
+      setShowQuickCreate(false);
+      setQuickCreateData({});
+      toast.success(`Đã tạo ${quickCreateType.toLowerCase()} mới: ${newName}`);
+
+      // Reload suggestions
+      await loadSuggestions(objectType);
+    } catch (err: unknown) {
+      setQuickCreateError(getErrorMessage(err) || 'Không thể tạo đối tượng mới');
+    } finally {
+      setQuickCreateSubmitting(false);
+    }
+  };
+
   // Category options based on type
   // getCategoryOptions removed as its logic is now in fundFormFields
 
@@ -512,6 +670,22 @@ export default function FundsPage() {
           setObjectName(s.name);
         }}
         onSubmit={editingId ? handleUpdate : handleCreate}
+        onQuickCreateClick={handleOpenQuickCreate}
+      />
+
+      <QuickCreateObjectModal
+        isOpen={showQuickCreate}
+        onClose={() => {
+          setShowQuickCreate(false);
+          setQuickCreateData({});
+          setQuickCreateError(null);
+        }}
+        objectType={quickCreateType}
+        formData={quickCreateData}
+        error={quickCreateError}
+        submitting={quickCreateSubmitting}
+        onFieldChange={(name, value) => setQuickCreateData(prev => ({ ...prev, [name]: value }))}
+        onSubmit={handleQuickCreateSubmit}
       />
 
       <div className="border rounded-2xl p-3 sm:p-5 bg-white shadow-sm overflow-hidden">

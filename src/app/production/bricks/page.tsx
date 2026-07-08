@@ -17,12 +17,10 @@ import AddStatusModal from './modal/AddStatusModal';
 type ChartDatum = { label: string; value: number };
 
 interface FilterOptions {
-  type: 'today' | 'day' | 'month' | 'year' | 'range';
+  type: 'today' | 'day' | 'month' | 'year';
   date?: string;
   month?: string;
   year?: string;
-  startDate?: string;
-  endDate?: string;
 }
 
 export default function LoGachPage() {
@@ -30,7 +28,6 @@ export default function LoGachPage() {
   const [statuses, setStatuses] = useState<BrickYardStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<FilterOptions>({ type: 'today' });
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeTab, setActiveTab] = useState<'radot' | 'vodot'>('radot');
 
@@ -41,6 +38,8 @@ export default function LoGachPage() {
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
+
+  const [filter, setFilter] = useState<FilterOptions>({ type: 'today', date: getLocalDateString() });
 
   // Hàm lấy local datetime string cho input datetime-local (có giây để khớp biểu đồ / lưu chính xác)
   const getLocalDateTimeString = () => {
@@ -99,7 +98,7 @@ export default function LoGachPage() {
 
       switch (filter.type) {
         case 'today':
-          params.append('date', getLocalDateString());
+          params.append('date', filter.date || getLocalDateString());
           apiType = 'raw';
           break;
         case 'day':
@@ -124,13 +123,6 @@ export default function LoGachPage() {
             params.append('startDate', startDate);
             params.append('endDate', endDate);
             apiType = 'month';
-          }
-          break;
-        case 'range':
-          if (filter.startDate && filter.endDate) {
-            params.append('startDate', filter.startDate);
-            params.append('endDate', filter.endDate);
-            apiType = 'date';
           }
           break;
       }
@@ -445,12 +437,12 @@ export default function LoGachPage() {
           </div>
 
           {/* Day Filter */}
-          {filter.type === 'day' && (
+          {(filter.type === 'today' || filter.type === 'day') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Chọn ngày</label>
               <input
                 type="date"
-                value={filter.date || ''}
+                value={filter.date || getLocalDateString()}
                 onChange={(e) => setFilter({ ...filter, date: e.target.value })}
                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               />
@@ -518,29 +510,6 @@ export default function LoGachPage() {
             </div>
           )}
 
-          {/* Date Range Filter */}
-          {filter.type === 'range' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Từ ngày</label>
-                <input
-                  type="date"
-                  value={filter.startDate || ''}
-                  onChange={(e) => setFilter({ ...filter, startDate: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Đến ngày</label>
-                <input
-                  type="date"
-                  value={filter.endDate || ''}
-                  onChange={(e) => setFilter({ ...filter, endDate: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                />
-              </div>
-            </>
-          )}
         </div>
       </div>
 
@@ -714,11 +683,10 @@ export default function LoGachPage() {
 }
 
 const typeOptions = [
-  { value: 'today', label: 'Hôm nay' },
+  { value: 'today', label: 'Trong ngày' },
   { value: 'day', label: 'Theo ngày' },
   { value: 'month', label: 'Theo tháng' },
   { value: 'year', label: 'Theo năm' },
-  { value: 'range', label: 'Khoảng thời gian' },
 ];
 
 
