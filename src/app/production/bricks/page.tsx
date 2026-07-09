@@ -14,7 +14,7 @@ import AddStatusModal from './modal/AddStatusModal';
 
 // Types moved to @/types/production.ts
 
-type ChartDatum = { label: string; value: number };
+type ChartDatum = { label: string; value: number; isInRange?: boolean };
 
 interface FilterOptions {
   type: 'today' | 'day' | 'month' | 'year';
@@ -235,15 +235,11 @@ export default function LoGachPage() {
     fetchDeviceActivities();
   }, [fetchDeviceActivities]);
 
-  const formatDateTime = (dateTime: string) => {
-    return new Date(dateTime).toLocaleString('vi-VN', {
+  const formatDateOnly = (dateTime: string) => {
+    return new Date(dateTime).toLocaleDateString('vi-VN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
     });
   };
 
@@ -279,6 +275,10 @@ export default function LoGachPage() {
             <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#ea580c" />
               <stop offset="100%" stopColor="#fbbf24" />
+            </linearGradient>
+            <linearGradient id="barGradientGray" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3b82f6" />
+              <stop offset="100%" stopColor="#93c5fd" />
             </linearGradient>
             <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
@@ -318,7 +318,7 @@ export default function LoGachPage() {
                   width={barWidth}
                   height={barHeight}
                   rx={8}
-                  fill="url(#barGradient)"
+                  fill={d.isInRange !== false ? "url(#barGradient)" : "url(#barGradientGray)"}
                   filter="url(#shadow)"
                 />
                 <text
@@ -333,7 +333,7 @@ export default function LoGachPage() {
                   x={x + barWidth / 2}
                   y={y - 12}
                   textAnchor="middle"
-                  className="fill-orange-700 font-black text-[12px] sm:text-[14px]"
+                  className={`font-black text-[12px] sm:text-[14px] ${d.isInRange !== false ? 'fill-orange-700' : 'fill-blue-700'}`}
                 >
                   {d.value}
                 </text>
@@ -588,7 +588,7 @@ export default function LoGachPage() {
                 key: 'dateTime',
                 header: 'Thời gian',
                 className: 'font-medium text-gray-900',
-                render: (s) => <span>{formatDateTime(s.dateTime)}</span>
+                render: (s) => <span>{formatDateOnly(s.dateTime)}</span>
               },
               {
                 key: 'packageQuantity',
@@ -635,23 +635,24 @@ export default function LoGachPage() {
               ? activityData.timestamps
               : [];
 
-            const timeMap: Record<string, number> = {};
-            timestamps.forEach(ts => {
-              const d = new Date(ts);
+            // Group by time label + isInRange flag
+            const timeMap: Record<string, ChartDatum> = {};
+            timestamps.forEach(entry => {
+              const d = new Date(entry.time);
               const label = d.toLocaleTimeString('vi-VN', {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
                 hour12: false
               });
-              timeMap[label] = (timeMap[label] || 0) + 1;
+              const key = `${label}_${entry.isInRange}`;
+              if (!timeMap[key]) {
+                timeMap[key] = { label, value: 0, isInRange: entry.isInRange };
+              }
+              timeMap[key].value += 1;
             });
 
-            const chartItems: ChartDatum[] = Object.entries(timeMap)
-              .map(([timeStr, count]) => ({
-                label: timeStr,
-                value: count
-              }))
+            const chartItems: ChartDatum[] = Object.values(timeMap)
               .sort((a, b) => a.label.localeCompare(b.label));
 
             if (timestamps.length === 0) {

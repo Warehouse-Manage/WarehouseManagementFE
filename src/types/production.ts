@@ -68,9 +68,14 @@ export interface BrickYardStatusFormData {
     type?: string;
 }
 
+export interface TimestampEntry {
+    time: string;
+    isInRange: boolean;
+}
+
 export interface DeviceActivity {
     id: number;
-    timestamps: string[];
+    timestamps: TimestampEntry[];
     type?: string;
 }
 
