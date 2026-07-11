@@ -14,15 +14,13 @@ import AddStatusModal from './modal/AddStatusModal';
 
 // Types moved to @/types/production.ts
 
-type ChartDatum = { label: string; value: number };
+type ChartDatum = { label: string; value: number; isInRange?: boolean };
 
 interface FilterOptions {
-  type: 'today' | 'day' | 'month' | 'year' | 'range';
+  type: 'today' | 'day' | 'month' | 'year';
   date?: string;
   month?: string;
   year?: string;
-  startDate?: string;
-  endDate?: string;
 }
 
 export default function LoGachPage() {
@@ -30,7 +28,6 @@ export default function LoGachPage() {
   const [statuses, setStatuses] = useState<BrickYardStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<FilterOptions>({ type: 'today' });
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeTab, setActiveTab] = useState<'radot' | 'vodot'>('radot');
 
@@ -41,6 +38,8 @@ export default function LoGachPage() {
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
+
+  const [filter, setFilter] = useState<FilterOptions>({ type: 'today', date: getLocalDateString() });
 
   // Hàm lấy local datetime string cho input datetime-local (có giây để khớp biểu đồ / lưu chính xác)
   const getLocalDateTimeString = () => {
@@ -99,7 +98,7 @@ export default function LoGachPage() {
 
       switch (filter.type) {
         case 'today':
-          params.append('date', getLocalDateString());
+          params.append('date', filter.date || getLocalDateString());
           apiType = 'raw';
           break;
         case 'day':
@@ -124,13 +123,6 @@ export default function LoGachPage() {
             params.append('startDate', startDate);
             params.append('endDate', endDate);
             apiType = 'month';
-          }
-          break;
-        case 'range':
-          if (filter.startDate && filter.endDate) {
-            params.append('startDate', filter.startDate);
-            params.append('endDate', filter.endDate);
-            apiType = 'date';
           }
           break;
       }
@@ -243,15 +235,11 @@ export default function LoGachPage() {
     fetchDeviceActivities();
   }, [fetchDeviceActivities]);
 
-  const formatDateTime = (dateTime: string) => {
-    return new Date(dateTime).toLocaleString('vi-VN', {
+  const formatDateOnly = (dateTime: string) => {
+    return new Date(dateTime).toLocaleDateString('vi-VN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
     });
   };
 
@@ -287,6 +275,10 @@ export default function LoGachPage() {
             <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#ea580c" />
               <stop offset="100%" stopColor="#fbbf24" />
+            </linearGradient>
+            <linearGradient id="barGradientGray" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3b82f6" />
+              <stop offset="100%" stopColor="#93c5fd" />
             </linearGradient>
             <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
@@ -326,7 +318,7 @@ export default function LoGachPage() {
                   width={barWidth}
                   height={barHeight}
                   rx={8}
-                  fill="url(#barGradient)"
+                  fill={d.isInRange !== false ? "url(#barGradient)" : "url(#barGradientGray)"}
                   filter="url(#shadow)"
                 />
                 <text
@@ -341,7 +333,7 @@ export default function LoGachPage() {
                   x={x + barWidth / 2}
                   y={y - 12}
                   textAnchor="middle"
-                  className="fill-orange-700 font-black text-[12px] sm:text-[14px]"
+                  className={`font-black text-[12px] sm:text-[14px] ${d.isInRange !== false ? 'fill-orange-700' : 'fill-blue-700'}`}
                 >
                   {d.value}
                 </text>
@@ -445,12 +437,12 @@ export default function LoGachPage() {
           </div>
 
           {/* Day Filter */}
-          {filter.type === 'day' && (
+          {(filter.type === 'today' || filter.type === 'day') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Chọn ngày</label>
               <input
                 type="date"
-                value={filter.date || ''}
+                value={filter.date || getLocalDateString()}
                 onChange={(e) => setFilter({ ...filter, date: e.target.value })}
                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               />
@@ -518,29 +510,6 @@ export default function LoGachPage() {
             </div>
           )}
 
-          {/* Date Range Filter */}
-          {filter.type === 'range' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Từ ngày</label>
-                <input
-                  type="date"
-                  value={filter.startDate || ''}
-                  onChange={(e) => setFilter({ ...filter, startDate: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Đến ngày</label>
-                <input
-                  type="date"
-                  value={filter.endDate || ''}
-                  onChange={(e) => setFilter({ ...filter, endDate: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                />
-              </div>
-            </>
-          )}
         </div>
       </div>
 
@@ -619,7 +588,7 @@ export default function LoGachPage() {
                 key: 'dateTime',
                 header: 'Thời gian',
                 className: 'font-medium text-gray-900',
-                render: (s) => <span>{formatDateTime(s.dateTime)}</span>
+                render: (s) => <span>{formatDateOnly(s.dateTime)}</span>
               },
               {
                 key: 'packageQuantity',
@@ -666,23 +635,24 @@ export default function LoGachPage() {
               ? activityData.timestamps
               : [];
 
-            const timeMap: Record<string, number> = {};
-            timestamps.forEach(ts => {
-              const d = new Date(ts);
+            // Group by time label + isInRange flag
+            const timeMap: Record<string, ChartDatum> = {};
+            timestamps.forEach(entry => {
+              const d = new Date(entry.time);
               const label = d.toLocaleTimeString('vi-VN', {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
                 hour12: false
               });
-              timeMap[label] = (timeMap[label] || 0) + 1;
+              const key = `${label}_${entry.isInRange}`;
+              if (!timeMap[key]) {
+                timeMap[key] = { label, value: 0, isInRange: entry.isInRange };
+              }
+              timeMap[key].value += 1;
             });
 
-            const chartItems: ChartDatum[] = Object.entries(timeMap)
-              .map(([timeStr, count]) => ({
-                label: timeStr,
-                value: count
-              }))
+            const chartItems: ChartDatum[] = Object.values(timeMap)
               .sort((a, b) => a.label.localeCompare(b.label));
 
             if (timestamps.length === 0) {
@@ -714,11 +684,10 @@ export default function LoGachPage() {
 }
 
 const typeOptions = [
-  { value: 'today', label: 'Hôm nay' },
+  { value: 'today', label: 'Trong ngày' },
   { value: 'day', label: 'Theo ngày' },
   { value: 'month', label: 'Theo tháng' },
   { value: 'year', label: 'Theo năm' },
-  { value: 'range', label: 'Khoảng thời gian' },
 ];
 
 
