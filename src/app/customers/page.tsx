@@ -30,6 +30,10 @@ export default function CustomersPage() {
   const [endDate, setEndDate] = useState<string>('');
   const [downloadingDebt, setDownloadingDebt] = useState(false);
   const [customerDebts, setCustomerDebts] = useState<Record<number, number>>({});
+  const [draftFilterName, setDraftFilterName] = useState('');
+  const [draftFilterPhone, setDraftFilterPhone] = useState('');
+  const [draftFilterAddress, setDraftFilterAddress] = useState('');
+  const [draftFilterDebt, setDraftFilterDebt] = useState<'all' | 'receivable' | 'payable' | 'zero'>('all');
   const [filterName, setFilterName] = useState('');
   const [filterPhone, setFilterPhone] = useState('');
   const [filterAddress, setFilterAddress] = useState('');
@@ -69,15 +73,21 @@ export default function CustomersPage() {
       if (!customers.length) return;
 
       try {
+        const uncached = customers.filter((c) => customerDebts[c.id] === undefined);
+        if (uncached.length === 0) return;
+
+        const results = await Promise.all(
+          uncached.map(async (c) => {
+            const balance = await financeApi.getCustomerDebtSummary(c.id);
+            return { id: c.id, balance: balance ?? 0 };
+          })
+        );
+
         const updates: Record<number, number> = {};
-        for (const c of customers) {
-          if (customerDebts[c.id] !== undefined) continue;
-          const balance = await financeApi.getCustomerDebtSummary(c.id);
-          updates[c.id] = balance ?? 0;
+        for (const r of results) {
+          updates[r.id] = r.balance;
         }
-        if (Object.keys(updates).length > 0) {
-          setCustomerDebts((prev) => ({ ...prev, ...updates }));
-        }
+        setCustomerDebts((prev) => ({ ...prev, ...updates }));
       } catch (err) {
         console.error('Failed to load customer debts', err);
       }
@@ -256,13 +266,6 @@ export default function CustomersPage() {
     });
   }, [customers, filterName, filterPhone, filterAddress, filterDebt, customerDebts]);
 
-  const handleClearFilter = () => {
-    setFilterName('');
-    setFilterPhone('');
-    setFilterAddress('');
-    setFilterDebt('all');
-  };
-
   // Show blank page if role is not 'Admin' or 'accountance'
   if (!canAccessAccounting(role)) {
     return null;
@@ -356,40 +359,43 @@ export default function CustomersPage() {
         <DataTable
           enableFilter
           filterContent={
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-end">
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tên khách hàng</label>
                 <input
-                  value={filterName}
-                  onChange={(e) => setFilterName(e.target.value)}
+                  value={draftFilterName}
+                  onChange={(e) => setDraftFilterName(e.target.value)}
                   placeholder="Nhập tên..."
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
                 />
               </div>
+
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Số điện thoại</label>
                 <input
-                  value={filterPhone}
-                  onChange={(e) => setFilterPhone(e.target.value)}
+                  value={draftFilterPhone}
+                  onChange={(e) => setDraftFilterPhone(e.target.value)}
                   placeholder="Nhập SĐT..."
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
                 />
               </div>
+
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Địa chỉ</label>
                 <input
-                  value={filterAddress}
-                  onChange={(e) => setFilterAddress(e.target.value)}
+                  value={draftFilterAddress}
+                  onChange={(e) => setDraftFilterAddress(e.target.value)}
                   placeholder="Nhập địa chỉ..."
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
                 />
               </div>
+
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Công nợ</label>
                 <select
-                  value={filterDebt}
-                  onChange={(e) => setFilterDebt(e.target.value as typeof filterDebt)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  value={draftFilterDebt}
+                  onChange={(e) => setDraftFilterDebt(e.target.value as typeof draftFilterDebt)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
                 >
                   <option value="all">Tất cả</option>
                   <option value="receivable">Đang nợ (phải thu)</option>
@@ -397,12 +403,18 @@ export default function CustomersPage() {
                   <option value="zero">Đã thanh toán đủ</option>
                 </select>
               </div>
-              <div className="md:col-span-4 flex flex-wrap gap-2 justify-end">
-                <div className="mr-auto text-xs text-gray-500 font-semibold">
-                  Hiển thị <span className="text-orange-600">{filteredCustomers.length}</span> / {customers.length} khách hàng
-                </div>
+
+              <div className="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2">
                 <button
-                  onClick={handleClearFilter}
+                  type="button"
+                  onClick={() => { setFilterName(draftFilterName); setFilterPhone(draftFilterPhone); setFilterAddress(draftFilterAddress); setFilterDebt(draftFilterDebt); }}
+                  className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
+                >
+                  Lọc
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDraftFilterName(''); setDraftFilterPhone(''); setDraftFilterAddress(''); setDraftFilterDebt('all'); setFilterName(''); setFilterPhone(''); setFilterAddress(''); setFilterDebt('all'); }}
                   className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Xóa lọc
@@ -416,32 +428,80 @@ export default function CustomersPage() {
             {
               key: 'name',
               header: 'Tên khách hàng',
-              className: 'font-bold text-gray-900',
-              render: (c) => <span>{c.name}</span>
+              isMain: true,
+              render: (c) => (
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
+                    {c.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900 leading-tight">{c.name}</p>
+                    <p className="text-[11px] text-gray-400 font-medium">{c.phoneNumber}</p>
+                  </div>
+                </div>
+              )
             },
             {
               key: 'address',
               header: 'Địa chỉ',
-              className: 'text-gray-600',
-              render: (c) => <span>{c.address}</span>
+              className: 'text-gray-600 max-w-[200px]',
+              mobileHidden: true,
+              render: (c) => (
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="truncate">{c.address}</span>
+                </div>
+              )
             },
             {
               key: 'debt',
               header: 'Công nợ',
-              className: 'font-semibold text-right text-gray-900',
+              headerClassName: 'text-right',
+              className: 'text-right',
               render: (c) => {
                 const debt = customerDebts[c.id];
                 if (debt === undefined) {
                   return <span className="text-gray-400 text-xs">Đang tải...</span>;
                 }
-                return <span>{debt.toLocaleString('en-US')}</span>;
+                if (debt > 0) {
+                  return (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 border border-red-100 text-red-700 font-black text-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                      {debt.toLocaleString('en-US')}đ
+                    </span>
+                  );
+                }
+                if (debt < 0) {
+                  return (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 border border-green-100 text-green-700 font-black text-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                      {Math.abs(debt).toLocaleString('en-US')}đ
+                    </span>
+                  );
+                }
+                return (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-50 border border-gray-200 text-gray-500 font-semibold text-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                    Đã thanh toán
+                  </span>
+                );
               }
             },
             {
               key: 'phoneNumber',
               header: 'Số điện thoại',
               className: 'font-mono text-gray-900',
-              render: (c) => <span>{c.phoneNumber}</span>
+              render: (c) => (
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <span>{c.phoneNumber}</span>
+                </div>
+              )
             }
           ]}
           actions={(c) => [

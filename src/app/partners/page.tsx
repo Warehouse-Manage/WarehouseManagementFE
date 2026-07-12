@@ -1,7 +1,7 @@
 'use client';
 
 import { canAccessAccounting } from '@/lib/roles';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { Partner } from '@/types';
 import { partnerApi } from '@/api';
@@ -28,7 +28,10 @@ export default function DoiTacPage() {
 
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
-  const [search, setSearch] = useState('');
+  const [draftFilterName, setDraftFilterName] = useState('');
+  const [draftFilterPhone, setDraftFilterPhone] = useState('');
+  const [filterName, setFilterName] = useState('');
+  const [filterPhone, setFilterPhone] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<number | ''>(0);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
@@ -47,7 +50,7 @@ export default function DoiTacPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await partnerApi.getPartners(search ? { search } : undefined);
+      const data = await partnerApi.getPartners();
       setPartners(data);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tải danh sách đối tác');
@@ -62,19 +65,6 @@ export default function DoiTacPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (search === '') {
-      loadPartners();
-      return;
-    }
-    const timer = setTimeout(() => {
-      loadPartners();
-    }, 500);
-
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
-
   const getCurrentMonth = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -85,6 +75,16 @@ export default function DoiTacPage() {
       setSelectedMonth(getCurrentMonth());
     }
   }, [selectedMonth]);
+
+  const filteredPartners = useMemo(() => {
+    const name = filterName.trim().toLowerCase();
+    const phone = filterPhone.trim().toLowerCase();
+    return partners.filter((p) => {
+      if (name && !p.name.toLowerCase().includes(name)) return false;
+      if (phone && !p.phoneNumber.toLowerCase().includes(phone)) return false;
+      return true;
+    });
+  }, [partners, filterName, filterPhone]);
 
   // Show blank page if role is not 'Admin' or 'accountance'
   if (!canAccessAccounting(role)) {
@@ -290,29 +290,61 @@ export default function DoiTacPage() {
       <div className="border rounded-2xl p-3 sm:p-5 bg-white shadow-sm overflow-hidden">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 sm:mb-6">
           <h2 className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-wider">Danh sách đối tác</h2>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <input
-              type="text"
-              placeholder="Tìm kiếm đối tác..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 sm:flex-none sm:w-64 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-orange-100 focus:border-orange-500 outline-none"
-            />
-            <button
-              onClick={loadPartners}
-              disabled={loading}
-              className="p-2 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 active:bg-gray-100 transition-all flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
-            >
-              <svg className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              <span className="hidden sm:inline">Làm mới</span>
-            </button>
-          </div>
+          <button
+            onClick={loadPartners}
+            disabled={loading}
+            className="p-2 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 active:bg-gray-100 transition-all flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+          >
+            <svg className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span className="hidden sm:inline">Làm mới</span>
+          </button>
         </div>
         <DataTable
-          data={partners}
+          data={filteredPartners}
           isLoading={loading}
+          enableFilter
+          filterContent={
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-end">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tên đối tác</label>
+                <input
+                  value={draftFilterName}
+                  onChange={(e) => setDraftFilterName(e.target.value)}
+                  placeholder="Nhập tên..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Số điện thoại</label>
+                <input
+                  value={draftFilterPhone}
+                  onChange={(e) => setDraftFilterPhone(e.target.value)}
+                  placeholder="Nhập SĐT..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setFilterName(draftFilterName); setFilterPhone(draftFilterPhone); }}
+                  className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
+                >
+                  Lọc
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDraftFilterName(''); setDraftFilterPhone(''); setFilterName(''); setFilterPhone(''); }}
+                  className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Xóa lọc
+                </button>
+              </div>
+            </div>
+          }
           columns={[
             {
               key: 'info',

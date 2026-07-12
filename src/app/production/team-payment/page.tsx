@@ -1,7 +1,7 @@
 'use client';
 
 import { canAccessAccounting } from '@/lib/roles';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { teamPaymentApi, inventoryApi, financeApi } from '@/api';
@@ -21,7 +21,7 @@ export default function TeamPaymentPage() {
   const { confirm, ConfirmDialog } = useConfirm();
   const [payments, setPayments] = useState<TeamPayment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<TeamPaymentSettings | null>(null);
@@ -29,6 +29,8 @@ export default function TeamPaymentPage() {
 
   const [canFetch, setCanFetch] = useState<boolean>(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [draftFilterLeader, setDraftFilterLeader] = useState('');
+  const [filterLeader, setFilterLeader] = useState('');
 
   useEffect(() => {
     const role = getCookie('role');
@@ -134,6 +136,12 @@ export default function TeamPaymentPage() {
     }
   };
 
+  const filteredPayments = useMemo(() => {
+    const leader = filterLeader.trim().toLowerCase();
+    if (!leader) return payments;
+    return payments.filter((p) => p.teamLeaderName?.toLowerCase().includes(leader));
+  }, [payments, filterLeader]);
+
   if (isCheckingAuth) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -210,8 +218,39 @@ export default function TeamPaymentPage() {
 
         <div className="p-4">
           <DataTable
-            data={payments}
+            data={filteredPayments}
             isLoading={loading}
+            enableFilter
+            filterContent={
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tên tổ trưởng</label>
+                  <input
+                    value={draftFilterLeader}
+                    onChange={(e) => setDraftFilterLeader(e.target.value)}
+                    placeholder="Nhập tên..."
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFilterLeader(draftFilterLeader)}
+                    className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
+                  >
+                    Lọc
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setDraftFilterLeader(''); setFilterLeader(''); }}
+                    className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Xóa lọc
+                  </button>
+                </div>
+              </div>
+            }
             columns={[
               {
                 key: 'stt',
