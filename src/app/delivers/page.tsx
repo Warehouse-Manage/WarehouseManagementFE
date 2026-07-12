@@ -1,7 +1,7 @@
 'use client';
 
 import { canAccessAccounting } from '@/lib/roles';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getCookie } from '@/lib/ultis';
 import { financeApi } from '@/api';
 import { Deliver } from '@/types';
@@ -39,6 +39,12 @@ export default function DeliversPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [monthlyTotal, setMonthlyTotal] = useState<number | null>(null);
   const [loadingMonthlyTotal, setLoadingMonthlyTotal] = useState(false);
+  const [draftFilterName, setDraftFilterName] = useState('');
+  const [draftFilterPhone, setDraftFilterPhone] = useState('');
+  const [draftFilterPlate, setDraftFilterPlate] = useState('');
+  const [filterName, setFilterName] = useState('');
+  const [filterPhone, setFilterPhone] = useState('');
+  const [filterPlate, setFilterPlate] = useState('');
 
   useEffect(() => {
     const r = getCookie('role');
@@ -78,6 +84,18 @@ export default function DeliversPage() {
       setSelectedMonth(getCurrentMonth());
     }
   }, [selectedMonth]);
+
+  const filteredDelivers = useMemo(() => {
+    const name = filterName.trim().toLowerCase();
+    const phone = filterPhone.trim().toLowerCase();
+    const plate = filterPlate.trim().toLowerCase();
+    return delivers.filter((d) => {
+      if (name && !d.name.toLowerCase().includes(name)) return false;
+      if (phone && !d.phoneNumber.toLowerCase().includes(phone)) return false;
+      if (plate && !d.plateNumber.toLowerCase().includes(plate)) return false;
+      return true;
+    });
+  }, [delivers, filterName, filterPhone, filterPlate]);
 
   // Show blank page if role is not 'Admin' or 'accountance'
   if (!canAccessAccounting(role)) {
@@ -269,8 +287,59 @@ export default function DeliversPage() {
           </button>
         </div>
         <DataTable
-          data={delivers}
+          data={filteredDelivers}
           isLoading={loading}
+          enableFilter
+          filterContent={
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-end">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tên người giao</label>
+                <input
+                  value={draftFilterName}
+                  onChange={(e) => setDraftFilterName(e.target.value)}
+                  placeholder="Nhập tên..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Số điện thoại</label>
+                <input
+                  value={draftFilterPhone}
+                  onChange={(e) => setDraftFilterPhone(e.target.value)}
+                  placeholder="Nhập SĐT..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Biển số xe</label>
+                <input
+                  value={draftFilterPlate}
+                  onChange={(e) => setDraftFilterPlate(e.target.value)}
+                  placeholder="Nhập biển số..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setFilterName(draftFilterName); setFilterPhone(draftFilterPhone); setFilterPlate(draftFilterPlate); }}
+                  className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
+                >
+                  Lọc
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDraftFilterName(''); setDraftFilterPhone(''); setDraftFilterPlate(''); setFilterName(''); setFilterPhone(''); setFilterPlate(''); }}
+                  className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Xóa lọc
+                </button>
+              </div>
+            </div>
+          }
           columns={[
             {
               key: 'info',

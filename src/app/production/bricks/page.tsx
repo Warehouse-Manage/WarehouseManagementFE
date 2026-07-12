@@ -17,7 +17,7 @@ import AddStatusModal from './modal/AddStatusModal';
 type ChartDatum = { label: string; value: number; isInRange?: boolean };
 
 interface FilterOptions {
-  type: 'today' | 'day' | 'month' | 'year';
+  type: 'day' | 'month' | 'year';
   date?: string;
   month?: string;
   year?: string;
@@ -39,7 +39,7 @@ export default function LoGachPage() {
     return `${year}-${month}-${day}`;
   };
 
-  const [filter, setFilter] = useState<FilterOptions>({ type: 'today', date: getLocalDateString() });
+  const [filter, setFilter] = useState<FilterOptions>({ type: 'day', date: getLocalDateString() });
 
   // Hàm lấy local datetime string cho input datetime-local (có giây để khớp biểu đồ / lưu chính xác)
   const getLocalDateTimeString = () => {
@@ -97,16 +97,16 @@ export default function LoGachPage() {
       let apiType: 'hour' | 'date' | 'month' | 'raw' | undefined;
 
       switch (filter.type) {
-        case 'today':
-          params.append('date', filter.date || getLocalDateString());
+        case 'day': {
+          const localDate = filter.date || getLocalDateString();
+          const [year, month, day] = localDate.split('-').map(Number);
+          const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0);
+          const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
+          params.append('startDate', startOfDay.toISOString());
+          params.append('endDate', endOfDay.toISOString());
           apiType = 'raw';
           break;
-        case 'day':
-          if (filter.date) {
-            params.append('date', filter.date);
-            apiType = 'raw';
-          }
-          break;
+        }
         case 'month':
           if (filter.month && filter.year) {
             const startDate = `${filter.year}-${filter.month.padStart(2, '0')}-01`;
@@ -243,6 +243,18 @@ export default function LoGachPage() {
     });
   };
 
+  const formatDateTime = (dateTime: string) => {
+    return new Date(dateTime).toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  };
+
   const getTotalQuantity = () => {
     return statuses.reduce((sum, status) => sum + status.packageQuantity, 0);
   };
@@ -257,19 +269,15 @@ export default function LoGachPage() {
     const gap = 24;
     const height = 280;
     const contentWidth = Math.max(800, data.length * (barWidth + gap) + gap * 2);
+    const topOffset = 30;
 
     return (
       <div className="w-full overflow-x-auto py-6 px-4 bg-white/30 backdrop-blur-md rounded-2xl border border-white/50 shadow-inner">
         <svg
-          viewBox={`0 -30 ${contentWidth} ${height + 90}`}
-          width="100%"
-          height="auto"
-          className="mx-auto drop-shadow-sm"
-          style={{
-            minHeight: '300px',
-            maxWidth: '100%'
-          }}
-          preserveAspectRatio="xMidYMin meet"
+          width={contentWidth}
+          height={height + 90 + topOffset}
+          className="drop-shadow-sm"
+          style={{ minHeight: '300px' }}
         >
           <defs>
             <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
@@ -298,9 +306,9 @@ export default function LoGachPage() {
             <line
               key={i}
               x1={0}
-              y1={height * (1 - p)}
+              y1={height * (1 - p) + topOffset}
               x2={contentWidth}
-              y2={height * (1 - p)}
+              y2={height * (1 - p) + topOffset}
               className="stroke-gray-200"
               strokeDasharray="4 4"
             />
@@ -309,9 +317,9 @@ export default function LoGachPage() {
           {data.map((d, i) => {
             const x = gap + i * (barWidth + gap);
             const barHeight = Math.round((d.value / maxValue) * height);
-            const y = height - barHeight;
+            const y = height - barHeight + topOffset;
             return (
-              <g key={i} className="transition-all duration-300 hover:scale-105 origin-bottom cursor-pointer">
+              <g key={i} className="cursor-pointer">
                 <rect
                   x={x}
                   y={y}
@@ -320,10 +328,12 @@ export default function LoGachPage() {
                   rx={8}
                   fill={d.isInRange !== false ? "url(#barGradient)" : "url(#barGradientGray)"}
                   filter="url(#shadow)"
+                  className="transition-all duration-300 hover:scale-105"
+                  style={{ transformOrigin: `${x + barWidth / 2}px ${height + topOffset}px` }}
                 />
                 <text
                   x={x + barWidth / 2}
-                  y={height + 25}
+                  y={height + topOffset + 25}
                   textAnchor="middle"
                   className="fill-gray-600 font-semibold text-[10px] sm:text-[12px]"
                 >
@@ -342,7 +352,7 @@ export default function LoGachPage() {
           })}
 
           {/* x-axis base line */}
-          <line x1={0} y1={height} x2={contentWidth} y2={height} className="stroke-gray-400" strokeWidth={1} />
+          <line x1={0} y1={height + topOffset} x2={contentWidth} y2={height + topOffset} className="stroke-gray-400" strokeWidth={1} />
         </svg>
       </div>
     );
@@ -437,14 +447,14 @@ export default function LoGachPage() {
           </div>
 
           {/* Day Filter */}
-          {(filter.type === 'today' || filter.type === 'day') && (
+          {(filter.type === 'day') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Chọn ngày</label>
               <input
                 type="date"
                 value={filter.date || getLocalDateString()}
                 onChange={(e) => setFilter({ ...filter, date: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
               />
             </div>
           )}
@@ -457,7 +467,7 @@ export default function LoGachPage() {
                 <select
                   value={filter.month || ''}
                   onChange={(e) => setFilter({ ...filter, month: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
                 >
                   <option value="">Chọn tháng</option>
                   {Array.from({ length: 12 }, (_, i) => (
@@ -472,7 +482,7 @@ export default function LoGachPage() {
                 <select
                   value={filter.year || ''}
                   onChange={(e) => setFilter({ ...filter, year: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
                 >
                   <option value="">Chọn năm</option>
                   {Array.from({ length: 5 }, (_, i) => {
@@ -495,7 +505,7 @@ export default function LoGachPage() {
               <select
                 value={filter.year || ''}
                 onChange={(e) => setFilter({ ...filter, year: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
               >
                 <option value="">Chọn năm</option>
                 {Array.from({ length: 5 }, (_, i) => {
@@ -588,7 +598,7 @@ export default function LoGachPage() {
                 key: 'dateTime',
                 header: 'Thời gian',
                 className: 'font-medium text-gray-900',
-                render: (s) => <span>{formatDateOnly(s.dateTime)}</span>
+                render: (s) => <span>{filter.type === 'day' ? formatDateTime(s.dateTime) : formatDateOnly(s.dateTime)}</span>
               },
               {
                 key: 'packageQuantity',
@@ -618,7 +628,7 @@ export default function LoGachPage() {
               type="date"
               value={activityDate}
               onChange={(e) => setActivityDate(e.target.value)}
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
             />
           </div>
         </div>
@@ -684,7 +694,6 @@ export default function LoGachPage() {
 }
 
 const typeOptions = [
-  { value: 'today', label: 'Trong ngày' },
   { value: 'day', label: 'Theo ngày' },
   { value: 'month', label: 'Theo tháng' },
   { value: 'year', label: 'Theo năm' },

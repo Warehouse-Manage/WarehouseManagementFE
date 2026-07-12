@@ -170,6 +170,18 @@ export default function NhapHangPage() {
   const [newRawMaterialPartnerId, setNewRawMaterialPartnerId] = useState<number | ''>('');
   const [submittingNewRawMaterial, setSubmittingNewRawMaterial] = useState(false);
   const [newRawMaterialError, setNewRawMaterialError] = useState<string | null>(null);
+  const [draftFilterItemName, setDraftFilterItemName] = useState('');
+  const [draftFilterRawMaterial, setDraftFilterRawMaterial] = useState('');
+  const [filterItemName, setFilterItemName] = useState('');
+  const [filterRawMaterial, setFilterRawMaterial] = useState('');
+  const [draftFilterItemDateFrom, setDraftFilterItemDateFrom] = useState('');
+  const [draftFilterItemDateTo, setDraftFilterItemDateTo] = useState('');
+  const [draftFilterRawDateFrom, setDraftFilterRawDateFrom] = useState('');
+  const [draftFilterRawDateTo, setDraftFilterRawDateTo] = useState('');
+  const [filterItemDateFrom, setFilterItemDateFrom] = useState('');
+  const [filterItemDateTo, setFilterItemDateTo] = useState('');
+  const [filterRawDateFrom, setFilterRawDateFrom] = useState('');
+  const [filterRawDateTo, setFilterRawDateTo] = useState('');
 
   useEffect(() => {
     const r = getCookie('role');
@@ -1194,6 +1206,26 @@ export default function NhapHangPage() {
     );
   };
 
+  const filteredItems = useMemo(() => {
+    const q = filterItemName.trim().toLowerCase();
+    return items.filter((i) => {
+      if (q && !i.tenHang?.toLowerCase().includes(q)) return false;
+      if (filterItemDateFrom && i.dateCreated && new Date(i.dateCreated) < new Date(filterItemDateFrom)) return false;
+      if (filterItemDateTo && i.dateCreated && new Date(i.dateCreated) > new Date(filterItemDateTo + 'T23:59:59')) return false;
+      return true;
+    });
+  }, [items, filterItemName, filterItemDateFrom, filterItemDateTo]);
+
+  const filteredRawMaterials = useMemo(() => {
+    const q = filterRawMaterial.trim().toLowerCase();
+    return rawMaterialImports.filter((r) => {
+      if (q && !r.rawMaterial?.name?.toLowerCase().includes(q) && !r.partner?.name?.toLowerCase().includes(q)) return false;
+      if (filterRawDateFrom && r.dateCreated && new Date(r.dateCreated) < new Date(filterRawDateFrom)) return false;
+      if (filterRawDateTo && r.dateCreated && new Date(r.dateCreated) > new Date(filterRawDateTo + 'T23:59:59')) return false;
+      return true;
+    });
+  }, [rawMaterialImports, filterRawMaterial, filterRawDateFrom, filterRawDateTo]);
+
   if (!canAccessAccounting(role) && role !== 'warehouse manager') {
     return null;
   }
@@ -1266,9 +1298,61 @@ export default function NhapHangPage() {
           />
 
           <DataTable
-            data={items}
+            data={filteredItems}
             columns={columns}
             isLoading={loading}
+            enableFilter
+            filterContent={
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tìm hàng hóa</label>
+                  <input
+                    value={draftFilterItemName}
+                    onChange={(e) => setDraftFilterItemName(e.target.value)}
+                    placeholder="Nhập tên hàng..."
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Từ ngày</label>
+                  <input
+                    type="date"
+                    value={draftFilterItemDateFrom}
+                    onChange={(e) => setDraftFilterItemDateFrom(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Đến ngày</label>
+                  <input
+                    type="date"
+                    value={draftFilterItemDateTo}
+                    onChange={(e) => setDraftFilterItemDateTo(e.target.value)}
+                    min={draftFilterItemDateFrom || undefined}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setFilterItemName(draftFilterItemName); setFilterItemDateFrom(draftFilterItemDateFrom); setFilterItemDateTo(draftFilterItemDateTo); }}
+                    className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
+                  >
+                    Lọc
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setDraftFilterItemName(''); setDraftFilterItemDateFrom(''); setDraftFilterItemDateTo(''); setFilterItemName(''); setFilterItemDateFrom(''); setFilterItemDateTo(''); }}
+                    className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Xóa lọc
+                  </button>
+                </div>
+              </div>
+            }
             enablePagination={true}
             totalCount={totalCountInventoryReceipt}
             currentPage={currentPageInventoryReceipt}
@@ -1361,9 +1445,61 @@ export default function NhapHangPage() {
           />
 
           <DataTable
-            data={rawMaterialImports}
+            data={filteredRawMaterials}
             columns={rawMaterialImportColumns}
             isLoading={loadingRawMaterialImports}
+            enableFilter
+            filterContent={
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tìm nguyên liệu / đối tác</label>
+                  <input
+                    value={draftFilterRawMaterial}
+                    onChange={(e) => setDraftFilterRawMaterial(e.target.value)}
+                    placeholder="Nhập tên..."
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Từ ngày</label>
+                  <input
+                    type="date"
+                    value={draftFilterRawDateFrom}
+                    onChange={(e) => setDraftFilterRawDateFrom(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Đến ngày</label>
+                  <input
+                    type="date"
+                    value={draftFilterRawDateTo}
+                    onChange={(e) => setDraftFilterRawDateTo(e.target.value)}
+                    min={draftFilterRawDateFrom || undefined}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setFilterRawMaterial(draftFilterRawMaterial); setFilterRawDateFrom(draftFilterRawDateFrom); setFilterRawDateTo(draftFilterRawDateTo); }}
+                    className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
+                  >
+                    Lọc
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setDraftFilterRawMaterial(''); setDraftFilterRawDateFrom(''); setDraftFilterRawDateTo(''); setFilterRawMaterial(''); setFilterRawDateFrom(''); setFilterRawDateTo(''); }}
+                    className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Xóa lọc
+                  </button>
+                </div>
+              </div>
+            }
             enablePagination={true}
             totalCount={totalCountRawMaterialImport}
             currentPage={currentPageRawMaterialImport}

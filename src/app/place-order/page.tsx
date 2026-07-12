@@ -1,7 +1,7 @@
 'use client';
 
 import { canAccessAccounting } from '@/lib/roles';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { financeApi, inventoryApi } from '@/api';
 import { Order, Customer, Deliver, Product, PackageProduct, InventoryForecastResponse, PlaceOrderFormData, UpdatePlaceOrderFormData, PlaceOrderProductOrderResponse } from '@/types';
@@ -27,6 +27,12 @@ export default function PlaceOrderPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [draftFilterCustomer, setDraftFilterCustomer] = useState('');
+  const [draftFilterDateFrom, setDraftFilterDateFrom] = useState('');
+  const [draftFilterDateTo, setDraftFilterDateTo] = useState('');
+  const [filterCustomer, setFilterCustomer] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
   // apiHost removed, handled in API modules
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [delivers, setDelivers] = useState<Deliver[]>([]);
@@ -265,6 +271,16 @@ export default function PlaceOrderPage() {
     const orderSale = Number(sale || 0);
     return productTotal - orderSale;
   };
+
+  const filteredOrders = useMemo(() => {
+    const customer = filterCustomer.trim().toLowerCase();
+    return orders.filter((o) => {
+      if (customer && !o.customerName?.toLowerCase().includes(customer)) return false;
+      if (filterDateFrom && o.dateCreated && new Date(o.dateCreated) < new Date(filterDateFrom)) return false;
+      if (filterDateTo && o.dateCreated && new Date(o.dateCreated) > new Date(filterDateTo + 'T23:59:59')) return false;
+      return true;
+    });
+  }, [orders, filterCustomer, filterDateFrom, filterDateTo]);
 
   // Show blank page if role is not 'Admin' or 'accountance'
   if (!canAccessAccounting(role)) {
@@ -735,7 +751,7 @@ export default function PlaceOrderPage() {
         </div>
 
         <DataTable
-          data={orders}
+          data={filteredOrders}
           isLoading={loading}
           enablePagination={true}
           totalCount={totalCount}
@@ -750,6 +766,58 @@ export default function PlaceOrderPage() {
             setCurrentPage(1);
             loadOrders(1, newPageSize);
           }}
+          enableFilter
+          filterContent={
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-end">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Khách hàng</label>
+                <input
+                  value={draftFilterCustomer}
+                  onChange={(e) => setDraftFilterCustomer(e.target.value)}
+                  placeholder="Nhập tên..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Từ ngày</label>
+                <input
+                  type="date"
+                  value={draftFilterDateFrom}
+                  onChange={(e) => setDraftFilterDateFrom(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Đến ngày</label>
+                <input
+                  type="date"
+                  value={draftFilterDateTo}
+                  onChange={(e) => setDraftFilterDateTo(e.target.value)}
+                  min={draftFilterDateFrom || undefined}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setFilterCustomer(draftFilterCustomer); setFilterDateFrom(draftFilterDateFrom); setFilterDateTo(draftFilterDateTo); }}
+                  className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
+                >
+                  Lọc
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDraftFilterCustomer(''); setDraftFilterDateFrom(''); setDraftFilterDateTo(''); setFilterCustomer(''); setFilterDateFrom(''); setFilterDateTo(''); }}
+                  className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Xóa lọc
+                </button>
+              </div>
+            </div>
+          }
           columns={[
             {
               key: 'customerName',

@@ -1,7 +1,7 @@
 'use client';
 
 import { canAccessAccounting } from '@/lib/roles';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getCookie } from '@/lib/ultis';
 import { inventoryApi, partnerApi } from '@/api';
 import { RawMaterial, Partner } from '@/types';
@@ -23,7 +23,10 @@ export default function NguyenLieuPage() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
-
+  const [draftFilterName, setDraftFilterName] = useState('');
+  const [draftFilterUnit, setDraftFilterUnit] = useState('');
+  const [filterName, setFilterName] = useState('');
+  const [filterUnit, setFilterUnit] = useState('');
 
   useEffect(() => {
     const r = getCookie('role');
@@ -66,6 +69,16 @@ export default function NguyenLieuPage() {
     loadNguyenLieu();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const filteredNguyenLieu = useMemo(() => {
+    const name = filterName.trim().toLowerCase();
+    const unit = filterUnit.trim().toLowerCase();
+    return nguyenLieu.filter((n) => {
+      if (name && !n.name.toLowerCase().includes(name)) return false;
+      if (unit && !n.unit.toLowerCase().includes(unit)) return false;
+      return true;
+    });
+  }, [nguyenLieu, filterName, filterUnit]);
 
   // Show blank page if role is not 'Admin' or 'accountance'
   if (!canAccessAccounting(role)) {
@@ -166,8 +179,49 @@ export default function NguyenLieuPage() {
           </button>
         </div>
         <DataTable
-          data={nguyenLieu}
+          data={filteredNguyenLieu}
           isLoading={loading}
+          enableFilter
+          filterContent={
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-end">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tên nguyên liệu</label>
+                <input
+                  value={draftFilterName}
+                  onChange={(e) => setDraftFilterName(e.target.value)}
+                  placeholder="Nhập tên..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Đơn vị</label>
+                <input
+                  value={draftFilterUnit}
+                  onChange={(e) => setDraftFilterUnit(e.target.value)}
+                  placeholder="Nhập đơn vị..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setFilterName(draftFilterName); setFilterUnit(draftFilterUnit); }}
+                  className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
+                >
+                  Lọc
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDraftFilterName(''); setDraftFilterUnit(''); setFilterName(''); setFilterUnit(''); }}
+                  className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Xóa lọc
+                </button>
+              </div>
+            </div>
+          }
           columns={[
             {
               key: 'name',
