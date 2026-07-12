@@ -1,7 +1,7 @@
 'use client';
 
 import { canAccessAccounting } from '@/lib/roles';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getCookie } from '@/lib/ultis';
 import { inventoryApi } from '@/api';
 import { Product } from '@/types';
@@ -50,6 +50,10 @@ export default function ProductsPage() {
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [editingPackageId, setEditingPackageId] = useState<number | null>(null);
   const [loadingPackageDetail, setLoadingPackageDetail] = useState(false);
+  const [draftFilterProductName, setDraftFilterProductName] = useState('');
+  const [draftFilterPackageName, setDraftFilterPackageName] = useState('');
+  const [filterProductName, setFilterProductName] = useState('');
+  const [filterPackageName, setFilterPackageName] = useState('');
 
   const productFormFields: FormField[] = [
     { name: 'name', label: 'Tên sản phẩm', type: 'text', required: true, placeholder: 'Nhập tên sản phẩm...' },
@@ -143,6 +147,20 @@ export default function ProductsPage() {
       setLoadingPackageDetail(false);
     }
   };
+
+  const filteredProducts = useMemo(() => {
+    const q = filterProductName.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((p) => p.name.toLowerCase().includes(q));
+  }, [products, filterProductName]);
+
+  const filteredPackages = useMemo(() => {
+    const q = filterPackageName.trim().toLowerCase();
+    if (!q) return packages;
+    return packages.filter((k) =>
+      k.name.toLowerCase().includes(q) || k.productName.toLowerCase().includes(q)
+    );
+  }, [packages, filterPackageName]);
 
   // Show blank page if role is not 'Admin' or 'accountance'
   if (!canAccessAccounting(role)) {
@@ -448,8 +466,39 @@ export default function ProductsPage() {
 
             {activeTab === 'product' ? (
               <DataTable
-                data={products}
+                data={filteredProducts}
                 isLoading={loading}
+                enableFilter
+                filterContent={
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-end">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tìm sản phẩm</label>
+                      <input
+                        value={draftFilterProductName}
+                        onChange={(e) => setDraftFilterProductName(e.target.value)}
+                        placeholder="Nhập tên sản phẩm..."
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFilterProductName(draftFilterProductName)}
+                        className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
+                      >
+                        Lọc
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setDraftFilterProductName(''); setFilterProductName(''); }}
+                        className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        Xóa lọc
+                      </button>
+                    </div>
+                  </div>
+                }
                 columns={[
                   {
                     key: 'name',
@@ -517,8 +566,39 @@ export default function ProductsPage() {
               />
             ) : (
               <DataTable
-                data={packages}
+                data={filteredPackages}
                 isLoading={loadingPackages}
+                enableFilter
+                filterContent={
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-end">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tìm kiện</label>
+                      <input
+                        value={draftFilterPackageName}
+                        onChange={(e) => setDraftFilterPackageName(e.target.value)}
+                        placeholder="Nhập tên kiện..."
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFilterPackageName(draftFilterPackageName)}
+                        className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
+                      >
+                        Lọc
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setDraftFilterPackageName(''); setFilterPackageName(''); }}
+                        className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        Xóa lọc
+                      </button>
+                    </div>
+                  </div>
+                }
                 columns={[
                   {
                     key: 'name',

@@ -824,7 +824,7 @@ export default function OrdersPage() {
                   value={filterCustomerName}
                   onChange={(e) => setFilterCustomerName(e.target.value)}
                   placeholder="Nhập tên khách hàng..."
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
                 />
               </div>
               <div>
@@ -835,7 +835,7 @@ export default function OrdersPage() {
                     value={formatDateFilterDisplay(filterDateFrom)}
                     readOnly
                     placeholder="dd/mm/yyyy"
-                    className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 text-sm text-gray-700 bg-white focus:border-orange-500 focus:outline-none"
                   />
                   <CalendarDays className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input
@@ -855,7 +855,7 @@ export default function OrdersPage() {
                     value={formatDateFilterDisplay(filterDateTo)}
                     readOnly
                     placeholder="dd/mm/yyyy"
-                    className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 text-sm text-gray-700 bg-white focus:border-orange-500 focus:outline-none"
                   />
                   <CalendarDays className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input

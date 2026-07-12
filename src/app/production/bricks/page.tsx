@@ -454,7 +454,7 @@ export default function LoGachPage() {
                 type="date"
                 value={filter.date || getLocalDateString()}
                 onChange={(e) => setFilter({ ...filter, date: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
               />
             </div>
           )}
@@ -467,7 +467,7 @@ export default function LoGachPage() {
                 <select
                   value={filter.month || ''}
                   onChange={(e) => setFilter({ ...filter, month: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
                 >
                   <option value="">Chọn tháng</option>
                   {Array.from({ length: 12 }, (_, i) => (
@@ -482,7 +482,7 @@ export default function LoGachPage() {
                 <select
                   value={filter.year || ''}
                   onChange={(e) => setFilter({ ...filter, year: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
                 >
                   <option value="">Chọn năm</option>
                   {Array.from({ length: 5 }, (_, i) => {
@@ -505,7 +505,7 @@ export default function LoGachPage() {
               <select
                 value={filter.year || ''}
                 onChange={(e) => setFilter({ ...filter, year: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
               >
                 <option value="">Chọn năm</option>
                 {Array.from({ length: 5 }, (_, i) => {
@@ -628,7 +628,7 @@ export default function LoGachPage() {
               type="date"
               value={activityDate}
               onChange={(e) => setActivityDate(e.target.value)}
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
             />
           </div>
         </div>
