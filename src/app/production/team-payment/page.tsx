@@ -11,7 +11,7 @@ import type { ActionItem } from '@/components/shared/TableRowActions';
 import AddTeamPaymentModal from './modal/AddTeamPaymentModal';
 import SettingsModal from './modal/SettingsModal';
 import { toast } from 'sonner';
-import { Printer, Trash2 } from 'lucide-react';
+import { Printer, Trash2, Pencil } from 'lucide-react';
 import { useConfirm } from '@/hooks/useConfirm';
 
 const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -23,6 +23,7 @@ export default function TeamPaymentPage() {
   const [loading, setLoading] = useState(true);
   const [, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<TeamPayment | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<TeamPaymentSettings | null>(null);
   const [packageProducts, setPackageProducts] = useState<PackageProduct[]>([]);
@@ -134,6 +135,18 @@ export default function TeamPaymentPage() {
     } catch (err) {
       toast.error(getErrorMessage(err) || 'Không thể xóa thanh toán');
     }
+  };
+
+  const handleEditTeamPayment = (p: TeamPayment) => {
+    setEditingPayment(p);
+    setShowAddForm(true);
+  };
+
+  const closeFormModal = () => {
+    setShowAddForm(false);
+    setEditingPayment(null);
+    fetchPayments();
+    fetchSettings();
   };
 
   const filteredPayments = useMemo(() => {
@@ -354,6 +367,13 @@ export default function TeamPaymentPage() {
             actions={(p): ActionItem[] => {
               const fundId = resolveTeamPaymentFundId(p);
               const items: ActionItem[] = [];
+              items.push({
+                label: 'Sửa',
+                icon: <Pencil className="h-4 w-4" />,
+                onClick: () => {
+                  handleEditTeamPayment(p);
+                },
+              });
               if (fundId) {
                 items.push({
                   label: 'In phiếu',
@@ -382,12 +402,10 @@ export default function TeamPaymentPage() {
 
       <AddTeamPaymentModal
         isOpen={showAddForm}
-        onClose={() => {
-          setShowAddForm(false);
-          fetchPayments();
-        }}
+        onClose={closeFormModal}
         settings={settings}
         packageProducts={packageProducts}
+        editingPayment={editingPayment}
       />
 
       <SettingsModal

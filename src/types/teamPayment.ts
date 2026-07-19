@@ -40,3 +40,9 @@ export interface TeamPaymentSettingsFormData {
     teamLeaderName: string;
     debt?: number;
 }
+
+export interface UpdateTeamPaymentFormData {
+    todayRemaining: number;
+    brokenPackages: BrokenPackageItem[];
+    paid: number;
+}

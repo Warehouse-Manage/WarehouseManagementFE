@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal } from '@/components/shared';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { teamPaymentApi, financeApi } from '@/api';
 import { toast } from 'sonner';
-import { TeamPaymentSettings, PackageProduct, BrokenPackageItem } from '@/types';
+import { TeamPayment, TeamPaymentSettings, PackageProduct, BrokenPackageItem } from '@/types';
 import Select from 'react-select';
 
 interface AddTeamPaymentModalProps {
@@ -13,14 +13,18 @@ interface AddTeamPaymentModalProps {
   onClose: () => void;
   settings: TeamPaymentSettings | null;
   packageProducts: PackageProduct[];
+  editingPayment?: TeamPayment | null;
 }
 
 export default function AddTeamPaymentModal({
   isOpen,
   onClose,
   settings,
-  packageProducts
+  packageProducts,
+  editingPayment
 }: AddTeamPaymentModalProps) {
+  const isEditMode = !!editingPayment;
+
   const [todayRemaining, setTodayRemaining] = useState(0);
   const [brokenPackages, setBrokenPackages] = useState<BrokenPackageItem[]>([
     { type: '', quantity: 0 }
@@ -28,6 +32,25 @@ export default function AddTeamPaymentModal({
   const [paid, setPaid] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Reset / hydrate form theo mode
+  useEffect(() => {
+    if (!isOpen) return;
+    if (editingPayment) {
+      setTodayRemaining(editingPayment.todayRemaining);
+      setPaid(editingPayment.paid);
+      setBrokenPackages(
+        editingPayment.brokenPackages && editingPayment.brokenPackages.length > 0
+          ? editingPayment.brokenPackages.map((bp) => ({ ...bp }))
+          : [{ type: '', quantity: 0 }]
+      );
+    } else {
+      setTodayRemaining(0);
+      setPaid(0);
+      setBrokenPackages([{ type: '', quantity: 0 }]);
+    }
+    setError(null);
+  }, [editingPayment, isOpen]);
 
   const packageProductOptions = packageProducts.map(p => ({
     value: p.name,
@@ -78,15 +101,28 @@ export default function AddTeamPaymentModal({
       setLoading(true);
       setError(null);
 
+      const validBrokenPackages = brokenPackages.filter(bp => bp.type && bp.quantity > 0);
+
+      if (isEditMode && editingPayment) {
+        // ===== UPDATE FLOW =====
+        await teamPaymentApi.updateTeamPayment(editingPayment.id, {
+          todayRemaining,
+          brokenPackages: validBrokenPackages,
+          paid
+        });
+
+        toast.success('Đã cập nhật thanh toán tổ ra');
+        onClose();
+        return;
+      }
+
+      // ===== CREATE FLOW =====
       const userId = parseInt(getCookie('userId') || '0');
       if (!userId) {
         setError('Không tìm thấy thông tin người dùng');
         return;
       }
 
-      // Validate
-      const validBrokenPackages = brokenPackages.filter(bp => bp.type && bp.quantity > 0);
-      
       const created = await teamPaymentApi.createTeamPayment({
         todayRemaining,
         brokenPackages: validBrokenPackages,
@@ -112,7 +148,7 @@ export default function AddTeamPaymentModal({
       setTodayRemaining(0);
       setBrokenPackages([{ type: '', quantity: 0 }]);
       setPaid(0);
-      
+
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Có lỗi xảy ra');
@@ -125,7 +161,7 @@ export default function AddTeamPaymentModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Thêm thanh toán tổ ra"
+      title={isEditMode ? 'Cập nhật thanh toán tổ ra' : 'Thêm thanh toán tổ ra'}
       size="lg"
       footer={
         <>
@@ -141,7 +177,7 @@ export default function AddTeamPaymentModal({
             className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 transition-colors cursor-pointer disabled:opacity-50"
             disabled={loading}
           >
-            {loading ? 'Đang xử lý...' : 'Thêm thanh toán'}
+            {loading ? 'Đang xử lý...' : isEditMode ? 'Lưu thay đổi' : 'Thêm thanh toán'}
           </button>
         </>
       }
@@ -182,7 +218,7 @@ export default function AddTeamPaymentModal({
         </div>
 
         {/* Hiển thị công nợ hiện tại */}
-        {settings?.debt !== undefined && settings.debt > 0 && (
+        {!isEditMode && settings?.debt !== undefined && settings.debt > 0 && (
           <div className="rounded-xl border border-red-100 bg-red-50 p-4">
             <div className="flex justify-between items-center text-sm">
               <span className="text-gray-600">Công nợ hiện tại:</span>
