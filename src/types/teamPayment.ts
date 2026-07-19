@@ -14,6 +14,7 @@ export interface TeamPayment {
     totalAmountPackage: number; // Tiền gòng
     totalAmountBroken: number; // Tiền kiện sổ
     totalAmount: number; // Tổng
+    paid: number; // Số tiền đã thanh toán
     fundIdPackage?: number;
     fundIdBroken?: number;
     dateCreated: string;
@@ -23,6 +24,7 @@ export interface TeamPayment {
 export interface TeamPaymentFormData {
     todayRemaining: number;
     brokenPackages: BrokenPackageItem[];
+    paid: number;
     createdUserId: number;
 }
 
@@ -30,9 +32,17 @@ export interface TeamPaymentSettings {
     id: number;
     pricePerPackage: number;
     teamLeaderName: string;
+    debt: number; // Công nợ hiện tại
 }
 
 export interface TeamPaymentSettingsFormData {
     pricePerPackage: number;
     teamLeaderName: string;
+    debt?: number;
+}
+
+export interface UpdateTeamPaymentFormData {
+    todayRemaining: number;
+    brokenPackages: BrokenPackageItem[];
+    paid: number;
 }

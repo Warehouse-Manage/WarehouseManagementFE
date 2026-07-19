@@ -11,7 +11,7 @@ import type { ActionItem } from '@/components/shared/TableRowActions';
 import AddTeamPaymentModal from './modal/AddTeamPaymentModal';
 import SettingsModal from './modal/SettingsModal';
 import { toast } from 'sonner';
-import { Printer, Trash2 } from 'lucide-react';
+import { Printer, Trash2, Pencil } from 'lucide-react';
 import { useConfirm } from '@/hooks/useConfirm';
 
 const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -23,6 +23,7 @@ export default function TeamPaymentPage() {
   const [loading, setLoading] = useState(true);
   const [, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<TeamPayment | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<TeamPaymentSettings | null>(null);
   const [packageProducts, setPackageProducts] = useState<PackageProduct[]>([]);
@@ -136,6 +137,18 @@ export default function TeamPaymentPage() {
     }
   };
 
+  const handleEditTeamPayment = (p: TeamPayment) => {
+    setEditingPayment(p);
+    setShowAddForm(true);
+  };
+
+  const closeFormModal = () => {
+    setShowAddForm(false);
+    setEditingPayment(null);
+    fetchPayments();
+    fetchSettings();
+  };
+
   const filteredPayments = useMemo(() => {
     const leader = filterLeader.trim().toLowerCase();
     if (!leader) return payments;
@@ -206,6 +219,12 @@ export default function TeamPaymentPage() {
               <p className="text-sm text-gray-600">Giá trên 1 gòng</p>
               <p className="text-base font-bold text-orange-600">{formatCurrency(settings.pricePerPackage)}</p>
             </div>
+            {settings.debt > 0 && (
+              <div>
+                <p className="text-sm text-gray-600">Công nợ hiện tại</p>
+                <p className="text-base font-bold text-red-600">{formatCurrency(settings.debt)}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -255,40 +274,53 @@ export default function TeamPaymentPage() {
               {
                 key: 'stt',
                 header: 'STT',
-                className: 'w-16 text-gray-500 font-mono',
-                render: (_, index) => <span>{index + 1}</span>
+                headerClassName: 'text-center w-14',
+                className: 'text-center',
+                render: (_, index) => <span className="text-gray-400 font-mono tabular-nums">{index + 1}</span>
               },
               {
                 key: 'dateCreated',
                 header: 'Thời gian',
-                className: 'font-medium text-gray-900',
+                className: 'font-medium text-gray-900 whitespace-nowrap',
                 render: (p) => <span>{formatDateTime(p.dateCreated)}</span>
               },
               {
                 key: 'teamLeaderName',
                 header: 'Tổ trưởng',
-                className: 'font-medium text-gray-900'
+                className: 'font-medium text-gray-700'
               },
               {
                 key: 'previousDayRemaining',
-                header: 'Gòng thừa hôm qua',
+                header: 'Gòng hôm qua',
                 headerClassName: 'text-right',
-                className: 'text-right font-semibold text-blue-600',
-                render: (p) => <span>{p.previousDayRemaining}</span>
+                className: 'text-right',
+                render: (p) => (
+                  <span className="font-semibold text-cyan-600 tabular-nums">
+                    {p.previousDayRemaining}
+                  </span>
+                )
               },
               {
                 key: 'newPackagesFromA',
-                header: 'Gòng mới nhập',
+                header: 'Gòng mới',
                 headerClassName: 'text-right',
-                className: 'text-right font-semibold text-green-600',
-                render: (p) => <span>{p.newPackagesFromA}</span>
+                className: 'text-right',
+                render: (p) => (
+                  <span className="font-semibold text-emerald-600 tabular-nums">
+                    {p.newPackagesFromA}
+                  </span>
+                )
               },
               {
                 key: 'todayRemaining',
-                header: 'Gòng thừa hôm nay',
+                header: 'Gòng còn',
                 headerClassName: 'text-right',
-                className: 'text-right font-semibold text-purple-600',
-                render: (p) => <span>{p.todayRemaining}</span>
+                className: 'text-right',
+                render: (p) => (
+                  <span className="font-semibold text-violet-600 tabular-nums">
+                    {p.todayRemaining}
+                  </span>
+                )
               },
               {
                 key: 'brokenPackages',
@@ -296,19 +328,52 @@ export default function TeamPaymentPage() {
                 headerClassName: 'text-right',
                 className: 'text-right',
                 render: (p) => (
-                  <div className="text-sm">
-                    {p.brokenPackages.map((bp, idx) => (
-                      <div key={idx}>
-                        {bp.quantity} ({bp.type})
-                      </div>
-                    ))}
+                  <div className="text-sm space-y-0.5">
+                    {p.brokenPackages.length === 0 ? (
+                      <span className="text-gray-300 italic">—</span>
+                    ) : (
+                      p.brokenPackages.map((bp, idx) => (
+                        <div key={idx} className="text-gray-600 tabular-nums">
+                          {bp.quantity.toLocaleString('vi-VN')} ({bp.type})
+                        </div>
+                      ))
+                    )}
                   </div>
+                )
+              },
+              {
+                key: 'totalAmount',
+                header: 'Tổng tiền',
+                headerClassName: 'text-right',
+                className: 'text-right',
+                render: (p) => (
+                  <span className="font-bold text-gray-900 tabular-nums">
+                    {formatCurrency(p.totalAmount)}
+                  </span>
+                )
+              },
+              {
+                key: 'paid',
+                header: 'Đã thanh toán',
+                headerClassName: 'text-right',
+                className: 'text-right',
+                render: (p) => (
+                  <span className="font-semibold text-emerald-600 tabular-nums">
+                    {formatCurrency(p.paid)}
+                  </span>
                 )
               }
             ]}
             actions={(p): ActionItem[] => {
               const fundId = resolveTeamPaymentFundId(p);
               const items: ActionItem[] = [];
+              items.push({
+                label: 'Sửa',
+                icon: <Pencil className="h-4 w-4" />,
+                onClick: () => {
+                  handleEditTeamPayment(p);
+                },
+              });
               if (fundId) {
                 items.push({
                   label: 'In phiếu',
@@ -337,12 +402,10 @@ export default function TeamPaymentPage() {
 
       <AddTeamPaymentModal
         isOpen={showAddForm}
-        onClose={() => {
-          setShowAddForm(false);
-          fetchPayments();
-        }}
+        onClose={closeFormModal}
         settings={settings}
         packageProducts={packageProducts}
+        editingPayment={editingPayment}
       />
 
       <SettingsModal

@@ -2,6 +2,7 @@ import { api } from './api';
 import {
     TeamPayment,
     TeamPaymentFormData,
+    UpdateTeamPaymentFormData,
     TeamPaymentSettings,
     TeamPaymentSettingsFormData
 } from '@/types';
@@ -15,6 +16,10 @@ export const teamPaymentApi = {
 
     createTeamPayment: async (data: TeamPaymentFormData): Promise<TeamPayment> => {
         return api.post<TeamPayment>('/api/teampayments', data);
+    },
+
+    updateTeamPayment: async (id: number, data: UpdateTeamPaymentFormData): Promise<TeamPayment> => {
+        return api.put<TeamPayment>(`/api/teampayments/${id}`, data);
     },
 
     deleteTeamPayment: async (id: number): Promise<void> => {
