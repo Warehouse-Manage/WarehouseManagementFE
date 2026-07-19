@@ -119,8 +119,7 @@ export default function FundsPage() {
         { value: 'Khách hàng', label: 'Khách hàng' },
         { value: 'Đối tác', label: 'Đối tác' },
       ] : []
-    },
-    { name: 'objectName', label: 'Tên người thu/nhận', type: 'text', placeholder: 'Người nhận hoặc người nộp...' },
+    }
   ];
 
   useEffect(() => {
@@ -639,13 +638,14 @@ export default function FundsPage() {
           description,
           amount,
           category,
-          objectType,
-          objectName
+          objectType
         }}
         error={error}
         submitting={submitting}
         suggestions={suggestions}
         loadingSuggestions={loadingSuggestions}
+        objectId={objectId}
+        objectName={objectName}
         onFieldChange={(name, value) => {
           if (name === 'type') {
             setType(value as 'Thu' | 'Chi');
@@ -663,10 +663,14 @@ export default function FundsPage() {
             setObjectId('');
             setSuggestions([]);
             loadSuggestions(value as string);
-          } else if (name === 'objectName') setObjectName(value as string);
+          }
         }}
         onSuggestionClick={(s) => {
-          setObjectId(s.id);
+          if (!s.id) {
+            setObjectId('');
+          } else {
+            setObjectId(s.id);
+          }
           setObjectName(s.name);
         }}
         onSubmit={editingId ? handleUpdate : handleCreate}

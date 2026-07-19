@@ -62,21 +62,21 @@ export function DataTable<T extends { id?: number | string }>({
             )}
 
             {/* Desktop Table View */}
-            <div className={`${disableCardView ? 'block' : 'hidden md:block'} overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm`}>
-                <table className="min-w-full divide-y divide-gray-200">
+            <div className={`${disableCardView ? 'block' : 'hidden md:block'} table-scroll-x relative w-full max-w-full rounded-xl border border-gray-200 bg-white shadow-sm`}>
+                <table className="min-w-full table-fixed divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr className="border-b border-gray-200">
                             {columns.map((col) => (
                                 <th
                                     key={col.key}
                                     scope="col"
-                                    className={`px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 whitespace-nowrap ${col.headerClassName || ''} ${col.mobileHidden ? 'hidden lg:table-cell' : ''}`}
+                                    className={`px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 whitespace-nowrap ${col.headerClassName || ''} ${col.mobileHidden ? 'hidden lg:table-cell' : ''}`}
                                 >
                                     {col.header}
                                 </th>
                             ))}
                             {actions && (
-                                <th scope="col" className="px-5 py-3.5 text-center text-[11px] font-semibold uppercase tracking-widest text-gray-500 w-16">
+                                <th scope="col" className="px-3 py-3 text-center text-[11px] font-semibold uppercase tracking-widest text-gray-500 w-16">
                                     Thao tác
                                 </th>
                             )}
@@ -113,13 +113,13 @@ export function DataTable<T extends { id?: number | string }>({
                                     {columns.map((col) => (
                                         <td
                                             key={col.key}
-                                            className={`whitespace-nowrap px-5 py-4 text-sm text-gray-700 ${col.className || ''} ${col.mobileHidden ? 'hidden lg:table-cell' : ''}`}
+                                            className={`px-3 py-2.5 align-top text-xs text-gray-700 break-words ${col.className || ''} ${col.mobileHidden ? 'hidden lg:table-cell' : ''}`}
                                         >
                                             {col.render ? col.render(item, index) : (item as unknown as Record<string, React.ReactNode>)[col.key]}
                                         </td>
                                     ))}
                                     {actions && (
-                                        <td className="whitespace-nowrap px-5 py-4 text-center text-sm">
+                                        <td className="px-3 py-2.5 align-top text-center text-xs">
                                             <TableRowActions actions={actions(item)} />
                                         </td>
                                     )}

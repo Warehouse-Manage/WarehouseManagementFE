@@ -230,13 +230,19 @@ export default function TeamPaymentPage() {
       )}
 
       {/* Data Table */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div className="min-w-0 bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-white sticky top-0 z-[1]">
           <h2 className="text-lg font-bold text-gray-900">Lịch sử thanh toán</h2>
         </div>
 
-        <div className="p-4">
-          <DataTable
+        <div
+          className="table-scroll-x p-3 sm:p-4 w-full max-w-full"
+          style={{ scrollbarGutter: 'stable' }}
+        >
+          {/* Wrapper đặt chiều rộng tối thiểu cho bảng để bảng luôn rộng hơn container,
+              đảm bảo thanh cuộn ngang luôn xuất hiện khi màn hình nhỏ */}
+          <div className="min-w-[720px]">
+            <DataTable
             data={filteredPayments}
             isLoading={loading}
             enableFilter
@@ -274,28 +280,31 @@ export default function TeamPaymentPage() {
               {
                 key: 'stt',
                 header: 'STT',
-                headerClassName: 'text-center w-14',
-                className: 'text-center',
-                render: (_, index) => <span className="text-gray-400 font-mono tabular-nums">{index + 1}</span>
+                headerClassName: 'text-center w-12',
+                className: 'text-center w-12',
+                render: (_, index) => <span className="text-gray-400 font-mono tabular-nums text-xs">{index + 1}</span>
               },
               {
                 key: 'dateCreated',
                 header: 'Thời gian',
+                headerClassName: 'w-[140px]',
                 className: 'font-medium text-gray-900 whitespace-nowrap',
-                render: (p) => <span>{formatDateTime(p.dateCreated)}</span>
+                render: (p) => <span className="text-xs">{formatDateTime(p.dateCreated)}</span>
               },
               {
                 key: 'teamLeaderName',
                 header: 'Tổ trưởng',
-                className: 'font-medium text-gray-700'
+                headerClassName: 'w-[120px]',
+                className: 'font-medium text-gray-700 w-[120px]',
+                render: (p) => <span className="text-xs leading-snug">{p.teamLeaderName}</span>
               },
               {
                 key: 'previousDayRemaining',
                 header: 'Gòng hôm qua',
-                headerClassName: 'text-right',
-                className: 'text-right',
+                headerClassName: 'text-right w-[110px]',
+                className: 'text-right w-[110px]',
                 render: (p) => (
-                  <span className="font-semibold text-cyan-600 tabular-nums">
+                  <span className="font-semibold text-cyan-600 tabular-nums text-xs">
                     {p.previousDayRemaining}
                   </span>
                 )
@@ -303,10 +312,10 @@ export default function TeamPaymentPage() {
               {
                 key: 'newPackagesFromA',
                 header: 'Gòng mới',
-                headerClassName: 'text-right',
-                className: 'text-right',
+                headerClassName: 'text-right w-[90px]',
+                className: 'text-right w-[90px]',
                 render: (p) => (
-                  <span className="font-semibold text-emerald-600 tabular-nums">
+                  <span className="font-semibold text-emerald-600 tabular-nums text-xs">
                     {p.newPackagesFromA}
                   </span>
                 )
@@ -314,40 +323,21 @@ export default function TeamPaymentPage() {
               {
                 key: 'todayRemaining',
                 header: 'Gòng còn',
-                headerClassName: 'text-right',
-                className: 'text-right',
+                headerClassName: 'text-right w-[90px]',
+                className: 'text-right w-[90px]',
                 render: (p) => (
-                  <span className="font-semibold text-violet-600 tabular-nums">
+                  <span className="font-semibold text-violet-600 tabular-nums text-xs">
                     {p.todayRemaining}
                   </span>
                 )
               },
               {
-                key: 'brokenPackages',
-                header: 'Kiện sổ',
-                headerClassName: 'text-right',
-                className: 'text-right',
-                render: (p) => (
-                  <div className="text-sm space-y-0.5">
-                    {p.brokenPackages.length === 0 ? (
-                      <span className="text-gray-300 italic">—</span>
-                    ) : (
-                      p.brokenPackages.map((bp, idx) => (
-                        <div key={idx} className="text-gray-600 tabular-nums">
-                          {bp.quantity.toLocaleString('vi-VN')} ({bp.type})
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )
-              },
-              {
                 key: 'totalAmount',
                 header: 'Tổng tiền',
-                headerClassName: 'text-right',
-                className: 'text-right',
+                headerClassName: 'text-right w-[120px]',
+                className: 'text-right w-[120px]',
                 render: (p) => (
-                  <span className="font-bold text-gray-900 tabular-nums">
+                  <span className="font-bold text-gray-900 tabular-nums text-xs whitespace-nowrap">
                     {formatCurrency(p.totalAmount)}
                   </span>
                 )
@@ -355,10 +345,10 @@ export default function TeamPaymentPage() {
               {
                 key: 'paid',
                 header: 'Đã thanh toán',
-                headerClassName: 'text-right',
-                className: 'text-right',
+                headerClassName: 'text-right w-[120px]',
+                className: 'text-right w-[120px]',
                 render: (p) => (
-                  <span className="font-semibold text-emerald-600 tabular-nums">
+                  <span className="font-semibold text-emerald-600 tabular-nums text-xs whitespace-nowrap">
                     {formatCurrency(p.paid)}
                   </span>
                 )
@@ -395,6 +385,7 @@ export default function TeamPaymentPage() {
             }}
             emptyMessage="Chưa có dữ liệu thanh toán"
           />
+          </div>
         </div>
       </div>
 

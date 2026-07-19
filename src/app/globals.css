@@ -63,6 +63,27 @@ body {
   @apply bg-orange-500;
 }
 
+/* Luôn hiển thị scrollbar ngang đậm trong wrapper bảng để người dùng thấy có thể cuộn ngang */
+.table-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.table-scroll-x::-webkit-scrollbar {
+  height: 10px;
+}
+.table-scroll-x::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 9999px;
+}
+.table-scroll-x::-webkit-scrollbar-thumb {
+  background: #fb923c;
+  border-radius: 9999px;
+  border: 2px solid #f3f4f6;
+}
+.table-scroll-x::-webkit-scrollbar-thumb:hover {
+  background: #ea580c;
+}
+
 /* Premium Responsive Utilities */
 @layer utilities {
   .mobile-only {
