@@ -65,18 +65,18 @@ export function DataTable<T extends { id?: number | string }>({
             <div className={`${disableCardView ? 'block' : 'hidden md:block'} overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm`}>
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
-                        <tr>
+                        <tr className="border-b border-gray-200">
                             {columns.map((col) => (
                                 <th
                                     key={col.key}
                                     scope="col"
-                                    className={`px-4 py-3 text-left text-xs font-black uppercase tracking-wider text-gray-600 ${col.headerClassName || ''} ${col.mobileHidden ? 'hidden lg:table-cell' : ''}`}
+                                    className={`px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 whitespace-nowrap ${col.headerClassName || ''} ${col.mobileHidden ? 'hidden lg:table-cell' : ''}`}
                                 >
                                     {col.header}
                                 </th>
                             ))}
                             {actions && (
-                                <th scope="col" className="px-4 py-3 text-center text-xs font-black uppercase tracking-wider text-gray-600 w-16">
+                                <th scope="col" className="px-5 py-3.5 text-center text-[11px] font-semibold uppercase tracking-widest text-gray-500 w-16">
                                     Thao tác
                                 </th>
                             )}
@@ -85,7 +85,7 @@ export function DataTable<T extends { id?: number | string }>({
                     <tbody className="divide-y divide-gray-100 bg-white">
                         {isLoading ? (
                             <tr>
-                                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-12 text-center text-gray-500">
+                                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-5 py-12 text-center text-gray-500">
                                     <div className="flex items-center justify-center space-x-2 min-h-[300px]">
                                         <div className="flex flex-col items-center gap-3">
                                             <svg className="h-8 w-8 animate-spin text-orange-600" fill="none" viewBox="0 0 24 24">
@@ -99,7 +99,7 @@ export function DataTable<T extends { id?: number | string }>({
                             </tr>
                         ) : data.length === 0 ? (
                             <tr>
-                                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-8 text-center text-gray-500">
+                                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-5 py-8 text-center text-gray-500">
                                     {emptyMessage}
                                 </td>
                             </tr>
@@ -108,18 +108,18 @@ export function DataTable<T extends { id?: number | string }>({
                                 <tr
                                     key={item.id || index}
                                     onClick={() => onRowClick && onRowClick(item)}
-                                    className={`transition-colors hover:bg-orange-50/40 ${onRowClick ? 'cursor-pointer' : ''}`}
+                                    className={`border-b border-gray-100 transition-colors duration-150 hover:bg-gray-50/70 ${onRowClick ? 'cursor-pointer' : ''}`}
                                 >
                                     {columns.map((col) => (
                                         <td
                                             key={col.key}
-                                            className={`whitespace-nowrap px-4 py-3 text-sm text-gray-700 ${col.className || ''} ${col.mobileHidden ? 'hidden lg:table-cell' : ''}`}
+                                            className={`whitespace-nowrap px-5 py-4 text-sm text-gray-700 ${col.className || ''} ${col.mobileHidden ? 'hidden lg:table-cell' : ''}`}
                                         >
                                             {col.render ? col.render(item, index) : (item as unknown as Record<string, React.ReactNode>)[col.key]}
                                         </td>
                                     ))}
                                     {actions && (
-                                        <td className="whitespace-nowrap px-4 py-3 text-center text-sm">
+                                        <td className="whitespace-nowrap px-5 py-4 text-center text-sm">
                                             <TableRowActions actions={actions(item)} />
                                         </td>
                                     )}

@@ -18,7 +18,8 @@ export default function SettingsModal({
 }: SettingsModalProps) {
   const [formData, setFormData] = useState({
     pricePerPackage: 0,
-    teamLeaderName: ''
+    teamLeaderName: '',
+    debt: 0
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,7 +28,8 @@ export default function SettingsModal({
     if (currentSettings) {
       setFormData({
         pricePerPackage: currentSettings.pricePerPackage,
-        teamLeaderName: currentSettings.teamLeaderName
+        teamLeaderName: currentSettings.teamLeaderName,
+        debt: currentSettings.debt
       });
     }
   }, [currentSettings]);
@@ -61,19 +63,26 @@ export default function SettingsModal({
   };
 
   const formFields: FormField[] = [
-    { 
-      name: 'teamLeaderName', 
-      label: 'Tên tổ trưởng', 
-      type: 'text', 
+    {
+      name: 'teamLeaderName',
+      label: 'Tên tổ trưởng',
+      type: 'text',
       required: true,
       placeholder: 'Nhập tên tổ trưởng...'
     },
-    { 
-      name: 'pricePerPackage', 
-      label: 'Giá trên 1 gòng (đ)', 
-      type: 'number', 
+    {
+      name: 'pricePerPackage',
+      label: 'Giá trên 1 gòng (đ)',
+      type: 'number',
       required: true,
       placeholder: 'Nhập giá...'
+    },
+    {
+      name: 'debt',
+      label: 'Công nợ hiện tại (đ)',
+      type: 'number',
+      required: false,
+      placeholder: 'Nhập công nợ...'
     },
   ];
 

@@ -25,6 +25,7 @@ export default function AddTeamPaymentModal({
   const [brokenPackages, setBrokenPackages] = useState<BrokenPackageItem[]>([
     { type: '', quantity: 0 }
   ]);
+  const [paid, setPaid] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -89,6 +90,7 @@ export default function AddTeamPaymentModal({
       const created = await teamPaymentApi.createTeamPayment({
         todayRemaining,
         brokenPackages: validBrokenPackages,
+        paid,
         createdUserId: userId
       });
 
@@ -109,6 +111,7 @@ export default function AddTeamPaymentModal({
       // Reset form
       setTodayRemaining(0);
       setBrokenPackages([{ type: '', quantity: 0 }]);
+      setPaid(0);
       
       onClose();
     } catch (err) {
@@ -163,6 +166,35 @@ export default function AddTeamPaymentModal({
             placeholder="Nhập số gòng..."
           />
         </div>
+
+        {/* Số tiền thanh toán */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Số tiền thanh toán (đ)
+          </label>
+          <input
+            type="number"
+            value={paid}
+            onChange={(e) => setPaid(parseFloat(e.target.value) || 0)}
+            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            placeholder="Nhập số tiền thanh toán..."
+          />
+        </div>
+
+        {/* Hiển thị công nợ hiện tại */}
+        {settings?.debt !== undefined && settings.debt > 0 && (
+          <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-600">Công nợ hiện tại:</span>
+              <span className="text-xl font-black text-red-600">
+                {settings.debt.toLocaleString('en-US')}đ
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Sau khi tạo phiếu, công nợ sẽ được cập nhật: Debt = {settings.debt.toLocaleString('en-US')} + Tổng tiền - Số tiền thanh toán
+            </p>
+          </div>
+        )}
 
         {/* Danh sách kiện sổ */}
         <div className="space-y-3 border-t pt-4">
