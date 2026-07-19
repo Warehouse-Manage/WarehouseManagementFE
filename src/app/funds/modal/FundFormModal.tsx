@@ -1,5 +1,6 @@
 'use client';
 
+import Select from 'react-select';
 import { Modal, DynamicForm, FormField } from '@/components/shared';
 
 interface FundFormModalProps {
@@ -13,12 +14,13 @@ interface FundFormModalProps {
     amount: number | '';
     category: string;
     objectType: string;
-    objectName: string;
   };
   error: string | null;
   submitting: boolean;
   suggestions: { id: number; name: string }[];
   loadingSuggestions: boolean;
+  objectId: number | '';
+  objectName: string;
   onFieldChange: (name: string, value: unknown) => void;
   onSuggestionClick: (suggestion: { id: number; name: string }) => void;
   onSubmit: () => void;
@@ -35,6 +37,8 @@ export default function FundFormModal({
   submitting,
   suggestions,
   loadingSuggestions,
+  objectId,
+  objectName,
   onFieldChange,
   onSuggestionClick,
   onSubmit,
@@ -50,21 +54,22 @@ export default function FundFormModal({
         <>
           <button
             onClick={onClose}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+            className="px-4 py-2 border rounded font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors disabled:cursor-not-allowed"
+            disabled={submitting}
           >
             Hủy
           </button>
           <button
             onClick={onSubmit}
             disabled={submitting}
-            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-60 transition-colors cursor-pointer disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-orange-600 text-white rounded font-bold hover:bg-orange-700 disabled:opacity-60 cursor-pointer transition-colors disabled:cursor-not-allowed"
           >
             {submitting ? 'Đang lưu...' : editingId ? 'Cập nhật' : 'Lưu'}
           </button>
         </>
       }
     >
-      <div className="space-y-6">
+      <div className="space-y-4">
         {error && <div className="text-red-600 text-sm font-semibold bg-red-50 p-3 rounded border border-red-100">{error}</div>}
 
         <DynamicForm
@@ -75,42 +80,69 @@ export default function FundFormModal({
         />
 
         {formValues.objectType && (
-          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-black uppercase tracking-wider text-blue-600">Chọn đối tượng</h3>
-              <div className="flex items-center gap-2">
-                {loadingSuggestions && <span className="text-[10px] text-blue-400 italic">Đang tải...</span>}
-                <button
-                  type="button"
-                  onClick={onQuickCreateClick}
-                  className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700 transition-colors cursor-pointer"
-                  title={`Thêm ${formValues.objectType} mới`}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <span>Thêm mới</span>
-                </button>
-              </div>
+          <div className="w-full">
+            <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1.5">Đối tượng *</label>
+            <div className="flex items-stretch gap-2">
+              <Select
+                className="flex-1 min-w-0 text-sm"
+                placeholder={loadingSuggestions ? 'Đang tải...' : '-- Chọn đối tượng --'}
+                isDisabled={loadingSuggestions && suggestions.length === 0}
+                isLoading={loadingSuggestions}
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
+                options={suggestions.map((s) => ({
+                  value: s.id,
+                  label: s.name
+                }))}
+                value={(() => {
+                  if (!suggestions.length) return null;
+                  const selected = suggestions.find((s) => s.id === objectId || s.name === objectName);
+                  return selected ? { value: selected.id, label: selected.name } : null;
+                })()}
+                onChange={(option) => {
+                  if (!option) {
+                    onSuggestionClick({ id: 0, name: '' });
+                    return;
+                  }
+                  onSuggestionClick({ id: option.value, name: option.label });
+                }}
+                noOptionsMessage={() =>
+                  loadingSuggestions ? 'Đang tải...' : 'Không tìm thấy gợi ý nào'
+                }
+                styles={{
+                  control: (base, state) => ({
+                    ...base,
+                    borderRadius: '0.5rem',
+                    borderColor: state.isFocused ? '#f97316' : '#d1d5db',
+                    boxShadow: state.isFocused ? '0 0 0 2px #ffedd5' : 'none',
+                    '&:hover': { borderColor: '#f97316' },
+                    minHeight: '42px'
+                  }),
+                  option: (base, state) => ({
+                    ...base,
+                    backgroundColor: state.isSelected ? '#f97316' : state.isFocused ? '#ffedd5' : 'white',
+                    color: state.isSelected ? 'white' : 'black',
+                    '&:active': { backgroundColor: '#f97316' }
+                  }),
+                  menuPortal: (base) => ({
+                    ...base,
+                    zIndex: 9999
+                  })
+                }}
+              />
+              <button
+                type="button"
+                onClick={onQuickCreateClick}
+                className="shrink-0 w-10 h-[42px] rounded-lg bg-orange-500 text-white hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-100 transition-colors font-bold text-xl leading-none flex items-center justify-center cursor-pointer"
+                title={`Thêm ${formValues.objectType} mới`}
+              >
+                +
+              </button>
             </div>
-            <select
-              value={suggestions.find(s => s.name === formValues.objectName)?.id || ''}
-              onChange={(e) => {
-                const selected = suggestions.find(s => s.id === Number(e.target.value));
-                if (selected) onSuggestionClick(selected);
-              }}
-              className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              disabled={loadingSuggestions || suggestions.length === 0}
-            >
-              <option value="">-- Chọn đối tượng --</option>
-              {suggestions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
             {!loadingSuggestions && suggestions.length === 0 && formValues.objectType && (
-              <span className="text-xs text-gray-400 mt-2 block">Không tìm thấy gợi ý nào</span>
+              <span className="text-xs text-gray-400 mt-1.5 block">
+                Chưa có {formValues.objectType.toLowerCase()} nào. Bấm <span className="font-bold">+</span> để tạo mới.
+              </span>
             )}
           </div>
         )}
