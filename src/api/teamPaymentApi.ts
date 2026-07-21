@@ -4,7 +4,9 @@ import {
     TeamPaymentFormData,
     UpdateTeamPaymentFormData,
     TeamPaymentSettings,
-    TeamPaymentSettingsFormData
+    TeamPaymentSettingsFormData,
+    TeamPaymentPaginatedResponse,
+    TeamPaymentFilterParams
 } from '@/types';
 
 export const teamPaymentApi = {
@@ -12,6 +14,20 @@ export const teamPaymentApi = {
     getTeamPayments: async (params?: Record<string, string>): Promise<TeamPayment[]> => {
         const query = params ? `?${new URLSearchParams(params).toString()}` : '';
         return api.get<TeamPayment[]>(`/api/teampayments${query}`);
+    },
+
+    getTeamPaymentsWithFilter: async (
+        params: TeamPaymentFilterParams
+    ): Promise<TeamPaymentPaginatedResponse> => {
+        const search: Record<string, string> = {};
+        if (params.pageNumber !== undefined) search.pageNumber = String(params.pageNumber);
+        if (params.pageSize !== undefined) search.pageSize = String(params.pageSize);
+        if (params.startDate) search.startDate = params.startDate;
+        if (params.endDate) search.endDate = params.endDate;
+        if (params.searchTerm) search.searchTerm = params.searchTerm;
+
+        const query = new URLSearchParams(search).toString();
+        return api.get<TeamPaymentPaginatedResponse>(`/api/teampayments/filter?${query}`);
     },
 
     createTeamPayment: async (data: TeamPaymentFormData): Promise<TeamPayment> => {

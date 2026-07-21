@@ -11,7 +11,7 @@ import type { ActionItem } from '@/components/shared/TableRowActions';
 import AddTeamPaymentModal from './modal/AddTeamPaymentModal';
 import SettingsModal from './modal/SettingsModal';
 import { toast } from 'sonner';
-import { Printer, Trash2, Pencil } from 'lucide-react';
+import { Printer, Trash2, Pencil, CalendarDays } from 'lucide-react';
 import { useConfirm } from '@/hooks/useConfirm';
 
 const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -28,10 +28,28 @@ export default function TeamPaymentPage() {
   const [settings, setSettings] = useState<TeamPaymentSettings | null>(null);
   const [packageProducts, setPackageProducts] = useState<PackageProduct[]>([]);
 
+  // Tổng hợp (do BE tính trên toàn bộ kết quả lọc)
+  const [summaryTotalAmount, setSummaryTotalAmount] = useState(0);
+  const [summaryTotalPaid, setSummaryTotalPaid] = useState(0);
+  const [summaryTotalRemaining, setSummaryTotalRemaining] = useState(0);
+  const [summaryCurrentDebt, setSummaryCurrentDebt] = useState(0);
+
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+
   const [canFetch, setCanFetch] = useState<boolean>(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [draftFilterLeader, setDraftFilterLeader] = useState('');
   const [filterLeader, setFilterLeader] = useState('');
+  const [draftFilterDateFrom, setDraftFilterDateFrom] = useState('');
+  const [draftFilterDateTo, setDraftFilterDateTo] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  // Bộ lọc tháng: '' = tất cả, 'YYYY-MM' = tháng/năm cụ thể
+  const [draftFilterMonth, setDraftFilterMonth] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
 
   useEffect(() => {
     const role = getCookie('role');
@@ -52,18 +70,61 @@ export default function TeamPaymentPage() {
     setIsCheckingAuth(false);
   }, [router]);
 
+  // Khởi tạo filter tháng = tháng hiện tại (theo giờ VN)
+  useEffect(() => {
+    const now = new Date();
+    const vn = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const m = String(vn.getMonth() + 1).padStart(2, '0');
+    const initial = `${vn.getFullYear()}-${m}`;
+    setDraftFilterMonth(initial);
+    setFilterMonth(initial);
+  }, []);
+
   const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await teamPaymentApi.getTeamPayments();
-      setPayments(data);
+
+      const startDate = filterDateFrom
+        ? new Date(`${filterDateFrom}T00:00:00`).toISOString()
+        : filterMonth
+          ? new Date(`${filterMonth}-01T00:00:00`).toISOString()
+          : undefined;
+
+      const endDate = filterDateTo
+        ? new Date(`${filterDateTo}T23:59:59.999`).toISOString()
+        : filterMonth
+          ? new Date(
+              new Date(`${filterMonth}-01T00:00:00`).getFullYear(),
+              new Date(`${filterMonth}-01T00:00:00`).getMonth() + 1,
+              0,
+              23,
+              59,
+              59,
+              999
+            ).toISOString()
+          : undefined;
+
+      const response = await teamPaymentApi.getTeamPaymentsWithFilter({
+        pageNumber: currentPage,
+        pageSize,
+        startDate,
+        endDate,
+        searchTerm: filterLeader.trim() || undefined
+      });
+
+      setPayments(response.data);
+      setTotalCount(response.totalCount);
+      setSummaryTotalAmount(response.totalAmount);
+      setSummaryTotalPaid(response.totalPaid);
+      setSummaryTotalRemaining(response.totalRemaining);
+      setSummaryCurrentDebt(response.currentDebt);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Có lỗi xảy ra');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, pageSize, filterDateFrom, filterDateTo, filterMonth, filterLeader]);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -102,6 +163,15 @@ export default function TeamPaymentPage() {
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('vi-VN') + ' đ';
+  };
+
+  const formatDateFilterDisplay = (value: string) => {
+    if (!value) return '';
+    const parts = value.split('-');
+    if (parts.length !== 3) return value;
+    const [year, month, day] = parts;
+    if (year.length !== 4 || month.length !== 2 || day.length !== 2) return value;
+    return `${day}/${month}/${year}`;
   };
 
   const resolveTeamPaymentFundId = (p: TeamPayment) => p.fundIdPackage ?? p.fundIdBroken;
@@ -149,11 +219,17 @@ export default function TeamPaymentPage() {
     fetchSettings();
   };
 
-  const filteredPayments = useMemo(() => {
-    const leader = filterLeader.trim().toLowerCase();
-    if (!leader) return payments;
-    return payments.filter((p) => p.teamLeaderName?.toLowerCase().includes(leader));
-  }, [payments, filterLeader]);
+  // Reset về trang 1 khi đổi bộ lọc
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterLeader, filterDateFrom, filterDateTo, filterMonth]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  // Đồng bộ currentPage nếu vượt quá tổng trang
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
 
   if (isCheckingAuth) {
     return (
@@ -229,6 +305,70 @@ export default function TeamPaymentPage() {
         </div>
       )}
 
+      {/* Summary Cards - Tổng hợp theo bộ lọc hiện tại (do BE tính trên toàn bộ kết quả lọc) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-6">
+        <div className="border border-orange-100 rounded-2xl p-4 bg-orange-50 shadow-sm shadow-orange-100">
+          <div className="text-[10px] font-black uppercase text-orange-600 tracking-wider mb-1">
+            Tổng tiền
+          </div>
+          <div className="text-2xl font-black text-orange-700 tabular-nums">
+            {summaryTotalAmount.toLocaleString('en-US')}đ
+          </div>
+        </div>
+        <div className="border border-emerald-100 rounded-2xl p-4 bg-emerald-50 shadow-sm shadow-emerald-100">
+          <div className="text-[10px] font-black uppercase text-emerald-600 tracking-wider mb-1">
+            Tổng đã thanh toán
+          </div>
+          <div className="text-2xl font-black text-emerald-700 tabular-nums">
+            {summaryTotalPaid.toLocaleString('en-US')}đ
+          </div>
+        </div>
+        <div
+          className={`border rounded-2xl p-4 shadow-sm ${
+            summaryCurrentDebt > 0
+              ? 'border-amber-100 bg-amber-50 shadow-amber-100'
+              : 'border-slate-100 bg-slate-50 shadow-slate-100'
+          }`}
+        >
+          <div
+            className={`text-[10px] font-black uppercase tracking-wider mb-1 ${
+              summaryCurrentDebt > 0 ? 'text-amber-600' : 'text-slate-600'
+            }`}
+          >
+            Dư nợ
+          </div>
+          <div
+            className={`text-2xl font-black tabular-nums ${
+              summaryCurrentDebt > 0 ? 'text-amber-700' : 'text-slate-700'
+            }`}
+          >
+            {summaryCurrentDebt.toLocaleString('en-US')}đ
+          </div>
+        </div>
+        <div
+          className={`border rounded-2xl p-4 shadow-sm ${
+            summaryTotalRemaining > 0
+              ? 'border-red-100 bg-red-50 shadow-red-100'
+              : 'border-blue-100 bg-blue-50 shadow-blue-100'
+          }`}
+        >
+          <div
+            className={`text-[10px] font-black uppercase tracking-wider mb-1 ${
+              summaryTotalRemaining > 0 ? 'text-red-600' : 'text-blue-600'
+            }`}
+          >
+            Tổng dư nợ
+          </div>
+          <div
+            className={`text-2xl font-black tabular-nums ${
+              summaryTotalRemaining > 0 ? 'text-red-700' : 'text-blue-700'
+            }`}
+          >
+            {summaryTotalRemaining.toLocaleString('en-US')}đ
+          </div>
+        </div>
+      </div>
+
       {/* Data Table */}
       <div className="min-w-0 bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-white sticky top-0 z-[1]">
@@ -243,11 +383,30 @@ export default function TeamPaymentPage() {
               đảm bảo thanh cuộn ngang luôn xuất hiện khi màn hình nhỏ */}
           <div className="min-w-[720px]">
             <DataTable
-            data={filteredPayments}
+            data={payments}
             isLoading={loading}
             enableFilter
+            enablePagination
+            totalCount={totalCount}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onPageChange={(page) => setCurrentPage(page)}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
             filterContent={
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tháng</label>
+                  <input
+                    type="month"
+                    value={draftFilterMonth}
+                    onChange={(e) => setDraftFilterMonth(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tên tổ trưởng</label>
                   <input
@@ -258,17 +417,77 @@ export default function TeamPaymentPage() {
                   />
                 </div>
 
-                <div className="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Từ ngày</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formatDateFilterDisplay(draftFilterDateFrom)}
+                      readOnly
+                      placeholder="dd/mm/yyyy"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-10 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                    />
+                    <CalendarDays className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="date"
+                      value={draftFilterDateFrom}
+                      onChange={(e) => setDraftFilterDateFrom(e.target.value)}
+                      aria-label="Từ ngày"
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Đến ngày</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formatDateFilterDisplay(draftFilterDateTo)}
+                      readOnly
+                      placeholder="dd/mm/yyyy"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-10 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                    />
+                    <CalendarDays className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="date"
+                      value={draftFilterDateTo}
+                      onChange={(e) => setDraftFilterDateTo(e.target.value)}
+                      aria-label="Đến ngày"
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    />
+                  </div>
+                </div>
+
+                <div className="md:col-span-2 xl:col-span-4 flex flex-wrap justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => setFilterLeader(draftFilterLeader)}
+                    onClick={() => {
+                      setFilterLeader(draftFilterLeader);
+                      setFilterDateFrom(draftFilterDateFrom);
+                      setFilterDateTo(draftFilterDateTo);
+                      setFilterMonth(draftFilterMonth);
+                    }}
                     className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
                   >
                     Lọc
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setDraftFilterLeader(''); setFilterLeader(''); }}
+                    onClick={() => {
+                      const now = new Date();
+                      const vn = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+                      const m = String(vn.getMonth() + 1).padStart(2, '0');
+                      const initial = `${vn.getFullYear()}-${m}`;
+                      setDraftFilterLeader('');
+                      setDraftFilterDateFrom('');
+                      setDraftFilterDateTo('');
+                      setDraftFilterMonth(initial);
+                      setFilterLeader('');
+                      setFilterDateFrom('');
+                      setFilterDateTo('');
+                      setFilterMonth(initial);
+                    }}
                     className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                   >
                     Xóa lọc

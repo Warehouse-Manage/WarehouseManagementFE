@@ -218,6 +218,25 @@ export interface FundFormData {
     createdUserId: number;
 }
 
+export interface FundPaginatedResponse {
+    data: Fund[];
+    totalCount: number;
+    totalThu: number;
+    totalChi: number;
+    openingBalance: number;
+    currentBalance: number;
+}
+
+export interface FundFilterParams {
+    pageNumber?: number;
+    pageSize?: number;
+    startDate?: string;
+    endDate?: string;
+    searchTerm?: string;
+    type?: string;
+    category?: string;
+}
+
 export interface Partner {
     id: number;
     name: string;

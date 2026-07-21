@@ -46,3 +46,20 @@ export interface UpdateTeamPaymentFormData {
     brokenPackages: BrokenPackageItem[];
     paid: number;
 }
+
+export interface TeamPaymentPaginatedResponse {
+    data: TeamPayment[];
+    totalCount: number;
+    totalAmount: number;
+    totalPaid: number;
+    totalRemaining: number;
+    currentDebt: number;
+}
+
+export interface TeamPaymentFilterParams {
+    pageNumber?: number;
+    pageSize?: number;
+    startDate?: string;
+    endDate?: string;
+    searchTerm?: string;
+}
