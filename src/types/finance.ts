@@ -235,6 +235,7 @@ export interface FundFilterParams {
     searchTerm?: string;
     type?: string;
     category?: string;
+    year?: number;
 }
 
 export interface Partner {

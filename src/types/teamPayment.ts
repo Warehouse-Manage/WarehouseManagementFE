@@ -62,4 +62,5 @@ export interface TeamPaymentFilterParams {
     startDate?: string;
     endDate?: string;
     searchTerm?: string;
+    year?: number;
 }

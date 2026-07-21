@@ -215,6 +215,7 @@ export const financeApi = {
         if (params?.searchTerm) search.searchTerm = params.searchTerm;
         if (params?.type) search.type = params.type;
         if (params?.category) search.category = params.category;
+        if (params?.year !== undefined && params.year !== null) search.year = String(params.year);
 
         const query = new URLSearchParams(search).toString();
         return api.get<FundPaginatedResponse>(`/api/funds/filter?${query}`);

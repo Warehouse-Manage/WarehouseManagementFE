@@ -25,6 +25,7 @@ export const teamPaymentApi = {
         if (params.startDate) search.startDate = params.startDate;
         if (params.endDate) search.endDate = params.endDate;
         if (params.searchTerm) search.searchTerm = params.searchTerm;
+        if (params.year !== undefined && params.year !== null) search.year = String(params.year);
 
         const query = new URLSearchParams(search).toString();
         return api.get<TeamPaymentPaginatedResponse>(`/api/teampayments/filter?${query}`);

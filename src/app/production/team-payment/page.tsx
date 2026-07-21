@@ -47,9 +47,13 @@ export default function TeamPaymentPage() {
   const [draftFilterDateTo, setDraftFilterDateTo] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
-  // Bộ lọc tháng: '' = tất cả, 'YYYY-MM' = tháng/năm cụ thể
+  // Bộ lọc thời gian: theo tháng / theo năm / toàn thời gian
+  const [draftFilterMode, setDraftFilterMode] = useState<'month' | 'year' | 'all'>('month');
+  const [filterMode, setFilterMode] = useState<'month' | 'year' | 'all'>('month');
   const [draftFilterMonth, setDraftFilterMonth] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
+  const [draftFilterYear, setDraftFilterYear] = useState<number>(new Date().getFullYear());
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
     const role = getCookie('role');
@@ -76,8 +80,11 @@ export default function TeamPaymentPage() {
     const vn = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
     const m = String(vn.getMonth() + 1).padStart(2, '0');
     const initial = `${vn.getFullYear()}-${m}`;
+    const currentYear = vn.getFullYear();
     setDraftFilterMonth(initial);
     setFilterMonth(initial);
+    setDraftFilterYear(currentYear);
+    setFilterYear(currentYear);
   }, []);
 
   const fetchPayments = useCallback(async () => {
@@ -85,31 +92,42 @@ export default function TeamPaymentPage() {
       setLoading(true);
       setError(null);
 
-      const startDate = filterDateFrom
-        ? new Date(`${filterDateFrom}T00:00:00`).toISOString()
-        : filterMonth
-          ? new Date(`${filterMonth}-01T00:00:00`).toISOString()
-          : undefined;
+      let startDate: string | undefined;
+      let endDate: string | undefined;
+      let yearParam: number | undefined;
 
-      const endDate = filterDateTo
-        ? new Date(`${filterDateTo}T23:59:59.999`).toISOString()
-        : filterMonth
-          ? new Date(
-              new Date(`${filterMonth}-01T00:00:00`).getFullYear(),
-              new Date(`${filterMonth}-01T00:00:00`).getMonth() + 1,
-              0,
-              23,
-              59,
-              59,
-              999
-            ).toISOString()
+      // Ưu tiên khoảng ngày tùy chỉnh nếu có
+      const hasCustomDate = filterDateFrom || filterDateTo;
+
+      if (hasCustomDate) {
+        startDate = filterDateFrom
+          ? new Date(`${filterDateFrom}T00:00:00`).toISOString()
           : undefined;
+        endDate = filterDateTo
+          ? new Date(`${filterDateTo}T23:59:59.999`).toISOString()
+          : undefined;
+      } else if (filterMode === 'month' && filterMonth) {
+        startDate = new Date(`${filterMonth}-01T00:00:00`).toISOString();
+        endDate = new Date(
+          new Date(`${filterMonth}-01T00:00:00`).getFullYear(),
+          new Date(`${filterMonth}-01T00:00:00`).getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999
+        ).toISOString();
+      } else if (filterMode === 'year' && filterYear) {
+        yearParam = filterYear;
+      }
+      // else 'all' → không gửi startDate/endDate/year
 
       const response = await teamPaymentApi.getTeamPaymentsWithFilter({
         pageNumber: currentPage,
         pageSize,
         startDate,
         endDate,
+        year: yearParam,
         searchTerm: filterLeader.trim() || undefined
       });
 
@@ -124,7 +142,7 @@ export default function TeamPaymentPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, filterDateFrom, filterDateTo, filterMonth, filterLeader]);
+  }, [currentPage, pageSize, filterDateFrom, filterDateTo, filterMonth, filterYear, filterMode, filterLeader]);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -222,7 +240,7 @@ export default function TeamPaymentPage() {
   // Reset về trang 1 khi đổi bộ lọc
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterLeader, filterDateFrom, filterDateTo, filterMonth]);
+  }, [filterLeader, filterDateFrom, filterDateTo, filterMonth, filterYear, filterMode]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
@@ -398,14 +416,44 @@ export default function TeamPaymentPage() {
             filterContent={
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tháng</label>
-                  <input
-                    type="month"
-                    value={draftFilterMonth}
-                    onChange={(e) => setDraftFilterMonth(e.target.value)}
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Khoảng thời gian</label>
+                  <select
+                    value={draftFilterMode}
+                    onChange={(e) => setDraftFilterMode(e.target.value as 'month' | 'year' | 'all')}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
-                  />
+                  >
+                    <option value="month">Theo tháng</option>
+                    <option value="year">Theo năm</option>
+                    <option value="all">Toàn thời gian</option>
+                  </select>
                 </div>
+
+                {draftFilterMode === 'month' && (
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tháng</label>
+                    <input
+                      type="month"
+                      value={draftFilterMonth}
+                      onChange={(e) => setDraftFilterMonth(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                    />
+                  </div>
+                )}
+
+                {draftFilterMode === 'year' && (
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Năm</label>
+                    <select
+                      value={draftFilterYear}
+                      onChange={(e) => setDraftFilterYear(Number(e.target.value))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                    >
+                      {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tên tổ trưởng</label>
@@ -467,6 +515,8 @@ export default function TeamPaymentPage() {
                       setFilterDateFrom(draftFilterDateFrom);
                       setFilterDateTo(draftFilterDateTo);
                       setFilterMonth(draftFilterMonth);
+                      setFilterYear(draftFilterYear);
+                      setFilterMode(draftFilterMode);
                     }}
                     className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
                   >
@@ -479,14 +529,19 @@ export default function TeamPaymentPage() {
                       const vn = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
                       const m = String(vn.getMonth() + 1).padStart(2, '0');
                       const initial = `${vn.getFullYear()}-${m}`;
+                      const currentYear = vn.getFullYear();
                       setDraftFilterLeader('');
                       setDraftFilterDateFrom('');
                       setDraftFilterDateTo('');
                       setDraftFilterMonth(initial);
+                      setDraftFilterYear(currentYear);
+                      setDraftFilterMode('month');
                       setFilterLeader('');
                       setFilterDateFrom('');
                       setFilterDateTo('');
                       setFilterMonth(initial);
+                      setFilterYear(currentYear);
+                      setFilterMode('month');
                     }}
                     className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                   >
