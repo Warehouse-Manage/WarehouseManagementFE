@@ -12,6 +12,8 @@ import {
     PlaceOrderFormData,
     Fund,
     FundFormData,
+    FundPaginatedResponse,
+    FundFilterParams,
     OrderReceiptPrintModel,
     OrderDeliveryNotePrintModel,
     InventoryForecastResponse,
@@ -204,17 +206,19 @@ export const financeApi = {
         return api.get<Fund[]>(url);
     },
 
-    getFundsFilter: async (page: number = 1, pageSize: number = 10, params?: Record<string, string | number>): Promise<{ data: Fund[]; totalCount: number }> => {
-        let url = `/api/funds/filter?pageNumber=${page}&pageSize=${pageSize}`;
-        if (params) {
-            const query = new URLSearchParams(params as Record<string, string>).toString();
-            if (query) url += `&${query}`;
-        }
-        const response = await api.get<{ data: Fund[]; totalCount: number }>(url);
-        return {
-            data: response.data || [],
-            totalCount: response.totalCount || 0
-        };
+    getFundsFilter: async (params?: FundFilterParams): Promise<FundPaginatedResponse> => {
+        const search: Record<string, string> = {};
+        if (params?.pageNumber !== undefined) search.pageNumber = String(params.pageNumber);
+        if (params?.pageSize !== undefined) search.pageSize = String(params.pageSize);
+        if (params?.startDate) search.startDate = params.startDate;
+        if (params?.endDate) search.endDate = params.endDate;
+        if (params?.searchTerm) search.searchTerm = params.searchTerm;
+        if (params?.type) search.type = params.type;
+        if (params?.category) search.category = params.category;
+        if (params?.year !== undefined && params.year !== null) search.year = String(params.year);
+
+        const query = new URLSearchParams(search).toString();
+        return api.get<FundPaginatedResponse>(`/api/funds/filter?${query}`);
     },
 
     createFund: async (data: FundFormData): Promise<Fund> => {

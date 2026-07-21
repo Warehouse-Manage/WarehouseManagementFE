@@ -30,7 +30,7 @@ const includesText = (source?: string | null, keyword?: string) => {
 export default function FundsPage() {
   const { confirm, ConfirmDialog } = useConfirm();
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
-  const [allFunds, setAllFunds] = useState<Fund[]>([]);
+  const [funds, setFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState<'Thu' | 'Chi' | ''>('');
@@ -57,7 +57,22 @@ export default function FundsPage() {
   const [draftFilterDateTo, setDraftFilterDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  // apiHost removed, handled in API modules
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Bộ lọc thời gian: theo tháng / theo năm / toàn thời gian
+  const [draftFilterMode, setDraftFilterMode] = useState<'month' | 'year' | 'all'>('month');
+  const [filterMode, setFilterMode] = useState<'month' | 'year' | 'all'>('month');
+  const [draftFilterMonth, setDraftFilterMonth] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+  const [draftFilterYear, setDraftFilterYear] = useState<number>(new Date().getFullYear());
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
+
+  // Tổng hợp (do BE tính trên toàn bộ kết quả lọc)
+  const [summaryTotalThu, setSummaryTotalThu] = useState(0);
+  const [summaryTotalChi, setSummaryTotalChi] = useState(0);
+  const [summaryOpeningBalance, setSummaryOpeningBalance] = useState(0);
+  const [summaryCurrentBalance, setSummaryCurrentBalance] = useState(0);
+
   const [suggestions, setSuggestions] = useState<{ id: number; name: string }[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
@@ -67,6 +82,19 @@ export default function FundsPage() {
   const [quickCreateData, setQuickCreateData] = useState<Record<string, string | number>>({});
   const [quickCreateError, setQuickCreateError] = useState<string | null>(null);
   const [quickCreateSubmitting, setQuickCreateSubmitting] = useState(false);
+
+  // Khởi tạo filter tháng = tháng hiện tại (theo giờ VN)
+  useEffect(() => {
+    const now = new Date();
+    const vn = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const m = String(vn.getMonth() + 1).padStart(2, '0');
+    const initial = `${vn.getFullYear()}-${m}`;
+    const currentYear = vn.getFullYear();
+    setDraftFilterMonth(initial);
+    setFilterMonth(initial);
+    setDraftFilterYear(currentYear);
+    setFilterYear(currentYear);
+  }, []);
 
   const fundFormFields: FormField[] = [
     {
@@ -148,12 +176,6 @@ export default function FundsPage() {
     return `${day}/${month}/${year}`;
   };
 
-  const getFundEffectiveDate = (fund: Fund) => {
-    const value = fund.date || fund.dateCreated;
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  };
-
   // Load suggestions based on objectType
   const loadSuggestions = async (target: string) => {
     if (!target) {
@@ -203,8 +225,50 @@ export default function FundsPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await financeApi.getFunds();
-      setAllFunds(result);
+      let startDate: string | undefined;
+      let endDate: string | undefined;
+      let yearParam: number | undefined;
+
+      // Ưu tiên khoảng ngày tùy chỉnh nếu có
+      const hasCustomDate = filterDateFrom || filterDateTo;
+
+      if (hasCustomDate) {
+        startDate = filterDateFrom
+          ? new Date(`${filterDateFrom}T00:00:00`).toISOString()
+          : undefined;
+        endDate = filterDateTo
+          ? new Date(`${filterDateTo}T23:59:59.999`).toISOString()
+          : undefined;
+      } else if (filterMode === 'month' && filterMonth) {
+        startDate = new Date(`${filterMonth}-01T00:00:00`).toISOString();
+        endDate = new Date(
+          new Date(`${filterMonth}-01T00:00:00`).getFullYear(),
+          new Date(`${filterMonth}-01T00:00:00`).getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999
+        ).toISOString();
+      } else if (filterMode === 'year' && filterYear) {
+        yearParam = filterYear;
+      }
+      // else 'all' → không gửi startDate/endDate/year
+
+      const result = await financeApi.getFundsFilter({
+        pageNumber: currentPage,
+        pageSize,
+        startDate,
+        endDate,
+        year: yearParam,
+      });
+
+      setFunds(result.data);
+      setTotalCount(result.totalCount);
+      setSummaryTotalThu(result.totalThu);
+      setSummaryTotalChi(result.totalChi);
+      setSummaryOpeningBalance(result.openingBalance);
+      setSummaryCurrentBalance(result.currentBalance);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể tải danh sách sổ quỹ');
       console.error(err);
@@ -213,44 +277,25 @@ export default function FundsPage() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadFunds();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentPage, pageSize, filterDateFrom, filterDateTo, filterMonth, filterYear, filterMode, filterType, filterCategory]);
 
-  const filteredFunds = useMemo(() => {
-    const startDate = filterDateFrom ? new Date(`${filterDateFrom}T00:00:00`) : null;
-    const endDate = filterDateTo ? new Date(`${filterDateTo}T23:59:59.999`) : null;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType, filterCategory, filterReceiverName, filterPayerName, filterDateFrom, filterDateTo, filterMonth, filterYear, filterMode]);
 
-    return allFunds.filter((fund) => {
-      const fundDate = getFundEffectiveDate(fund);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
-      if (filterType && fund.type !== filterType) return false;
-      if (filterCategory && !includesText(fund.category, filterCategory)) return false;
-
-      if (filterReceiverName) {
-        if (fund.type !== 'Chi' || !includesText(fund.objectName, filterReceiverName)) {
-          return false;
-        }
-      }
-
-      if (filterPayerName) {
-        if (fund.type !== 'Thu' || !includesText(fund.objectName, filterPayerName)) {
-          return false;
-        }
-      }
-
-      if (startDate && (!fundDate || fundDate < startDate)) return false;
-      if (endDate && (!fundDate || fundDate > endDate)) return false;
-
-      return true;
-    });
-  }, [allFunds, filterCategory, filterDateFrom, filterDateTo, filterPayerName, filterReceiverName, filterType]);
+  useEffect(() => {
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
 
   const filteredCategoryOptions = useMemo(() => {
     const uniqueCategories = Array.from(
       new Set(
-        allFunds
+        funds
           .filter((fund) => !draftFilterType || fund.type === draftFilterType)
           .map((fund) => fund.category?.trim())
           .filter(Boolean)
@@ -258,23 +303,7 @@ export default function FundsPage() {
     ).sort((a, b) => a!.localeCompare(b!, 'vi'));
 
     return uniqueCategories as string[];
-  }, [allFunds, draftFilterType]);
-
-  const totalCount = filteredFunds.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-
-  const paginatedFunds = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredFunds.slice(start, start + pageSize);
-  }, [currentPage, filteredFunds, pageSize]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filterType, filterCategory, filterReceiverName, filterPayerName, filterDateFrom, filterDateTo]);
-
-  useEffect(() => {
-    setCurrentPage((prev) => Math.min(prev, totalPages));
-  }, [totalPages]);
+  }, [funds, draftFilterType]);
 
   // Show blank page if role is not 'Admin' or 'accountance'
   if (!canAccessAccounting(role)) {
@@ -555,17 +584,6 @@ export default function FundsPage() {
     }
   };
 
-  // Note: Tổng thu/chi tính trên toàn bộ dữ liệu (tất cả trang), không chỉ trang hiện tại
-  const calculateTotal = (type: string) => {
-    return filteredFunds
-      .filter(f => f.type === type)
-      .reduce((sum, f) => sum + f.amount, 0);
-  };
-
-  const totalThu = calculateTotal('Thu');
-  const totalChi = calculateTotal('Chi');
-  const balance = totalThu - totalChi;
-
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -589,19 +607,25 @@ export default function FundsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-6">
+        <div className="border border-blue-100 rounded-2xl p-4 bg-blue-50 shadow-sm shadow-blue-100">
+          <div className="text-[10px] font-black uppercase text-blue-600 tracking-wider mb-1">Quỹ đầu kỳ</div>
+          <div className={`text-2xl font-black tabular-nums ${summaryOpeningBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+            {summaryOpeningBalance.toLocaleString('en-US')}đ
+          </div>
+        </div>
         <div className="border border-green-100 rounded-2xl p-4 bg-green-50 shadow-sm shadow-green-100">
           <div className="text-[10px] font-black uppercase text-green-600 tracking-wider mb-1">Tổng thu</div>
-          <div className="text-2xl font-black text-green-700">{totalThu.toLocaleString('en-US')}đ</div>
+          <div className="text-2xl font-black text-green-700 tabular-nums">{summaryTotalThu.toLocaleString('en-US')}đ</div>
         </div>
         <div className="border border-red-100 rounded-2xl p-4 bg-red-50 shadow-sm shadow-red-100">
           <div className="text-[10px] font-black uppercase text-red-600 tracking-wider mb-1">Tổng chi</div>
-          <div className="text-2xl font-black text-red-700">{totalChi.toLocaleString('en-US')}đ</div>
+          <div className="text-2xl font-black text-red-700 tabular-nums">{summaryTotalChi.toLocaleString('en-US')}đ</div>
         </div>
-        <div className="border border-blue-100 rounded-2xl p-4 bg-blue-50 shadow-sm shadow-blue-100">
-          <div className="text-[10px] font-black uppercase text-blue-600 tracking-wider mb-1">Số dư</div>
-          <div className={`text-2xl font-black ${balance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-            {balance.toLocaleString('en-US')}đ
+        <div className="border border-violet-100 rounded-2xl p-4 bg-violet-50 shadow-sm shadow-violet-100">
+          <div className="text-[10px] font-black uppercase text-violet-600 tracking-wider mb-1">Tồn quỹ</div>
+          <div className={`text-2xl font-black tabular-nums ${summaryCurrentBalance >= 0 ? 'text-violet-700' : 'text-red-700'}`}>
+            {summaryCurrentBalance.toLocaleString('en-US')}đ
           </div>
         </div>
       </div>
@@ -709,7 +733,47 @@ export default function FundsPage() {
         <DataTable
           enableFilter
           filterContent={
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Khoảng thời gian</label>
+                <select
+                  value={draftFilterMode}
+                  onChange={(e) => setDraftFilterMode(e.target.value as 'month' | 'year' | 'all')}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                >
+                  <option value="month">Theo tháng</option>
+                  <option value="year">Theo năm</option>
+                  <option value="all">Toàn thời gian</option>
+                </select>
+              </div>
+
+              {draftFilterMode === 'month' && (
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tháng</label>
+                  <input
+                    type="month"
+                    value={draftFilterMonth}
+                    onChange={(e) => setDraftFilterMonth(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {draftFilterMode === 'year' && (
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Năm</label>
+                  <select
+                    value={draftFilterYear}
+                    onChange={(e) => setDraftFilterYear(Number(e.target.value))}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                  >
+                    {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Thu / Chi</label>
                 <select
@@ -803,7 +867,7 @@ export default function FundsPage() {
                 </div>
               </div>
 
-              <div className="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2">
+              <div className="md:col-span-2 xl:col-span-4 flex flex-wrap justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -813,6 +877,9 @@ export default function FundsPage() {
                     setFilterPayerName(draftFilterPayerName);
                     setFilterDateFrom(draftFilterDateFrom);
                     setFilterDateTo(draftFilterDateTo);
+                    setFilterMonth(draftFilterMonth);
+                    setFilterYear(draftFilterYear);
+                    setFilterMode(draftFilterMode);
                     setCurrentPage(1);
                   }}
                   className="px-4 py-2 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700"
@@ -822,18 +889,29 @@ export default function FundsPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    const now = new Date();
+                    const vn = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+                    const m = String(vn.getMonth() + 1).padStart(2, '0');
+                    const initial = `${vn.getFullYear()}-${m}`;
+                    const currentYear = vn.getFullYear();
                     setDraftFilterType('');
                     setDraftFilterCategory('');
                     setDraftFilterReceiverName('');
                     setDraftFilterPayerName('');
                     setDraftFilterDateFrom('');
                     setDraftFilterDateTo('');
+                    setDraftFilterMonth(initial);
+                    setDraftFilterYear(currentYear);
+                    setDraftFilterMode('month');
                     setFilterType('');
                     setFilterCategory('');
                     setFilterReceiverName('');
                     setFilterPayerName('');
                     setFilterDateFrom('');
                     setFilterDateTo('');
+                    setFilterMonth(initial);
+                    setFilterYear(currentYear);
+                    setFilterMode('month');
                     setCurrentPage(1);
                   }}
                   className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -843,7 +921,7 @@ export default function FundsPage() {
               </div>
             </div>
           }
-          data={paginatedFunds}
+          data={funds}
           isLoading={loading}
           enablePagination={true}
           totalCount={totalCount}
