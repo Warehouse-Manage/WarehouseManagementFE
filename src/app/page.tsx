@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
 import { CalendarDays, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 import { revenueApi, RevenueChartPoint, RevenueChartResponse } from '@/api';
 
-type ChartMode = 'day' | 'month' | 'year';
+type ChartMode = 'hour' | 'day' | 'month' | 'year' | 'years';
 
 const formatVndShort = (value: number) => {
     if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(value >= 10_000_000_000 ? 0 : 1)} tỷ`;
@@ -24,10 +24,10 @@ const vnToday = () => {
         year: vn.getFullYear(),
         month: vn.getMonth() + 1,
         day: vn.getDate(),
+        dateStr: `${vn.getFullYear()}-${String(vn.getMonth() + 1).padStart(2, '0')}-${String(vn.getDate()).padStart(2, '0')}`,
     };
 };
 
-// Chọn bước "nice" cho trục Y — luôn ra số chẵn, dễ đọc (1, 2, 5, 10, 20, 50, ...)
 const niceStep = (rawStep: number): number => {
     if (rawStep <= 0) return 1;
     const exp = Math.floor(Math.log10(rawStep));
@@ -44,12 +44,14 @@ export default function DashboardPage() {
     const router = useRouter();
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-    const [mode, setMode] = useState<ChartMode>('day');
+    // Mặc định: mở vào sẽ thấy doanh thu từng giờ của NGÀY HÔM NAY (theo giờ VN)
+    const [mode, setMode] = useState<ChartMode>('hour');
     const [year, setYear] = useState<number>(() => vnToday().year);
     const [month, setMonth] = useState<string>(() => {
         const t = vnToday();
         return `${t.year}-${String(t.month).padStart(2, '0')}`;
     });
+    const [date, setDate] = useState<string>(() => vnToday().dateStr);
 
     const [chart, setChart] = useState<RevenueChartResponse | null>(null);
     const [chartLoading, setChartLoading] = useState(true);
@@ -71,7 +73,13 @@ export default function DashboardPage() {
             try {
                 setChartLoading(true);
                 setChartError(null);
-                const data = await revenueApi.getChart({ mode, year, month: mode === 'day' ? month : undefined });
+                const params = (() => {
+                    if (mode === 'hour' || mode === 'day') return { mode, date };
+                    if (mode === 'month') return { mode, year, month };
+                    if (mode === 'year') return { mode, year };
+                    return { mode, year };
+                })();
+                const data = await revenueApi.getChart(params);
                 setChart(data);
             } catch (err) {
                 const msg = err instanceof Error ? err.message : 'Không thể tải dữ liệu doanh thu';
@@ -81,7 +89,7 @@ export default function DashboardPage() {
             }
         };
         fetchChart();
-    }, [mode, year, month, isCheckingAuth]);
+    }, [mode, year, month, date, isCheckingAuth]);
 
     const summary = useMemo(() => {
         if (!chart) return null;
@@ -109,9 +117,17 @@ export default function DashboardPage() {
         );
     }
 
+    const highestLabel =
+        mode === 'hour'
+            ? 'Giờ cao nhất'
+            : mode === 'day'
+                ? 'Ngày'
+                : mode === 'month'
+                    ? 'Ngày cao nhất'
+                    : 'Tháng/Năm cao nhất';
+
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-xl shadow-gray-50/50">
                 <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-3">
@@ -120,13 +136,12 @@ export default function DashboardPage() {
                         </div>
                         <div>
                             <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Dashboard doanh thu</h1>
-                            <p className="text-sm text-gray-500 font-medium mt-1">Theo dõi doanh thu theo ngày / tháng / năm từ các đơn hàng</p>
+                            <p className="text-sm text-gray-500 font-medium mt-1">Theo dõi doanh thu theo giờ / ngày / tháng / năm từ các đơn hàng</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Chart card */}
             <div className="bg-white p-4 sm:p-6 rounded-3xl border border-gray-100 shadow-xl shadow-gray-50/50">
                 <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-5">
                     <div>
@@ -137,9 +152,11 @@ export default function DashboardPage() {
                     <div className="flex flex-wrap items-center gap-2">
                         <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
                             {([
+                                { v: 'hour', label: 'Theo giờ' },
                                 { v: 'day', label: 'Theo ngày' },
                                 { v: 'month', label: 'Theo tháng' },
                                 { v: 'year', label: 'Theo năm' },
+                                { v: 'years', label: 'Theo 10 năm' },
                             ] as { v: ChartMode; label: string }[]).map((opt) => {
                                 const active = mode === opt.v;
                                 return (
@@ -159,25 +176,32 @@ export default function DashboardPage() {
                             })}
                         </div>
 
-                        {mode === 'day' && (
+                        {(mode === 'hour' || mode === 'day') && (
                             <div className="relative">
                                 <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                                 <input
-                                    type="month"
-                                    value={month}
+                                    type="date"
+                                    value={date}
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         if (!val) return;
-                                        const [yStr, mStr] = val.split('-');
-                                        setYear(Number(yStr));
-                                        setMonth(val);
+                                        setDate(val);
                                     }}
                                     className="pl-9 pr-3 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400"
                                 />
                             </div>
                         )}
 
-                        {(mode === 'month' || mode === 'year') && (
+                        {mode === 'month' && (
+                            <MonthYearPicker
+                                year={year}
+                                month={month}
+                                onYearChange={setYear}
+                                onMonthChange={(m) => setMonth(`${year}-${m}`)}
+                            />
+                        )}
+
+                        {(mode === 'year' || mode === 'years') && (
                             <YearSelector value={year} onChange={setYear} />
                         )}
                     </div>
@@ -187,13 +211,9 @@ export default function DashboardPage() {
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
                         <SummaryStat label="Tổng doanh thu" value={formatFullVnd(summary.total)} accent="orange" />
                         <SummaryStat label="Đã thu" value={formatFullVnd(summary.paid)} accent="emerald" />
+                        <SummaryStat label="Tổng đơn" value={`${summary.orderCount}`} accent="blue" />
                         <SummaryStat
-                            label="Tổng đơn"
-                            value={`${summary.orderCount}`}
-                            accent="blue"
-                        />
-                        <SummaryStat
-                            label={mode === 'day' ? 'Ngày cao nhất' : mode === 'month' ? 'Tháng cao nhất' : 'Năm cao nhất'}
+                            label={highestLabel}
                             primary={summary.best && summary.best.totalPrice > 0 ? summary.best.label : '—'}
                             secondary={summary.best && summary.best.totalPrice > 0 ? formatVndShort(summary.best.totalPrice) : 'Chưa có dữ liệu'}
                             accent="violet"
@@ -226,35 +246,11 @@ function SummaryStat({
     secondary?: string;
     accent: 'orange' | 'emerald' | 'blue' | 'violet';
 }) {
-    const map: Record<string, { border: string; bg: string; text: string; sub: string; badge: string }> = {
-        orange: {
-            border: 'border-orange-200',
-            bg: 'bg-gradient-to-br from-orange-50 to-white',
-            text: 'text-orange-700',
-            sub: 'text-orange-900',
-            badge: 'bg-orange-100 text-orange-700',
-        },
-        emerald: {
-            border: 'border-emerald-200',
-            bg: 'bg-gradient-to-br from-emerald-50 to-white',
-            text: 'text-emerald-700',
-            sub: 'text-emerald-900',
-            badge: 'bg-emerald-100 text-emerald-700',
-        },
-        blue: {
-            border: 'border-blue-200',
-            bg: 'bg-gradient-to-br from-blue-50 to-white',
-            text: 'text-blue-700',
-            sub: 'text-blue-900',
-            badge: 'bg-blue-100 text-blue-700',
-        },
-        violet: {
-            border: 'border-violet-200',
-            bg: 'bg-gradient-to-br from-violet-50 to-white',
-            text: 'text-violet-700',
-            sub: 'text-violet-900',
-            badge: 'bg-violet-100 text-violet-700',
-        },
+    const map: Record<string, { border: string; bg: string; text: string; sub: string }> = {
+        orange: { border: 'border-orange-200', bg: 'bg-gradient-to-br from-orange-50 to-white', text: 'text-orange-700', sub: 'text-orange-900' },
+        emerald: { border: 'border-emerald-200', bg: 'bg-gradient-to-br from-emerald-50 to-white', text: 'text-emerald-700', sub: 'text-emerald-900' },
+        blue: { border: 'border-blue-200', bg: 'bg-gradient-to-br from-blue-50 to-white', text: 'text-blue-700', sub: 'text-blue-900' },
+        violet: { border: 'border-violet-200', bg: 'bg-gradient-to-br from-violet-50 to-white', text: 'text-violet-700', sub: 'text-violet-900' },
     };
     const tone = map[accent];
     return (
@@ -311,7 +307,148 @@ function YearSelector({ value, onChange }: { value: number; onChange: (y: number
     );
 }
 
+function MonthYearPicker({
+    year,
+    month,
+    onYearChange,
+    onMonthChange,
+}: {
+    year: number;
+    month: string; // yyyy-MM
+    onYearChange: (y: number) => void;
+    onMonthChange: (m: string) => void;
+}) {
+    const today = vnToday();
+    const minYear = today.year - 9;
+    const years: number[] = [];
+    for (let y = today.year; y >= minYear; y--) years.push(y);
+    const months = [
+        { v: '01', label: 'Tháng 1' }, { v: '02', label: 'Tháng 2' }, { v: '03', label: 'Tháng 3' },
+        { v: '04', label: 'Tháng 4' }, { v: '05', label: 'Tháng 5' }, { v: '06', label: 'Tháng 6' },
+        { v: '07', label: 'Tháng 7' }, { v: '08', label: 'Tháng 8' }, { v: '09', label: 'Tháng 9' },
+        { v: '10', label: 'Tháng 10' }, { v: '11', label: 'Tháng 11' }, { v: '12', label: 'Tháng 12' },
+    ];
+    const currentMonth = month?.split('-')[1] ?? String(today.month).padStart(2, '0');
+    return (
+        <div className="flex items-center gap-2">
+            <select
+                value={month}
+                onChange={(e) => onMonthChange(e.target.value)}
+                className="px-3 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400"
+            >
+                {months.map((m) => (
+                    <option key={m.v} value={`${year}-${m.v}`}>{m.label}</option>
+                ))}
+            </select>
+            <div className="flex items-center gap-1">
+                <button
+                    type="button"
+                    onClick={() => onYearChange(year - 1)}
+                    disabled={year <= minYear}
+                    className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    aria-label="Năm trước"
+                >
+                    <ChevronLeft className="h-4 w-4" />
+                </button>
+                <select
+                    value={year}
+                    onChange={(e) => onYearChange(Number(e.target.value))}
+                    className="px-3 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400"
+                >
+                    {years.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                    ))}
+                </select>
+                <button
+                    type="button"
+                    onClick={() => onYearChange(year + 1)}
+                    disabled={year >= today.year}
+                    className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    aria-label="Năm sau"
+                >
+                    <ChevronRight className="h-4 w-4" />
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// Path bo tròn CHỈ ở 2 đỉnh trên, đáy phẳng
+function topRoundedRectPath(x: number, y: number, w: number, h: number, r: number): string {
+    const rr = Math.max(0, Math.min(r, w / 2, h));
+    if (h <= 0) return '';
+    if (h <= rr) {
+        // Bar quá ngắn để bo → trả về hình elip ở phần trên
+        return `M ${x} ${y + h}
+                L ${x} ${y + rr}
+                Q ${x} ${y} ${x + rr} ${y}
+                L ${x + w - rr} ${y}
+                Q ${x + w} ${y} ${x + w} ${y + rr}
+                L ${x + w} ${y + h} Z`;
+    }
+    return `M ${x} ${y + h}
+            L ${x} ${y + rr}
+            Q ${x} ${y} ${x + rr} ${y}
+            L ${x + w - rr} ${y}
+            Q ${x + w} ${y} ${x + w} ${y + rr}
+            L ${x + w} ${y + h} Z`;
+}
+
 function ColumnChart({ points, loading }: { points: RevenueChartPoint[]; loading: boolean }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const svgRef = useRef<SVGSVGElement>(null);
+    const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+    const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+    const [box, setBox] = useState<{ left: number; top: number; scale: number } | null>(null);
+
+    // Kích thước viewBox cố định
+    const width = 800;
+    const height = 340;
+    const padding = { top: 24, right: 24, bottom: 36, left: 64 };
+    const innerW = width - padding.left - padding.right;
+    const innerH = height - padding.top - padding.bottom;
+    const gradId = 'column-gradient';
+
+    // Cập nhật tỉ lệ thực tế của SVG để quy đổi toạ độ viewBox → pixel
+    useEffect(() => {
+        const update = () => {
+            const svg = svgRef.current;
+            const container = containerRef.current;
+            if (!svg || !container) return;
+            const rect = svg.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const scale = rect.width / width;
+            setBox({
+                left: rect.left - containerRect.left,
+                top: rect.top - containerRect.top,
+                scale,
+            });
+        };
+        update();
+        const ro = new ResizeObserver(update);
+        if (svgRef.current) ro.observe(svgRef.current);
+        window.addEventListener('scroll', update, true);
+        window.addEventListener('resize', update);
+        return () => {
+            ro.disconnect();
+            window.removeEventListener('scroll', update, true);
+            window.removeEventListener('resize', update);
+        };
+    }, [width]);
+
+    const handleMove = (e: React.MouseEvent<SVGRectElement>, idx: number) => {
+        const container = containerRef.current;
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        setHoverIdx(idx);
+    };
+
+    const handleLeave = () => {
+        setHoverIdx(null);
+        setTooltipPos(null);
+    };
+
     if (loading) {
         return (
             <div className="h-[340px] flex items-center justify-center text-gray-500">
@@ -335,31 +472,31 @@ function ColumnChart({ points, loading }: { points: RevenueChartPoint[]; loading
     const rawMax = Math.max(...points.map((p) => p.totalPrice), 0);
     const rawStep = rawMax > 0 ? rawMax / 5 : 1;
     const step = Math.max(niceStep(rawStep), 1);
-    // Làm tròn maxValue lên bội số của step, đảm bảo tick cao nhất ≥ max thực và là số chẵn
     const tickMax = rawMax > 0 ? Math.ceil(rawMax / step) * step : step;
     const tickCount = 5;
-
-    const width = 800;
-    const height = 340;
-    const padding = { top: 24, right: 24, bottom: 36, left: 64 };
-    const innerW = width - padding.left - padding.right;
-    const innerH = height - padding.top - padding.bottom;
 
     const ticks = Array.from({ length: tickCount + 1 }, (_, i) => (tickMax / tickCount) * i);
 
     const barCount = points.length;
-    const gapRatio = barCount <= 12 ? 0.4 : barCount <= 31 ? 0.3 : 0.22;
+    const gapRatio = barCount <= 12 ? 0.4 : barCount <= 24 ? 0.32 : barCount <= 31 ? 0.28 : 0.22;
     const slotW = innerW / barCount;
     const barW = Math.max(2, slotW * (1 - gapRatio));
+    const cornerRadius = Math.min(barW / 2, 6);
 
     const labelStep = Math.max(1, Math.ceil(barCount / 12));
 
-    // Gradient định nghĩa 1 lần, dùng url(#...)
-    const gradId = 'column-gradient';
+    const hovered = hoverIdx !== null ? points[hoverIdx] : null;
+    const hoverBarCenterX = hoverIdx !== null && box
+        ? box.left + (padding.left + hoverIdx * slotW + slotW / 2) * box.scale
+        : 0;
+    const hoverBarTopY = hoverIdx !== null && box && points[hoverIdx].totalPrice > 0
+        ? box.top + (padding.top + innerH - (points[hoverIdx].totalPrice / tickMax) * innerH) * box.scale
+        : 0;
 
     return (
-        <div className="w-full overflow-x-auto -mx-2 px-2">
+        <div ref={containerRef} className="relative w-full overflow-x-auto -mx-2 px-2">
             <svg
+                ref={svgRef}
                 viewBox={`0 0 ${width} ${height}`}
                 preserveAspectRatio="xMidYMid meet"
                 className="w-full h-auto min-w-[640px]"
@@ -373,7 +510,6 @@ function ColumnChart({ points, loading }: { points: RevenueChartPoint[]; loading
                     </linearGradient>
                 </defs>
 
-                {/* Grid ngang + trục Y */}
                 {ticks.map((t, i) => {
                     const y = padding.top + innerH - (t / tickMax || 0) * innerH;
                     return (
@@ -400,7 +536,6 @@ function ColumnChart({ points, loading }: { points: RevenueChartPoint[]; loading
                     );
                 })}
 
-                {/* Bars */}
                 {points.map((p, i) => {
                     const hasValue = p.totalPrice > 0;
                     const slotX = padding.left + i * slotW;
@@ -408,30 +543,28 @@ function ColumnChart({ points, loading }: { points: RevenueChartPoint[]; loading
                     const h = hasValue ? (p.totalPrice / tickMax) * innerH : 0;
                     const y = padding.top + innerH - h;
                     const showLabel = i % labelStep === 0 || i === barCount - 1;
+                    const path = hasValue
+                        ? topRoundedRectPath(x, y, barW, Math.max(h, 1), cornerRadius)
+                        : '';
                     return (
                         <g key={p.key}>
-                            {/* Hover overlay phủ toàn slot */}
+                            {/* Vùng bắt hover phủ cả slot — để dễ bắt khi bar hẹp */}
                             <rect
                                 x={slotX}
                                 y={padding.top}
                                 width={slotW}
                                 height={innerH}
-                                fill="transparent"
-                            >
-                                <title>
-                                    {`${p.label} • ${p.orderCount} đơn • Doanh thu: ${formatFullVnd(p.totalPrice)} • Đã thu: ${formatFullVnd(p.amountCustomerPayment)}`}
-                                </title>
-                            </rect>
-                            {/* Chỉ vẽ cột khi có giá trị — không vẽ "vệt" cho giá trị 0 */}
+                                fill={hoverIdx === i ? 'rgba(251, 146, 60, 0.06)' : 'transparent'}
+                                onMouseEnter={(e) => handleMove(e, i)}
+                                onMouseMove={(e) => handleMove(e, i)}
+                                onMouseLeave={handleLeave}
+                                style={{ cursor: 'pointer' }}
+                            />
                             {hasValue && (
-                                <rect
-                                    x={x}
-                                    y={y}
-                                    width={barW}
-                                    height={Math.max(h, 1)}
-                                    rx={barW >= 6 ? 6 : 3}
-                                    ry={barW >= 6 ? 6 : 3}
-                                    fill={`url(#${gradId})`}
+                                <path
+                                    d={path}
+                                    fill={hoverIdx === i ? '#ea580c' : `url(#${gradId})`}
+                                    pointerEvents="none"
                                 />
                             )}
                             {showLabel && (
@@ -450,7 +583,6 @@ function ColumnChart({ points, loading }: { points: RevenueChartPoint[]; loading
                     );
                 })}
 
-                {/* Trục X */}
                 <line
                     x1={padding.left}
                     y1={padding.top + innerH}
@@ -460,7 +592,6 @@ function ColumnChart({ points, loading }: { points: RevenueChartPoint[]; loading
                     strokeWidth={1}
                 />
 
-                {/* Trục Y label */}
                 <text
                     x={14}
                     y={padding.top + innerH / 2}
@@ -473,6 +604,86 @@ function ColumnChart({ points, loading }: { points: RevenueChartPoint[]; loading
                     Doanh thu
                 </text>
             </svg>
+
+            {hovered && tooltipPos && box && (
+                <ChartTooltip
+                    point={hovered}
+                    mouseX={tooltipPos.x}
+                    mouseY={tooltipPos.y}
+                    anchorX={hoverBarCenterX}
+                    anchorY={hoverBarTopY}
+                />
+            )}
+        </div>
+    );
+}
+
+function ChartTooltip({
+    point,
+    mouseX,
+    mouseY,
+    anchorX,
+    anchorY,
+}: {
+    point: RevenueChartPoint;
+    mouseX: number;
+    mouseY: number;
+    anchorX: number;
+    anchorY: number;
+}) {
+    // Đặt tooltip phía trên đỉnh cột (anchorY), căn giữa theo cột.
+    // Nếu tràn mép trái/phải container thì clamp.
+    const OFFSET_Y = 12;
+    const TOOLTIP_W = 240;
+    const TOOLTIP_H = 132;
+
+    const containerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
+
+    let left = anchorX - TOOLTIP_W / 2;
+    let top = anchorY - TOOLTIP_H - OFFSET_Y;
+
+    // Nếu không đủ chỗ phía trên → hiển thị phía dưới cột
+    if (top < 8) {
+        top = anchorY + OFFSET_Y + 40; // 40 ≈ chiều cao bar kéo dài tới baseline
+    }
+
+    // Clamp ngang
+    const minLeft = 8;
+    const maxLeft = containerWidth > 0 ? containerWidth - TOOLTIP_W - 8 : left;
+    if (left < minLeft) left = minLeft;
+    if (left > maxLeft) left = maxLeft;
+
+    return (
+        <div
+            className="pointer-events-none absolute z-20 w-[240px] rounded-2xl bg-white border border-gray-200 shadow-2xl shadow-gray-200/80 px-3 py-2.5 text-sm"
+            style={{ left, top }}
+        >
+            <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-xs font-black uppercase tracking-wider text-gray-700 bg-gray-100 px-2 py-0.5 rounded-md">
+                    {point.label}
+                </span>
+                <span className="text-[11px] font-bold text-gray-500">
+                    {point.orderCount} đơn
+                </span>
+            </div>
+            <div className="flex items-center justify-between gap-2 py-1">
+                <div className="flex items-center gap-2">
+                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-500" />
+                    <span className="text-xs font-bold text-gray-600">Doanh thu</span>
+                </div>
+                <span className="text-sm font-black text-gray-900 tabular-nums">
+                    {formatFullVnd(point.totalPrice)}
+                </span>
+            </div>
+            <div className="flex items-center justify-between gap-2 py-1 border-t border-gray-100">
+                <div className="flex items-center gap-2">
+                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                    <span className="text-xs font-bold text-gray-600">Đã thu</span>
+                </div>
+                <span className="text-sm font-black text-gray-900 tabular-nums">
+                    {formatFullVnd(point.amountCustomerPayment)}
+                </span>
+            </div>
         </div>
     );
 }
