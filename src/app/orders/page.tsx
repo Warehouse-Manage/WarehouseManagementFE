@@ -12,7 +12,7 @@ import CreateOrderModal from './modal/CreateOrderModal';
 import CustomerModal from './modal/CustomerModal';
 import DeliverModal from './modal/DeliverModal';
 import { useConfirm } from '@/hooks/useConfirm';
-import { notifyOrderToAdmins } from '../../../actions/notification';
+import { notifyOrderToAdmins, notifyEntityAdmins } from '../../../actions/notification';
 import { useOrderNotificationDeepLink } from '@/lib/orderNotificationDeepLink';
 
 // Types moved to @/types/finance.ts and @/types/inventory.ts
@@ -464,6 +464,10 @@ export default function OrdersPage() {
       await financeApi.deleteOrder(order.id);
       toast.success('Xóa đơn hàng thành công');
       await loadOrders(currentPage, pageSize, buildOrderFilters(), true);
+      const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+      const companyIdRaw = getCookie('companyId');
+      notifyEntityAdmins(decodeURIComponent(nameRaw), 'delete', 'order', order.id, '/icon512_rounded.png',
+        companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
     } catch (err: unknown) {
       toast.error(getErrorMessage(err) || 'Không thể xóa đơn hàng');
     } finally {
@@ -517,6 +521,10 @@ export default function OrdersPage() {
         };
         await financeApi.updateOrder(editingOrderId, payload);
         toast.success('Cập nhật đơn hàng thành công');
+        const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+        const companyIdRaw = getCookie('companyId');
+        notifyEntityAdmins(decodeURIComponent(nameRaw), 'update', 'order', editingOrderId, '/icon512_rounded.png',
+          companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
 
         // Phân tích xem có cần in phiếu thu không (chuyển từ 0 -> >0)
         const isNewPayment = originalPayment === 0 && Number(amountCustomerPayment) > 0;

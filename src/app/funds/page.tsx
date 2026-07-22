@@ -4,6 +4,7 @@ import { canAccessAccounting } from '@/lib/roles';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
+import { notifyEntityAdmins } from '../../../actions/notification';
 import { financeApi, workerApi, userApi, partnerApi } from '@/api';
 import { Fund, Deliver, Worker, Customer, User } from '@/types';
 import { toast } from 'sonner';
@@ -528,7 +529,11 @@ export default function FundsPage() {
         createdUserId: Number(userId),
       });
 
+      const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+      const companyIdRaw = getCookie('companyId');
       if (res && res.id) {
+        notifyEntityAdmins(decodeURIComponent(nameRaw), 'create', 'fund', res.id, '/icon512_rounded.png',
+          companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
         await handlePrintRecord(res.id);
       }
 
@@ -560,6 +565,10 @@ export default function FundsPage() {
         objectType: objectType || '',
         objectName: objectName || '',
       });
+      const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+      const companyIdRaw = getCookie('companyId');
+      notifyEntityAdmins(decodeURIComponent(nameRaw), 'update', 'fund', editingId, '/icon512_rounded.png',
+        companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
       resetForm();
       setShowForm(false);
       await loadFunds();
@@ -593,6 +602,10 @@ export default function FundsPage() {
     try {
       await financeApi.deleteFund(id);
       await loadFunds();
+      const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+      const companyIdRaw = getCookie('companyId');
+      notifyEntityAdmins(decodeURIComponent(nameRaw), 'delete', 'fund', id, '/icon512_rounded.png',
+        companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
       toast.success('Xóa bản ghi thành công');
     } catch (err: unknown) {
       setError(getErrorMessage(err) || 'Không thể xóa bản ghi sổ quỹ');

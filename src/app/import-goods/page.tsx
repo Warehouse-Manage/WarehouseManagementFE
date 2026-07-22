@@ -13,6 +13,7 @@ import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import SelectChartProductsModal from './modal/SelectChartProductsModal';
 import { useConfirm } from '@/hooks/useConfirm';
 import RawMaterialFormModal from '@/app/raw-materials/modal/RawMaterialFormModal';
+import { notifyEntityAdmins } from '../../../actions/notification';
 
 interface NhapHangItem {
   id: number;
@@ -497,7 +498,7 @@ export default function NhapHangPage() {
       }
 
       // Gọi API để tạo hoặc cập nhật inventory receipt
-      await inventoryReceiptApi.createOrUpdateInventoryReceipt({
+      const res = await inventoryReceiptApi.createOrUpdateInventoryReceipt({
         id: editingItem?.id, // Nếu có editingItem thì là update
         productId: isPackage ? undefined : productId,
         packageProductId: isPackage ? packageProductId : undefined,
@@ -505,6 +506,19 @@ export default function NhapHangPage() {
         createdBy: Number(userId),
       });
 
+      const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+      const companyIdRaw = getCookie('companyId');
+      const notifyId = res && typeof res === 'object' && 'id' in res ? (res as { id: number }).id : editingItem?.id ?? 0;
+      if (notifyId > 0) {
+        notifyEntityAdmins(
+          decodeURIComponent(nameRaw),
+          editingItem ? 'update' : 'create',
+          'inventory-receipt',
+          notifyId,
+          '/icon512_rounded.png',
+          companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null
+        ).catch(() => {});
+      }
       toast.success(editingItem ? 'Cập nhật nhập hàng thành công' : 'Thêm nhập hàng thành công');
       handleCloseModal();
 
@@ -575,6 +589,10 @@ export default function NhapHangPage() {
           paidAmount,
           partnerId: Number(nguyenLieuFormData.partnerId),
         });
+        const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+        const companyIdRaw = getCookie('companyId');
+        notifyEntityAdmins(decodeURIComponent(nameRaw), 'update', 'raw-material-import', editingRawMaterialImport.id, '/icon512_rounded.png',
+          companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
         toast.success('Cập nhật nhập nguyên liệu thành công');
       } else {
         // Tạo mới
@@ -624,6 +642,12 @@ export default function NhapHangPage() {
             console.error('Không thể tạo bản ghi sổ quỹ hoặc in phiếu chi:', printErr);
             // Không throw error để không làm gián đoạn flow
           }
+        }
+        if (result && result.Import && result.Import.Id) {
+          const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+          const companyIdRaw = getCookie('companyId');
+          notifyEntityAdmins(decodeURIComponent(nameRaw), 'create', 'raw-material-import', result.Import.Id, '/icon512_rounded.png',
+            companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
         }
         toast.success('Nhập nguyên liệu thành công');
       }
@@ -696,6 +720,10 @@ export default function NhapHangPage() {
 
     try {
       await inventoryApi.deleteRawMaterialImport(id);
+      const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+      const companyIdRaw = getCookie('companyId');
+      notifyEntityAdmins(decodeURIComponent(nameRaw), 'delete', 'raw-material-import', id, '/icon512_rounded.png',
+        companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
       toast.success('Xóa bản ghi nhập nguyên liệu thành công');
       await Promise.all([loadRawMaterialImports(currentPageRawMaterialImport), loadChartRawMaterialImports()]);
     } catch (err: unknown) {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Modal } from '@/components/shared';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
+import { notifyEntityAdmins } from '../../../../../actions/notification';
 import { teamPaymentApi, financeApi } from '@/api';
 import { toast } from 'sonner';
 import { TeamPayment, TeamPaymentSettings, PackageProduct, BrokenPackageItem } from '@/types';
@@ -129,6 +130,11 @@ export default function AddTeamPaymentModal({
         paid,
         createdUserId: userId
       });
+
+      const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+      const companyIdRaw = getCookie('companyId');
+      notifyEntityAdmins(decodeURIComponent(nameRaw), 'create', 'team-payment', created.id, '/icon512_rounded.png',
+        companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
 
       const fundId = created.fundIdPackage ?? created.fundIdBroken;
       if (fundId) {

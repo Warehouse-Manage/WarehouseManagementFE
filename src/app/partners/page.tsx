@@ -3,6 +3,7 @@
 import { canAccessAccounting } from '@/lib/roles';
 import { useEffect, useMemo, useState } from 'react';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
+import { notifyEntityAdmins } from '../../../actions/notification';
 import { Partner } from '@/types';
 import { partnerApi } from '@/api';
 import { DataTable, FormField } from '@/components/shared';
@@ -141,6 +142,10 @@ export default function DoiTacPage() {
 
       // Hiển thị và in phiếu chi
       if (result.fund && result.fund.id) {
+        const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+        const companyIdRaw = getCookie('companyId');
+        notifyEntityAdmins(decodeURIComponent(nameRaw), 'create', 'partner-payment', result.fund.id, '/icon512_rounded.png',
+          companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
         try {
           const receiptHtml = await partnerApi.getPartnerReceipt(selectedPartner.id, result.fund.id);
           await printHtmlContent(receiptHtml);

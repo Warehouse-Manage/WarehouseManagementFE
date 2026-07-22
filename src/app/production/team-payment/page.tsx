@@ -13,6 +13,7 @@ import SettingsModal from './modal/SettingsModal';
 import { toast } from 'sonner';
 import { Printer, Trash2, Pencil, CalendarDays } from 'lucide-react';
 import { useConfirm } from '@/hooks/useConfirm';
+import { notifyEntityAdmins } from '../../../../actions/notification';
 
 const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -218,6 +219,10 @@ export default function TeamPaymentPage() {
     if (!confirmed) return;
     try {
       await teamPaymentApi.deleteTeamPayment(p.id);
+      const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+      const companyIdRaw = getCookie('companyId');
+      notifyEntityAdmins(decodeURIComponent(nameRaw), 'delete', 'team-payment', p.id, '/icon512_rounded.png',
+        companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
       await fetchPayments();
       toast.success('Đã xóa thanh toán');
     } catch (err) {
