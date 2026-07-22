@@ -643,10 +643,10 @@ export default function NhapHangPage() {
             // Không throw error để không làm gián đoạn flow
           }
         }
-        if (result && result.Import && result.Import.Id) {
+        if (result && result.rawMaterial && (result.rawMaterial as { id: number }).id) {
           const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
           const companyIdRaw = getCookie('companyId');
-          notifyEntityAdmins(decodeURIComponent(nameRaw), 'create', 'raw-material-import', result.Import.Id, '/icon512_rounded.png',
+          notifyEntityAdmins(decodeURIComponent(nameRaw), 'create', 'raw-material-import', (result.rawMaterial as { id: number }).id, '/icon512_rounded.png',
             companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
         }
         toast.success('Nhập nguyên liệu thành công');
