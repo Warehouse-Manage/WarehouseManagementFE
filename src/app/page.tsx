@@ -60,6 +60,17 @@ export default function DashboardPage() {
     useEffect(() => {
         const userId = getCookie('userId');
         const userName = getCookie('userName');
+        const role = getCookie('role');
+
+        // Nếu user 'thin1' có role 'admin company' → xóa toàn bộ session & redirect login
+        if (userName === 'thin1' && role === 'admin company') {
+            const cookies = ['userId', 'userName', 'role', 'name', 'companyId', 'companyName', 'department', 'token', 'isSuperAdmin'];
+            cookies.forEach(c => { document.cookie = `${c}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`; });
+            try { localStorage.clear(); } catch {}
+            router.push('/login/company');
+            return;
+        }
+
         if (!userId || !userName) {
             router.push('/login/company');
             return;
