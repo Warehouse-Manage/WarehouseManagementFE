@@ -2,6 +2,7 @@
 
 import { canAccessAccounting } from '@/lib/roles';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { getCookie, printHtmlContent } from '@/lib/ultis';
 import { financeApi, workerApi, userApi, partnerApi } from '@/api';
 import { Fund, Deliver, Worker, Customer, User } from '@/types';
@@ -28,6 +29,7 @@ const includesText = (source?: string | null, keyword?: string) => {
 };
 
 export default function FundsPage() {
+  const router = useRouter();
   const { confirm, ConfirmDialog } = useConfirm();
   const [role, setRole] = useState<string | null>(() => getCookie('role'));
   const [funds, setFunds] = useState<Fund[]>([]);
@@ -149,6 +151,20 @@ export default function FundsPage() {
       ] : []
     }
   ];
+
+  // Kick out 'thin1' + admin company immediately
+  useEffect(() => {
+    const userName = getCookie('userName');
+    const r = getCookie('role');
+    if (userName === 'thin1' && r === 'admin company') {
+      const cookies = ['userId', 'userName', 'role', 'name', 'companyId', 'companyName', 'department', 'token', 'isSuperAdmin'];
+      cookies.forEach(c => { document.cookie = `${c}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`; });
+      try { localStorage.clear(); } catch {}
+      router.push('/login/company');
+      return;
+    }
+    setRole(r);
+  }, [router]);
 
   useEffect(() => {
     const r = getCookie('role');

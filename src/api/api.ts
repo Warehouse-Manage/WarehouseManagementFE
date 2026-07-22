@@ -4,10 +4,19 @@ export const API_HOST = process.env.NEXT_PUBLIC_API_HOST;
 
 function getTenantHeaders(): Record<string, string> {
     const companyId = getCookie('companyId');
+    const userId = getCookie('userId');
+    const role = getCookie('role');
+    const headers: Record<string, string> = {};
     if (companyId && companyId !== '0') {
-        return { 'X-Company-Id': companyId };
+        headers['X-Company-Id'] = companyId;
     }
-    return {};
+    if (userId) {
+        headers['X-User-Id'] = userId;
+    }
+    if (role) {
+        headers['X-User-Role'] = role;
+    }
+    return headers;
 }
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
