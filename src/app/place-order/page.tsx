@@ -13,7 +13,7 @@ import CustomerModal from './modal/CustomerModal';
 import DeliverModal from './modal/DeliverModal';
 import ForecastWarningModal from './modal/ForecastWarningModal';
 import { useConfirm } from '@/hooks/useConfirm';
-import { notifyOrderToAdmins } from '../../../actions/notification';
+import { notifyEntityAdmins } from '../../../actions/notification';
 import { useOrderNotificationDeepLink } from '@/lib/orderNotificationDeepLink';
 
 // Types moved to @/types/finance.ts and @/types/inventory.ts
@@ -404,6 +404,10 @@ export default function PlaceOrderPage() {
     try {
       setLoading(true);
       await financeApi.deletePlaceOrder(order.id);
+      const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+      const companyIdRaw = getCookie('companyId');
+      notifyEntityAdmins(decodeURIComponent(nameRaw), 'delete', 'place-order', order.id, '/icon512_rounded.png',
+        companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
       toast.success('Xóa đặt hàng thành công');
       await loadOrders(currentPage);
     } catch (err: unknown) {
@@ -503,6 +507,10 @@ export default function PlaceOrderPage() {
       const isCreate = !editingOrderId;
       if (editingOrderId) {
         res = await financeApi.updatePlaceOrder(editingOrderId, payload as UpdatePlaceOrderFormData);
+        const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
+        const companyIdRaw = getCookie('companyId');
+        notifyEntityAdmins(decodeURIComponent(nameRaw), 'update', 'place-order', editingOrderId, '/icon512_rounded.png',
+          companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
         toast.success('Cập nhật đặt hàng thành công');
       } else {
         res = await financeApi.createPlaceOrder({
@@ -514,12 +522,9 @@ export default function PlaceOrderPage() {
 
       if (isCreate) {
         const nameRaw = getCookie('name') || getCookie('userName') || 'Người dùng';
-        const creatorName = decodeURIComponent(nameRaw);
         const companyIdRaw = getCookie('companyId');
-        const companyIdNum = companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null;
-        notifyOrderToAdmins(creatorName, 'place-order', res.id, '/icon512_rounded.png', companyIdNum).catch((e) =>
-          console.error('Notify admins failed:', e),
-        );
+        notifyEntityAdmins(decodeURIComponent(nameRaw), 'create', 'place-order', res.id, '/icon512_rounded.png',
+          companyIdRaw && companyIdRaw !== '0' ? Number(companyIdRaw) : null).catch(() => {});
       }
 
       const now = new Date();

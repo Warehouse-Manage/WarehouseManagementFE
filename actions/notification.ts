@@ -58,13 +58,31 @@ type OrderPushMeta = {
     url: string;
 };
 
+export type EntityType =
+    | "order"
+    | "place-order"
+    | "fund"
+    | "partner-payment"
+    | "inventory-receipt"
+    | "raw-material-import"
+    | "team-payment"
+    | "device-tally";
+
+export type ActionType = "create" | "update" | "delete";
+
+export type EntityMeta = {
+    entityId: number;
+    entityType: EntityType;
+    url: string;
+};
+
 export const sendNotification = async (
     message: string,
     userId: string,
     icon: string,
     title: string,
     subscriptionData?: SubscriptionInput,
-    orderMeta?: OrderPushMeta,
+    orderMeta?: OrderPushMeta | EntityMeta,
 ) => {
     try {
         ensureVapidConfigured();
@@ -137,7 +155,7 @@ export const notifyOrderToAdmins = async (
     companyId: number | null | undefined,
 ): Promise<{ sent: number; expired: number; failed: number; total: number }> => {
     const orderLabel = orderType === "place-order" ? "đơn đặt hàng" : "đơn hàng";
-    const title = `${creatorName} Đã tạo ${orderLabel} mới`;
+    const title = `${creatorName} đã tạo ${orderLabel} mới`;
     const message = "Click vào để xem thêm";
     const path = orderType === "place-order" ? "/place-order" : "/orders";
     const orderMeta: OrderPushMeta = { orderId, orderType, url: `${path}?edit=${orderId}` };
@@ -221,6 +239,96 @@ export const notifyOrderToAdmins = async (
         }
     } catch (err) {
         console.error("[notifyOrderToAdmins] failed:", err);
+    }
+
+    return counters;
+};
+
+/** Gửi push notification tới các admin company (chỉ gửi cho role "admin" hoặc "admin company" + companyId khớp). */
+export const notifyEntityAdmins = async (
+    actorName: string,
+    action: ActionType,
+    entityType: EntityType,
+    entityId: number,
+    icon: string,
+    companyId: number | null | undefined,
+): Promise<{ sent: number; expired: number; failed: number; total: number }> => {
+    const actionLabel: Record<ActionType, string> = {
+        create: "đã tạo",
+        update: "đã cập nhật",
+        delete: "đã xóa",
+    };
+    const entityLabel: Record<EntityType, { singular: string; path: string }> = {
+        order: { singular: "đơn hàng", path: "/orders" },
+        "place-order": { singular: "đơn đặt hàng", path: "/place-order" },
+        fund: { singular: "phiếu thu/chi", path: "/funds" },
+        "partner-payment": { singular: "thanh toán đối tác", path: "/partners" },
+        "inventory-receipt": { singular: "nhập hàng", path: "/import-goods" },
+        "raw-material-import": { singular: "nhập nguyên liệu", path: "/import-goods" },
+        "team-payment": { singular: "thanh toán tổ", path: "/production/team-payment" },
+        "device-tally": { singular: "dữ liệu tổ", path: "/production/bricks" },
+    };
+
+    const entity = entityLabel[entityType];
+    const title = `${actorName} ${actionLabel[action]} ${entity.singular}`;
+    const message = "Click vào để xem thêm";
+    const pushMeta: EntityMeta = { entityId, entityType, url: `${entity.path}?edit=${entityId}` };
+
+    const counters = { sent: 0, expired: 0, failed: 0, total: 0 };
+
+    try {
+        const res = await serverFetch(`${apiBase}/api/notification/users-with-subscriptions`, { cache: "no-store" });
+        if (!res.ok) {
+            console.error(`[notifyEntityAdmins] cannot fetch users-with-subscriptions: HTTP ${res.status}`);
+            return counters;
+        }
+
+        const raw = (await res.json()) as Array<Record<string, unknown>>;
+        const users: AdminTarget[] = raw.map((u) => ({
+            id: Number(u.id ?? u.Id ?? 0),
+            role: String(u.role ?? u.Role ?? ""),
+            companyId: u.companyId !== undefined && u.companyId !== null
+                ? Number(u.companyId)
+                : u.CompanyId !== undefined && u.CompanyId !== null
+                    ? Number(u.CompanyId)
+                    : undefined,
+            notificationEnabled: Boolean(u.notificationEnabled ?? u.NotificationEnabled),
+            notificationEndpoint: (u.notificationEndpoint ?? u.NotificationEndpoint) as string | null,
+            notificationP256dh: (u.notificationP256dh ?? u.NotificationP256dh) as string | null,
+            notificationAuth: (u.notificationAuth ?? u.NotificationAuth) as string | null,
+        }));
+
+        const targets = users.filter((u) => {
+            if (!u.notificationEnabled || !u.notificationEndpoint || !u.notificationP256dh || !u.notificationAuth) return false;
+            const roleLower = u.role.toLowerCase();
+            if (roleLower === "admin") return true;
+            if (roleLower === "admin company") {
+                if (companyId === null || companyId === undefined) return false;
+                return Number(u.companyId) === Number(companyId);
+            }
+            return false;
+        });
+
+        counters.total = targets.length;
+        if (targets.length === 0) return counters;
+
+        const results = await Promise.all(
+            targets.map((u) =>
+                sendNotification(message, String(u.id), icon, title, {
+                    endpoint: u.notificationEndpoint!,
+                    p256dh: u.notificationP256dh!,
+                    auth: u.notificationAuth!,
+                }, pushMeta as unknown as OrderPushMeta),
+            ),
+        );
+
+        for (const r of results) {
+            if ("success" in r && r.success) counters.sent++;
+            else if ("expired" in r && r.expired) counters.expired++;
+            else counters.failed++;
+        }
+    } catch (err) {
+        console.error("[notifyEntityAdmins] failed:", err);
     }
 
     return counters;
