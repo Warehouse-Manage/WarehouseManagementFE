@@ -204,7 +204,7 @@ export default function FundsPage() {
     }
     setLoadingSuggestions(true);
     try {
-      let data: (Deliver | Worker | Customer | User)[] = [];
+      let data: (Deliver | Worker | Customer | User | { id: number; name: string; phoneNumber?: string })[] = [];
       switch (target) {
         case 'Giao hàng':
           data = await financeApi.getDelivers();
@@ -215,6 +215,9 @@ export default function FundsPage() {
         case 'Khách hàng':
           data = await financeApi.getCustomers();
           break;
+        case 'Đối tác':
+          data = await partnerApi.getPartners();
+          break;
         case 'Vật tư':
           data = await userApi.getUsers({ role: 'approver' });
           break;
@@ -224,7 +227,7 @@ export default function FundsPage() {
           return;
       }
 
-      const mapped = data.map((item: Deliver | Worker | Customer | User) => {
+      const mapped = data.map((item) => {
         const id = item.id ?? 0;
         if (target === 'Giao hàng') {
           const deliver = item as Deliver;
@@ -784,12 +787,41 @@ export default function FundsPage() {
               {draftFilterMode === 'month' && (
                 <div>
                   <label className="block text-xs font-black uppercase tracking-wider text-gray-500 mb-1">Tháng</label>
-                  <input
-                    type="month"
-                    value={draftFilterMonth}
-                    onChange={(e) => setDraftFilterMonth(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
-                  />
+                  <div className="flex flex-wrap gap-1">
+                    <select
+                      value={draftFilterMonth.split('-')[0] || new Date().getFullYear()}
+                      onChange={(e) => {
+                        const year = e.target.value;
+                        const currentMonth = draftFilterMonth.split('-')[1] || String(new Date().getMonth() + 1).padStart(2, '0');
+                        setDraftFilterMonth(`${year}-${currentMonth}`);
+                      }}
+                      className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-700 focus:border-orange-500 focus:outline-none"
+                    >
+                      {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                    {['01','02','03','04','05','06','07','08','09','10','11','12'].map((m) => {
+                      const fullValue = `${draftFilterMonth.split('-')[0] || new Date().getFullYear()}-${m}`;
+                      const monthNum = parseInt(m);
+                      const monthNames = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
+                      const isSelected = draftFilterMonth === fullValue;
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setDraftFilterMonth(fullValue)}
+                          className={`px-2 py-1.5 text-xs font-bold rounded transition-all ${
+                            isSelected
+                              ? 'bg-orange-600 text-white shadow'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {monthNames[monthNum - 1]}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
