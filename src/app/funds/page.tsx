@@ -76,6 +76,8 @@ export default function FundsPage() {
   const [summaryOpeningBalance, setSummaryOpeningBalance] = useState(0);
   const [summaryCurrentBalance, setSummaryCurrentBalance] = useState(0);
 
+  const [isInitialized, setIsInitialized] = useState(false);
+
   const [suggestions, setSuggestions] = useState<{ id: number; name: string }[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
@@ -97,6 +99,7 @@ export default function FundsPage() {
     setFilterMonth(initial);
     setDraftFilterYear(currentYear);
     setFilterYear(currentYear);
+    setIsInitialized(true);
   }, []);
 
   const fundFormFields: FormField[] = [
@@ -296,12 +299,14 @@ export default function FundsPage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    loadFunds();
-  }, [currentPage, pageSize, filterDateFrom, filterDateTo, filterMonth, filterYear, filterMode, filterType, filterCategory]);
-
-  useEffect(() => {
     setCurrentPage(1);
   }, [filterType, filterCategory, filterReceiverName, filterPayerName, filterDateFrom, filterDateTo, filterMonth, filterYear, filterMode]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!isInitialized) return;
+    loadFunds();
+  }, [currentPage, pageSize, filterDateFrom, filterDateTo, filterMonth, filterYear, filterMode, filterType, filterCategory, isInitialized]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
