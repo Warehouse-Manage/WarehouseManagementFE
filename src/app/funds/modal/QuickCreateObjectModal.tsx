@@ -36,7 +36,6 @@ const objectConfig: Record<QuickObjectType, { title: string; fields: { name: str
     title: 'Thêm nhân viên mới',
     fields: [
       { name: 'name', label: 'Tên nhân viên', type: 'text', placeholder: 'Nhập tên nhân viên...', required: true },
-      { name: 'age', label: 'Tuổi', type: 'number', placeholder: 'Nhập tuổi...', required: true },
       { name: 'phone', label: 'Số điện thoại', type: 'text', placeholder: 'Nhập số điện thoại...', required: true },
       { name: 'salary', label: 'Lương', type: 'number', placeholder: 'Nhập lương...', required: true },
     ]
