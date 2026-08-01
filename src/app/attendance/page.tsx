@@ -9,6 +9,7 @@ import { Worker, Attendance, WorkDate } from '@/types';
 import { DataTable, DynamicForm, FormField } from '@/components/shared';
 import SalaryDetailModal from './modal/SalaryDetailModal';
 import DeleteConfirmModal from './modal/DeleteConfirmModal';
+import PrintAttendanceSheetModal from './modal/PrintAttendanceSheetModal';
 
 // Types moved to @/types/worker.ts and @/types/attendance.ts
 type ToastState = {
@@ -283,17 +284,27 @@ export default function AttendancePage() {
   const [workerSearch, setWorkerSearch] = useState('');
   const [workerForm, setWorkerForm] = useState<Record<string, unknown>>({
     name: '',
-    age: '',
     phoneNumber: '',
     salary: '',
     userId: '',
+    displayOrder: '0',
+    team: '',
   });
 
   const workerFormFields: FormField[] = [
     { name: 'name', label: 'Tên nhân viên', type: 'text', placeholder: 'Ví dụ: Nguyễn Văn A', required: true },
-    { name: 'age', label: 'Tuổi', type: 'number', placeholder: '30' },
     { name: 'phoneNumber', label: 'Số điện thoại', type: 'tel', placeholder: '0901...', required: true },
     { name: 'salary', label: 'Lương cơ bản', type: 'number', placeholder: '10000000', required: true },
+    {
+      name: 'team',
+      label: 'Tổ',
+      type: 'select',
+      options: [
+        { label: 'Tổ máy', value: 'Tổ máy' },
+        { label: 'Tổ đốt', value: 'Tổ đốt' },
+      ],
+    },
+    { name: 'displayOrder', label: 'Thứ tự', type: 'number', placeholder: '0' },
     { name: 'userId', label: 'User ID (tùy chọn)', type: 'number', placeholder: 'Liên kết tài khoản người dùng' },
   ];
   const [workerToast, setWorkerToast] = useState<ToastState | null>(null);
@@ -309,6 +320,7 @@ export default function AttendancePage() {
   const [isLoadingOverview, setIsLoadingOverview] = useState(false);
   const [overviewAttendances, setOverviewAttendances] = useState<Map<number, Attendance>>(new Map());
   const [isLoadingOverviewAll, setIsLoadingOverviewAll] = useState(false);
+  const [isPrintSheetModalOpen, setIsPrintSheetModalOpen] = useState(false);
 
   // Mobile Overview (Admin/Approver): horizontal scroll synchronized across header/body/footer
   const overviewBodyScrollRef = useRef<HTMLDivElement | null>(null);
@@ -431,7 +443,7 @@ export default function AttendancePage() {
       setLoadingWorkers(true);
       setGlobalError(null);
       try {
-        const data = await workerApi.getWorkers();
+        const data = await workerApi.getWorkers(undefined, userRole);
         setWorkers(data);
       } catch (error: unknown) {
         console.error('Không thể tải danh sách nhân viên:', error);
@@ -780,7 +792,16 @@ export default function AttendancePage() {
     setMarkToast(null);
     const [year, month] = markForm.month.split('-');
     try {
-      const data = await attendanceApi.getAttendances(year, Number(month));
+      // Use overview endpoint so workers without any attendance record are also shown
+      // (with default 0 salary/paid and empty work dates). Pass role so approver
+      // only gets workers in "Tổ máy".
+      const overviewData = await attendanceApi.getOverview(year, Number(month), userRole);
+      const data = Object.values(overviewData).sort((a, b) => {
+        const ao = a.worker?.displayOrder ?? 0;
+        const bo = b.worker?.displayOrder ?? 0;
+        if (ao !== bo) return ao - bo;
+        return (a.worker?.name || '').localeCompare(b.worker?.name || '', 'vi');
+      });
       setAllAttendances(data);
       setMonthChosen(month);
       setYearChosen(year);
@@ -969,10 +990,11 @@ export default function AttendancePage() {
   const resetWorkerForm = () => {
     setWorkerForm({
       name: '',
-      age: '',
       phoneNumber: '',
       salary: '',
       userId: '',
+      displayOrder: '0',
+      team: '',
     });
     setEditingWorker(null);
   };
@@ -981,10 +1003,11 @@ export default function AttendancePage() {
     setEditingWorker(worker);
     setWorkerForm({
       name: worker.name,
-      age: String(worker.age),
       phoneNumber: worker.phoneNumber,
       salary: String(worker.salary),
       userId: worker.userId ? String(worker.userId) : '',
+      displayOrder: String(worker.displayOrder ?? 0),
+      team: worker.team ?? '',
     });
   };
 
@@ -1016,10 +1039,11 @@ export default function AttendancePage() {
 
     const payload = {
       name: (workerForm.name as string) || '',
-      age: workerForm.age ? Number(workerForm.age) : 0,
       phoneNumber: (workerForm.phoneNumber as string) || '',
       salary: Number(workerForm.salary) || 0,
       userId: workerForm.userId ? Number(workerForm.userId) : null,
+      displayOrder: workerForm.displayOrder !== undefined && workerForm.displayOrder !== '' ? Number(workerForm.displayOrder) : 0,
+      team: (workerForm.team as string) || null,
     };
 
     if (Number.isNaN(payload.salary) || payload.salary <= 0) {
@@ -1111,7 +1135,7 @@ export default function AttendancePage() {
       setIsLoadingOverviewAll(true);
       const [year, month] = overviewMonth.split('-');
 
-      attendanceApi.getOverview(year, Number(month))
+      attendanceApi.getOverview(year, Number(month), userRole)
         .then((data) => {
           const attendanceMap = new Map<number, Attendance>();
           Object.entries(data).forEach(([workerId, attendance]) => {
@@ -2407,8 +2431,31 @@ export default function AttendancePage() {
                             </div>
                           )
                         },
-                        { key: 'age', header: 'Tuổi', mobileHidden: true },
                         { key: 'phoneNumber', header: 'Số điện thoại', mobileHidden: true },
+                        {
+                          key: 'team',
+                          header: 'Tổ',
+                          mobileHidden: true,
+                          render: (w) => (
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest ${
+                              w.team === 'Tổ máy'
+                                ? 'bg-blue-100 text-blue-700'
+                                : w.team === 'Tổ đốt'
+                                  ? 'bg-orange-100 text-orange-700'
+                                  : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              {w.team || '—'}
+                            </span>
+                          )
+                        },
+                        {
+                          key: 'displayOrder',
+                          header: 'Thứ tự',
+                          mobileHidden: true,
+                          className: 'text-center',
+                          headerClassName: 'text-center',
+                          render: (w) => <span className="font-black text-gray-900">{w.displayOrder ?? 0}</span>
+                        },
                         {
                           key: 'salary',
                           header: 'Lương cơ bản',
@@ -2489,12 +2536,25 @@ export default function AttendancePage() {
                     Chi tiết tháng {overviewMonth}
                   </p>
                 </div>
-                <input
-                  type="month"
-                  value={overviewMonth}
-                  onChange={(e) => setOverviewMonth(e.target.value)}
-                  className="w-full sm:w-auto rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                />
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="month"
+                    value={overviewMonth}
+                    onChange={(e) => setOverviewMonth(e.target.value)}
+                    className="w-full sm:w-auto rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                  />
+                  {hasCompanyAdminPrivileges(userRole) || userRole === 'approver' ? (
+                    <button
+                      onClick={() => setIsPrintSheetModalOpen(true)}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold uppercase tracking-wide text-white shadow hover:bg-orange-700 transition-colors cursor-pointer"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z" />
+                      </svg>
+                      In bảng chấm công
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
               {isLoadingOverviewAll ? (
@@ -2685,6 +2745,14 @@ export default function AttendancePage() {
           ) : null}
         </div>
       </div>
+
+      <PrintAttendanceSheetModal
+        isOpen={isPrintSheetModalOpen}
+        onClose={() => setIsPrintSheetModalOpen(false)}
+        workers={workers}
+        defaultMonth={overviewMonth}
+        defaultTeam={userRole === 'approver' ? 'Tổ máy' : null}
+      />
     </div>
   );
 }

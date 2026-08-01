@@ -14,8 +14,14 @@ export const attendanceApi = {
         return api.post<Attendance>(`/api/attendances/${attendanceId}/pay-salary`, data);
     },
 
-    getOverview: async (year: string, month: number): Promise<Record<string, Attendance>> => {
-        return api.get<Record<string, Attendance>>(`/api/attendances/overview/month/${year}/${month}`);
+    getOverview: async (year: string, month: number, role?: string | null): Promise<Record<string, Attendance>> => {
+        const params = new URLSearchParams();
+        if (role) params.set('role', role);
+        const queryString = params.toString();
+        const url = queryString
+            ? `/api/attendances/overview/month/${year}/${month}?${queryString}`
+            : `/api/attendances/overview/month/${year}/${month}`;
+        return api.get<Record<string, Attendance>>(url);
     },
 
     getAttendances: async (year: string, month: number): Promise<Attendance[]> => {
@@ -28,5 +34,17 @@ export const attendanceApi = {
 
     saveAttendance: async (data: SaveAttendancePayload): Promise<Attendance> => {
         return api.post<Attendance>('/api/attendances', data);
+    },
+
+    printAttendanceSheet: async (data: AttendanceSheetPrintPayload): Promise<string> => {
+        return api.post<string>('/api/attendances/print-sheet', data);
     }
 };
+
+export interface AttendanceSheetPrintPayload {
+    year: number;
+    month: number;
+    startDay: number;
+    endDay: number;
+    team?: string | null;
+}

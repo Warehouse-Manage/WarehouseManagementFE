@@ -3,14 +3,16 @@ export interface Worker {
     name: string;
     salary: number;
     phoneNumber: string;
-    age: number;
     userId?: number | null;
+    displayOrder?: number;
+    team?: string | null;
 }
 
 export interface WorkerFormData {
     name: string;
-    age: number;
     phoneNumber: string;
     salary: number;
     userId?: number | null;
+    displayOrder?: number;
+    team?: string | null;
 }

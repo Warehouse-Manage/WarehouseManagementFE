@@ -2,8 +2,12 @@ import { api } from './api';
 import { Worker, WorkerFormData } from '../types';
 
 export const workerApi = {
-    getWorkers: async (userId?: string): Promise<Worker[]> => {
-        const url = userId ? `/api/workers?userId=${userId}` : '/api/workers';
+    getWorkers: async (userId?: string, role?: string | null): Promise<Worker[]> => {
+        const params = new URLSearchParams();
+        if (userId) params.set('userId', userId);
+        if (role) params.set('role', role);
+        const queryString = params.toString();
+        const url = queryString ? `/api/workers?${queryString}` : '/api/workers';
         return api.get<Worker[]>(url);
     },
 
