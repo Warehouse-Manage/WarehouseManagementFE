@@ -405,15 +405,14 @@ export default function FundsPage() {
         }
         case 'Nhân viên': {
           const name = String(quickCreateData.name || '').trim();
-          const age = Number(quickCreateData.age) || 0;
           const phone = String(quickCreateData.phone || '').trim();
           const salary = Number(quickCreateData.salary) || 0;
-          if (!name || !age || !phone || !salary) {
+          if (!name || !phone || !salary) {
             setQuickCreateError('Vui lòng nhập đầy đủ thông tin');
             setQuickCreateSubmitting(false);
             return;
           }
-          const worker = await workerApi.createWorker({ name, age, phoneNumber: phone, salary });
+          const worker = await workerApi.createWorker({ name, phoneNumber: phone, salary });
           newId = worker.id;
           newName = worker.name;
           break;
