@@ -6,6 +6,7 @@ export interface Worker {
     userId?: number | null;
     displayOrder?: number;
     team?: string | null;
+    isDeleted?: boolean;
 }
 
 export interface WorkerFormData {
