@@ -275,7 +275,7 @@ export default function ChatBot() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 md:hidden">
+    <div className="fixed right-4 bottom-20 z-50 md:hidden">
       {!isOpen ? (
         <button
           type="button"

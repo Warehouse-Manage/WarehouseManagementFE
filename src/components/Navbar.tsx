@@ -12,13 +12,11 @@ import { canAccessAccounting, canManageCompanyUsers } from '@/lib/roles';
 export default function Navbar() {
   const pathname = usePathname();
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isKeToanMenuOpen, setIsKeToanMenuOpen] = useState(false);
   const [keToanMenuPosition, setKeToanMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [userInitial, setUserInitial] = useState('U');
   const [role, setRole] = useState<string | null>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const keToanMenuRef = useRef<HTMLDivElement>(null);
   const keToanMenuButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -77,7 +75,6 @@ export default function Navbar() {
   const isNguyenLieu = pathname?.startsWith('/raw-materials');
   const isCustomers = pathname?.startsWith('/customers');
   const isDelivers = pathname?.startsWith('/delivers');
-  const isOrders = pathname?.startsWith('/orders');
   const isPlaceOrder = pathname?.startsWith('/place-order');
   const isFunds = pathname?.startsWith('/funds');
   const isDoiTac = pathname?.startsWith('/partners');
@@ -91,12 +88,6 @@ export default function Navbar() {
       const target = event.target as Node;
       const targetElement = event.target as HTMLElement;
 
-      // Check if click is on mobile menu button - if so, don't close
-      const mobileMenuButton = targetElement?.closest('button[aria-label="Toggle mobile menu"]');
-      if (mobileMenuButton) {
-        return;
-      }
-
       // Check if click is on kế toán dropdown button or menu
       if (keToanMenuButtonRef.current?.contains(target) || keToanMenuRef.current?.contains(target)) {
         return;
@@ -104,9 +95,6 @@ export default function Navbar() {
 
       if (userDropdownRef.current && !userDropdownRef.current.contains(target)) {
         setIsUserDropdownOpen(false);
-      }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
-        setIsMobileMenuOpen(false);
       }
       if (isKeToanMenuOpen && keToanMenuRef.current && !keToanMenuRef.current.contains(target) && 
           keToanMenuButtonRef.current && !keToanMenuButtonRef.current.contains(target)) {
@@ -127,7 +115,6 @@ export default function Navbar() {
 
   const handleUserAction = async (action: string) => {
     setIsUserDropdownOpen(false);
-    setIsMobileMenuOpen(false);
     switch (action) {
       case 'view-requests':
         console.log('Xem yêu cầu');
@@ -362,27 +349,9 @@ export default function Navbar() {
           </div>
         )}
 
-        {/* Right side - User avatar and mobile menu button */}
+        {/* Right side - User avatar */}
         <div className="flex items-center space-x-2">
-          {/* Mobile menu button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMobileMenuOpen(!isMobileMenuOpen);
-            }}
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-200"
-            aria-label="Toggle mobile menu"
-          >
-            <svg className="h-6 w-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {isMobileMenuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
-
-          {/* Đơn hàng - sát nút thông báo */}
+          {/* Đơn hàng - sát nút thông báo (chỉ desktop) */}
           {hasAccountingAccess && (
             <Link
               href="/orders"
@@ -458,167 +427,6 @@ export default function Navbar() {
           </div>
         </div>
       </div>
-
-      {/* Mobile Navigation Menu */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white/95 backdrop-blur-lg animate-in slide-in-from-top duration-300" ref={mobileMenuRef}>
-          <div className="px-3 pt-2 pb-6 space-y-1">
-            {isWarehouseManager ? (
-              <Link
-                href="/import-goods"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isNhapHang
-                  ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                  : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-              >
-                Nhập hàng
-              </Link>
-            ) : (
-              <>
-            <Link
-              href="/"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isMaterials
-                ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                : 'text-gray-700 hover:bg-gray-50'
-                }`}
-            >
-              Trang chủ
-            </Link>
-            <Link
-              href="/supplies"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isVatTu
-                ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                : 'text-gray-700 hover:bg-gray-50'
-                }`}
-            >
-              Vật tư
-            </Link>
-            <Link
-              href="/attendance"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isAttendance
-                ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                : 'text-gray-700 hover:bg-gray-50'
-                }`}
-            >
-              Chấm công
-            </Link>
-            {hasAccountingAccess && (
-              <>
-                <Link
-                  href="/products"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isProducts
-                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                    : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                >
-                  Sản phẩm
-                </Link>
-                <Link
-                  href="/raw-materials"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isNguyenLieu
-                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                    : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                >
-                  Nguyên liệu
-                </Link>
-                <Link
-                  href="/customers"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isCustomers
-                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                    : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                >
-                  Khách hàng
-                </Link>
-                <Link
-                  href="/delivers"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isDelivers
-                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                    : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                >
-                  Giao hàng
-                </Link>
-                <Link
-                  href="/orders"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isOrders
-                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                    : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                >
-                  Đơn hàng
-                </Link>
-                <Link
-                  href="/place-order"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isPlaceOrder
-                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                    : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                >
-                  Đặt hàng
-                </Link>
-                <Link
-                  href="/funds"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isFunds
-                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                    : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                >
-                  Sổ quỹ
-                </Link>
-                <Link
-                  href="/partners"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isDoiTac
-                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                    : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                >
-                  Đối tác
-                </Link>
-                <Link
-                  href="/import-goods"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isNhapHang
-                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                    : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                >
-                  Nhập hàng
-                </Link>
-              </>
-            )}
-            {hasAccountingAccess && (
-              <>
-                <Link
-                  href="/production"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-base font-bold transition-all ${isProduction
-                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                    : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                >
-                  Sản xuất
-                </Link>
-              </>
-            )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </nav>
   );
 }
