@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, Check, ExternalLink, Inbox } from "lucide-react";
+import { Bell, BellOff, BellRing, Check, ExternalLink, Inbox, Loader2 } from "lucide-react";
 import { notificationApi } from "@/api/notificationApi";
 import { NotificationHistoryItem } from "@/types";
 import { getCookie } from "@/lib/ultis";
+import { usePushSubscription } from "./Notification";
 
 const PAGE_SIZE = 8;
 
@@ -32,6 +33,7 @@ export default function NotificationCenter() {
     const containerRef = useRef<HTMLDivElement>(null);
 
     const userId = getCookie("userId");
+    const push = usePushSubscription();
 
     const fetchUnreadCount = useCallback(async () => {
         if (!userId) return;
@@ -59,7 +61,6 @@ export default function NotificationCenter() {
     useEffect(() => {
         setIsMounted(true);
         if (!userId) return;
-
         fetchUnreadCount();
         const interval = setInterval(fetchUnreadCount, 30000);
         return () => clearInterval(interval);
@@ -86,7 +87,9 @@ export default function NotificationCenter() {
         if (!userId || item.isRead) return;
         try {
             await notificationApi.markRead(item.id, userId);
-            setItems((prev) => prev.map((it) => (it.id === item.id ? { ...it, isRead: true, readDate: new Date().toISOString() } : it)));
+            setItems((prev) =>
+                prev.map((it) => (it.id === item.id ? { ...it, isRead: true, readDate: new Date().toISOString() } : it))
+            );
             setUnreadCount((prev) => Math.max(0, prev - 1));
         } catch (err) {
             console.error("Failed to mark as read:", err);
@@ -120,6 +123,9 @@ export default function NotificationCenter() {
         );
     }
 
+    // Icon chính phản ánh trạng thái push (đang bật thì BellRing, không thì BellOff).
+    const pushOn = push.status === "on";
+
     return (
         <div className="relative" ref={containerRef}>
             <button
@@ -128,7 +134,11 @@ export default function NotificationCenter() {
                 title="Thông báo"
                 aria-label="Mở danh sách thông báo"
             >
-                <Bell className={`h-5 w-5 ${unreadCount > 0 ? "text-orange-600" : "text-gray-600"}`} />
+                {pushOn ? (
+                    <BellRing className={`h-5 w-5 ${unreadCount > 0 ? "text-orange-600" : "text-gray-700"}`} />
+                ) : (
+                    <BellOff className="h-5 w-5 text-gray-500" />
+                )}
                 {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
                         {unreadCount > 99 ? "99+" : unreadCount}
@@ -137,7 +147,8 @@ export default function NotificationCenter() {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-[360px] max-w-[92vw] origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-[380px] max-w-[92vw] origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 z-50 overflow-hidden">
+                    {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-amber-50">
                         <div className="flex items-center gap-2">
                             <Bell className="h-4 w-4 text-orange-600" />
@@ -159,7 +170,11 @@ export default function NotificationCenter() {
                         )}
                     </div>
 
-                    <div className="max-h-[420px] overflow-y-auto">
+                    {/* Push subscription toggle */}
+                    <PushToggleRow push={push} />
+
+                    {/* History list */}
+                    <div className="max-h-[360px] overflow-y-auto">
                         {isLoading ? (
                             <div className="px-4 py-8 text-center text-sm text-gray-500">Đang tải...</div>
                         ) : items.length === 0 ? (
@@ -194,6 +209,76 @@ export default function NotificationCenter() {
     );
 }
 
+function PushToggleRow({ push }: { push: ReturnType<typeof usePushSubscription> }) {
+    if (!push.isMounted) {
+        return (
+            <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/50 text-xs text-gray-400">
+                Đang kiểm tra trạng thái thông báo...
+            </div>
+        );
+    }
+
+    if (push.support === "unsupported") {
+        return (
+            <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
+                Trình duyệt không hỗ trợ thông báo đẩy.
+            </div>
+        );
+    }
+
+    if (push.support === "denied") {
+        return (
+            <div className="px-4 py-2.5 border-b border-gray-100 bg-amber-50 text-xs text-amber-700">
+                Thông báo đang bị chặn. Hãy bật trong cài đặt trình duyệt.
+            </div>
+        );
+    }
+
+    const isOn = push.status === "on";
+
+    return (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-gray-100 bg-gray-50/50">
+            <div className="flex items-center gap-2 min-w-0">
+                {isOn ? (
+                    <BellRing className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                ) : (
+                    <BellOff className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                )}
+                <div className="min-w-0">
+                    <p className="text-xs font-semibold text-gray-800">
+                        Thông báo đẩy {isOn ? "đang bật" : "đang tắt"}
+                    </p>
+                    <p className="text-[11px] text-gray-500 truncate">
+                        {isOn
+                            ? "Bạn sẽ nhận thông báo ngay cả khi đóng trang."
+                            : "Bật để nhận thông báo ngay khi có đơn/fund mới."}
+                    </p>
+                </div>
+            </div>
+
+            <button
+                onClick={isOn ? push.disable : push.enable}
+                disabled={push.isLoading}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-300 ${
+                    isOn ? "bg-orange-500" : "bg-gray-300"
+                } ${push.isLoading ? "opacity-60 cursor-wait" : ""}`}
+                aria-label={isOn ? "Tắt thông báo đẩy" : "Bật thông báo đẩy"}
+                title={isOn ? "Tắt thông báo đẩy" : "Bật thông báo đẩy"}
+            >
+                {push.isLoading ? (
+                    <Loader2 className="absolute left-1/2 -translate-x-1/2 h-3 w-3 text-white animate-spin" />
+                ) : (
+                    <span
+                        className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${
+                            isOn ? "translate-x-4" : "translate-x-0.5"
+                        }`}
+                    />
+                )}
+            </button>
+        </div>
+    );
+}
+
 function NotificationItem({
     item,
     onClick,
@@ -202,7 +287,9 @@ function NotificationItem({
     onClick: (item: NotificationHistoryItem) => void;
 }) {
     const Wrapper: React.ElementType = item.url ? Link : "div";
-    const wrapperProps = item.url ? { href: item.url, onClick: () => onClick(item) } : { onClick: () => onClick(item) };
+    const wrapperProps = item.url
+        ? { href: item.url, onClick: () => onClick(item) }
+        : { onClick: () => onClick(item) };
 
     return (
         <Wrapper
@@ -212,15 +299,19 @@ function NotificationItem({
             }`}
         >
             <div className="flex items-start gap-2">
-                {!item.isRead && <span className="mt-2 h-2 w-2 rounded-full bg-orange-500 flex-shrink-0" aria-label="Chưa đọc" />}
+                {!item.isRead && (
+                    <span className="mt-2 h-2 w-2 rounded-full bg-orange-500 flex-shrink-0" aria-label="Chưa đọc" />
+                )}
                 {item.isRead && <span className="mt-2 h-2 w-2 flex-shrink-0" />}
                 <div className="flex-1 min-w-0">
-                    <p className={`text-sm leading-snug truncate ${item.isRead ? "text-gray-700" : "text-gray-900 font-bold"}`}>
+                    <p
+                        className={`text-sm leading-snug truncate ${
+                            item.isRead ? "text-gray-700" : "text-gray-900 font-bold"
+                        }`}
+                    >
                         {item.title}
                     </p>
-                    {item.body && (
-                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.body}</p>
-                    )}
+                    {item.body && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.body}</p>}
                     <p className="text-[11px] text-gray-400 mt-1">{formatTime(item.createdDate)}</p>
                 </div>
             </div>
