@@ -1,250 +1,137 @@
 "use client";
+
 import { getCookie } from "@/lib/ultis";
 import { pushNotificationService } from "@/lib/pushNotificationService";
-import { BellOff, BellRing, Settings, RefreshCw } from "lucide-react";
-import React, { useEffect, useState, useCallback } from "react";
-import { toast } from "sonner";
-
-// API configuration
 import { notificationApi } from "@/api/notificationApi";
+import { toast } from "sonner";
+import { useCallback, useEffect, useState } from "react";
 
-export default function NotificationRequest() {
-	const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
-	const [isSubscribed, setIsSubscribed] = useState(false);
-	const [isLoading, setIsLoading] = useState(false);
-	const [isMounted, setIsMounted] = useState(false);
-	const [backendNotificationEnabled, setBackendNotificationEnabled] = useState(true);
+export type PushSupportStatus = "unsupported" | "default" | "denied" | "granted";
+export type SubscriptionStatus = "off" | "on";
 
-	// Check permission status when component mounts
+export interface UsePushSubscription {
+    /** Trình duyệt hỗ trợ push + permission hiện tại. */
+    support: PushSupportStatus;
+    /** Trạng thái subscription thực tế (cả browser + backend đều bật). */
+    status: SubscriptionStatus;
+    isLoading: boolean;
+    isMounted: boolean;
+    enable: () => Promise<void>;
+    disable: () => Promise<void>;
+    refresh: () => Promise<void>;
+}
 
-	// API functions
-	// API functions (moved to notificationApi)
+/**
+ * Hook quản lý việc bật/tắt push notification của user hiện tại.
+ * Tách riêng khỏi UI để có thể tái sử dụng trong dropdown của NotificationCenter.
+ */
+export function usePushSubscription(): UsePushSubscription {
+    const [support, setSupport] = useState<PushSupportStatus>("default");
+    const [status, setStatus] = useState<SubscriptionStatus>("off");
+    const [isLoading, setIsLoading] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
 
+    const refresh = useCallback(async () => {
+        if (!pushNotificationService.isPushSupported()) {
+            setSupport("unsupported");
+            setStatus("off");
+            return;
+        }
 
-	const showNotification = async () => {
-		if (!pushNotificationService.isPushSupported()) {
-			toast.error("Push notifications are not supported in this browser");
-			return;
-		}
+        const permission = pushNotificationService.getPermissionStatus();
+        setSupport(permission);
 
-		setIsLoading(true);
+        const userId = getCookie("userId");
+        if (!userId) {
+            const localSub = permission === "granted" && (await pushNotificationService.getSubscriptionStatus());
+            setStatus(localSub ? "on" : "off");
+            return;
+        }
 
-		try {
-			const granted = await pushNotificationService.requestPermission();
+        try {
+            const data = await notificationApi.getUserStatus(userId);
+            const hasLocalSub = permission === "granted" && (await pushNotificationService.getSubscriptionStatus());
+            const active = permission === "granted" && data.notificationEnabled && data.hasSubscription && hasLocalSub;
+            setStatus(active ? "on" : "off");
+        } catch (err) {
+            console.error("Failed to fetch user notification status:", err);
+            setStatus("off");
+        }
+    }, []);
 
-			if (granted) {
-				await pushNotificationService.registerServiceWorker();
+    useEffect(() => {
+        setIsMounted(true);
+        if (!pushNotificationService.isPushSupported()) {
+            setSupport("unsupported");
+            return;
+        }
+        refresh();
+        const interval = setInterval(refresh, 30000);
+        return () => clearInterval(interval);
+    }, [refresh]);
 
-				const userId = getCookie('userId');
-				if (!userId) {
-					toast.error('User not authenticated');
-					return;
-				}
+    const enable = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            if (!pushNotificationService.isPushSupported()) {
+                toast.error("Trình duyệt không hỗ trợ thông báo đẩy");
+                return;
+            }
 
-				await pushNotificationService.subscribeToPush(userId);
-				await notificationApi.toggleNotifications(userId, true);
+            const userId = getCookie("userId");
+            if (!userId) {
+                toast.error("Vui lòng đăng nhập");
+                return;
+            }
 
-				setNotificationPermission('granted');
-				setIsSubscribed(true);
-				setBackendNotificationEnabled(true);
-				toast.success('Đã bật thông báo');
-			} else {
-				setNotificationPermission('denied');
-				toast.error('Permission denied. You can enable notifications in your browser settings.');
-			}
-		} catch (error) {
-			console.error('Error enabling notifications:', error);
-			toast.error('Failed to enable notifications');
-			await refreshNotificationStatus();
-		} finally {
-			setIsLoading(false);
-		}
-	};
+            const permission = pushNotificationService.getPermissionStatus();
+            const hasLocalSub = permission === "granted" && (await pushNotificationService.getSubscriptionStatus());
 
-	const removeNotification = async () => {
-		setIsLoading(true);
+            if (permission !== "granted" || !hasLocalSub) {
+                const granted = await pushNotificationService.requestPermission();
+                if (!granted) {
+                    toast.error("Quyền thông báo bị từ chối. Hãy bật trong cài đặt trình duyệt.");
+                    await refresh();
+                    return;
+                }
+                await pushNotificationService.registerServiceWorker();
+                await pushNotificationService.subscribeToPush(userId);
+            }
 
-		try {
-			const userId = getCookie('userId');
-			if (!userId) {
-				toast.error('User not authenticated');
-				return;
-			}
+            await notificationApi.toggleNotifications(userId, true);
+            toast.success("Đã bật thông báo đẩy");
+            await refresh();
+        } catch (err) {
+            console.error("Failed to enable notifications:", err);
+            toast.error(err instanceof Error ? err.message : "Không thể bật thông báo");
+            await refresh();
+        } finally {
+            setIsLoading(false);
+        }
+    }, [refresh]);
 
-			await pushNotificationService.unsubscribeFromPush();
+    const disable = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const userId = getCookie("userId");
+            if (!userId) {
+                toast.error("Vui lòng đăng nhập");
+                return;
+            }
 
-			const result = await notificationApi.unsubscribe({ userId });
-			if (result) {
-				await notificationApi.toggleNotifications(userId, false);
-				setIsSubscribed(false);
-				setBackendNotificationEnabled(false);
-				toast.success(result.message || 'Đã tắt thông báo');
-			}
-		} catch (error) {
-			console.error('Error disabling notifications:', error);
-			toast.error('Failed to disable notifications');
-			await refreshNotificationStatus();
-		} finally {
-			setIsLoading(false);
-		}
-	};
+            await pushNotificationService.unsubscribeFromPush();
+            await notificationApi.unsubscribe({ userId });
+            await notificationApi.toggleNotifications(userId, false);
+            toast.success("Đã tắt thông báo đẩy");
+            await refresh();
+        } catch (err) {
+            console.error("Failed to disable notifications:", err);
+            toast.error("Không thể tắt thông báo");
+            await refresh();
+        } finally {
+            setIsLoading(false);
+        }
+    }, [refresh]);
 
-	// Fetch user notification status from backend
-	const fetchUserNotificationStatus = async (userId: string) => {
-		try {
-			const data = await notificationApi.getUserStatus(userId);
-			return {
-				notificationEnabled: data.notificationEnabled || false,
-				hasSubscription: data.hasSubscription || false
-			};
-		} catch (error) {
-			console.error('Error fetching user notification status:', error);
-			return { notificationEnabled: false, hasSubscription: false };
-		}
-	};
-
-	const applyNotificationState = useCallback(
-		async (permission: NotificationPermission, userStatus: { notificationEnabled: boolean; hasSubscription: boolean }) => {
-			setNotificationPermission(permission);
-			setBackendNotificationEnabled(userStatus.notificationEnabled);
-			const active =
-				permission === 'granted' &&
-				userStatus.notificationEnabled &&
-				userStatus.hasSubscription;
-			setIsSubscribed(active);
-		},
-		[],
-	);
-
-	// Refresh notification status from backend
-	const refreshNotificationStatus = useCallback(async () => {
-		if (!pushNotificationService.isPushSupported()) return;
-
-		const permission = pushNotificationService.getPermissionStatus();
-		const userId = getCookie('userId');
-		if (!userId) {
-			setNotificationPermission(permission);
-			if (permission === 'granted') {
-				const localSub = await pushNotificationService.getSubscriptionStatus();
-				setIsSubscribed(localSub);
-			} else {
-				setIsSubscribed(false);
-			}
-			return;
-		}
-
-		const userStatus = await fetchUserNotificationStatus(userId);
-		await applyNotificationState(permission, userStatus);
-	}, [applyNotificationState]);
-
-	const enableBackendNotifications = async () => {
-		setIsLoading(true);
-		try {
-			const userId = getCookie('userId');
-			if (!userId) {
-				toast.error('User not authenticated');
-				return;
-			}
-
-			const permission = pushNotificationService.getPermissionStatus();
-			const hasLocalSub = permission === 'granted' && (await pushNotificationService.getSubscriptionStatus());
-
-			if (permission !== 'granted' || !hasLocalSub) {
-				await showNotification();
-				return;
-			}
-
-			await notificationApi.toggleNotifications(userId, true);
-			setBackendNotificationEnabled(true);
-			setIsSubscribed(true);
-			toast.success('Đã bật thông báo');
-		} catch (error) {
-			console.error('Error enabling backend notifications:', error);
-			toast.error(error instanceof Error ? error.message : 'Không thể bật thông báo');
-			await refreshNotificationStatus();
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	useEffect(() => {
-		// Mark component as mounted to avoid hydration issues
-		setIsMounted(true);
-
-		// Check notification permission and subscription status
-		const checkStatus = async () => {
-			if (!pushNotificationService.isPushSupported()) {
-				return;
-			}
-
-			await refreshNotificationStatus();
-		};
-
-		checkStatus();
-
-		// Set up periodic refresh every 30 seconds to keep status in sync
-		const refreshInterval = setInterval(() => {
-			refreshNotificationStatus();
-		}, 30000);
-
-		// Cleanup interval on unmount
-		return () => {
-			clearInterval(refreshInterval);
-		};
-	}, [refreshNotificationStatus]);
-
-	// Prevent hydration mismatch by showing loading state until mounted
-	if (!isMounted) {
-		return (
-			<div className="hover:scale-110 cursor-pointer transition-all">
-				<div title="Loading notification settings">
-					<BellOff className="opacity-50" />
-				</div>
-			</div>
-		);
-	}
-
-	return (
-		<div className="flex items-center gap-2">
-			<div className="hover:scale-110 cursor-pointer transition-all">
-				{!pushNotificationService.isPushSupported() ? (
-					<div title="Push notifications not supported in this browser">
-						<BellOff className="opacity-50" />
-					</div>
-				) : notificationPermission === "granted" && isSubscribed && backendNotificationEnabled ? (
-					<div title="Disable notifications">
-						<BellRing
-							onClick={removeNotification}
-							className={isLoading ? "animate-pulse" : ""}
-						/>
-					</div>
-				) : notificationPermission === "denied" ? (
-					<div title="Notifications blocked - enable in browser settings">
-						<Settings className="opacity-50" />
-					</div>
-				) : !backendNotificationEnabled ? (
-					<div title="Notifications disabled in settings - click to enable">
-						<BellOff
-							onClick={enableBackendNotifications}
-							className={isLoading ? "animate-pulse" : ""}
-						/>
-					</div>
-				) : (
-					<div title="Enable notifications">
-						<BellOff
-							onClick={showNotification}
-							className={isLoading ? "animate-pulse" : ""}
-						/>
-					</div>
-				)}
-			</div>
-			<button
-				onClick={refreshNotificationStatus}
-				title="Refresh notification status"
-				className="hover:scale-110 cursor-pointer transition-all p-1"
-			>
-				<RefreshCw className={`h-4 w-4 text-gray-500 hover:text-gray-700 ${isLoading ? "animate-spin" : ""}`} />
-			</button>
-		</div>
-	);
+    return { support, status, isLoading, isMounted, enable, disable, refresh };
 }
