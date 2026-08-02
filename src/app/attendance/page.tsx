@@ -385,7 +385,8 @@ export default function AttendancePage() {
         const data = await workerApi.getWorkers(currentUserId);
 
         if (data && data.length > 0) {
-          const worker = data[0];
+          // Ưu tiên worker chưa xóa; nếu tất cả đều đã xóa thì lấy cái đầu tiên
+          const worker = data.find((w) => !w.isDeleted) || data[0];
           setCurrentUserWorker(worker);
           setWorkers(data); // Set workers for consistency
           // Auto-set markForm workerId for user role
@@ -2425,9 +2426,14 @@ export default function AttendancePage() {
                                 {w.name.charAt(0).toUpperCase()}
                               </div>
                               <div>
-                                <div className="font-black text-gray-900 uppercase tracking-tight">{w.name}</div>
+                                <div className={`font-black uppercase tracking-tight ${w.isDeleted ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{w.name}</div>
                                 <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">#{w.id}</div>
                               </div>
+                              {w.isDeleted && (
+                                <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-red-700">
+                                  Đã xóa
+                                </span>
+                              )}
                             </div>
                           )
                         },
