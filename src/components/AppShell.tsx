@@ -2,27 +2,29 @@
 
 import { usePathname } from 'next/navigation';
 import NavbarContainer from '@/components/NavbarContainer';
+import MobileBottomTabs from '@/components/MobileBottomTabs';
 import ChatBot from '@/components/shared/ChatBot';
 
 function isLoginRoute(pathname: string | null): boolean {
-  if (!pathname) return false;
-  return pathname === '/login' || pathname.startsWith('/login/');
+    if (!pathname) return false;
+    return pathname === '/login' || pathname.startsWith('/login/');
 }
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+    const pathname = usePathname();
 
-  if (isLoginRoute(pathname)) {
-    return <div className="min-h-[100dvh] w-full bg-gray-50">{children}</div>;
-  }
+    if (isLoginRoute(pathname)) {
+        return <div className="min-h-[100dvh] w-full bg-gray-50">{children}</div>;
+    }
 
-  return (
-    <>
-      <NavbarContainer />
-      <main className="mx-auto max-w-[1440px] w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {children}
-      </main>
-      <ChatBot />
-    </>
-  );
+    return (
+        <>
+            <NavbarContainer />
+            <main className="mx-auto max-w-[1440px] w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-6">
+                {children}
+            </main>
+            <MobileBottomTabs />
+            <ChatBot />
+        </>
+    );
 }
