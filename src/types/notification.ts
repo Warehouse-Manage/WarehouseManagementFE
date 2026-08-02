@@ -32,3 +32,37 @@ export interface UserWithNotification {
     notificationAuth?: string;
     notificationSubscriptionDate?: string;
 }
+
+export interface NotificationHistoryCreateInput {
+    userId: number;
+    title: string;
+    body: string;
+    entityType?: string | null;
+    entityId?: number | null;
+    url?: string | null;
+    icon?: string | null;
+}
+
+export interface NotificationHistoryItem {
+    id: number;
+    userId: number;
+    title: string;
+    body: string;
+    entityType?: string | null;
+    entityId?: number | null;
+    url?: string | null;
+    icon?: string | null;
+    isRead: boolean;
+    createdDate: string;
+    readDate?: string | null;
+}
+
+export interface NotificationUnreadCount {
+    userId: number;
+    unreadCount: number;
+}
+
+export interface NotificationMarkReadResponse {
+    success: boolean;
+    updatedCount: number;
+}

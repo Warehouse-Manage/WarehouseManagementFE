@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import NotificationRequest from './Notification';
+import NotificationCenter from './NotificationCenter';
 import { getCookie } from '@/lib/ultis';
 import { canAccessAccounting, canManageCompanyUsers } from '@/lib/roles';
 
@@ -393,7 +394,8 @@ export default function Navbar() {
           )}
 
           {/* Notification component */}
-          <div className="flex items-center">
+          <div className="flex items-center gap-1">
+            <NotificationCenter />
             <NotificationRequest />
           </div>
 

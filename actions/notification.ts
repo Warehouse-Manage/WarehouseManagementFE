@@ -16,6 +16,35 @@ const ensureVapidConfigured = () => {
 
 type WebPushFailure = { statusCode?: number; body?: string };
 
+type HistoryPayload = {
+    userId: number;
+    title: string;
+    body: string;
+    entityType?: string;
+    entityId?: number;
+    url?: string;
+    icon?: string;
+};
+
+const saveNotificationHistory = async (payload: HistoryPayload): Promise<boolean> => {
+    try {
+        const res = await serverFetch(`${apiBase}/api/notification/history`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            cache: "no-store",
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            console.error(`[sendNotification] failed to save history: HTTP ${res.status}`);
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error("[sendNotification] failed to save history:", err);
+        return false;
+    }
+};
+
 const clearExpiredSubscription = async (userId: string) => {
     try {
         await serverFetch(`${apiBase}/api/notification/unsubscribe`, {
@@ -98,6 +127,16 @@ export const sendNotification = async (
         return { error: "Missing userId" };
     }
 
+    const historySaved = await saveNotificationHistory({
+        userId: Number(resolvedUserId),
+        title,
+        body: message,
+        icon,
+        entityType: orderMeta && "entityType" in orderMeta ? orderMeta.entityType : orderMeta?.orderType,
+        entityId: orderMeta && "entityId" in orderMeta ? orderMeta.entityId : orderMeta?.orderId,
+        url: orderMeta?.url,
+    });
+
     let sub: SubscriptionInput | null = subscriptionData && subscriptionData.endpoint && subscriptionData.p256dh && subscriptionData.auth
         ? subscriptionData
         : null;
@@ -107,7 +146,9 @@ export const sendNotification = async (
     }
 
     if (!sub) {
-        return { error: "Missing subscription data" };
+        return historySaved
+            ? { saved: true, error: "Missing subscription data" }
+            : { error: "Missing subscription data" };
     }
 
     try {
@@ -125,7 +166,7 @@ export const sendNotification = async (
                 },
             }),
         );
-        return { success: true };
+        return { success: true, saved: historySaved };
     } catch (e: unknown) {
         const err = e as WebPushFailure;
         if (err?.statusCode === 410 || err?.statusCode === 404) {
@@ -155,7 +196,7 @@ export const notifyOrderToAdmins = async (
     companyId: number | null | undefined,
 ): Promise<{ sent: number; expired: number; failed: number; total: number }> => {
     const orderLabel = orderType === "place-order" ? "đơn đặt hàng" : "đơn hàng";
-    const title = `${creatorName} đã tạo ${orderLabel} mới`;
+    const title = `Tạo ${orderLabel} mới bởi ${creatorName}`;
     const message = "Click vào để xem thêm";
     const path = orderType === "place-order" ? "/place-order" : "/orders";
     const orderMeta: OrderPushMeta = { orderId, orderType, url: `${path}?edit=${orderId}` };
@@ -254,9 +295,9 @@ export const notifyEntityAdmins = async (
     companyId: number | null | undefined,
 ): Promise<{ sent: number; expired: number; failed: number; total: number }> => {
     const actionLabel: Record<ActionType, string> = {
-        create: "đã tạo",
-        update: "đã cập nhật",
-        delete: "đã xóa",
+        create: "Tạo",
+        update: "Cập nhật",
+        delete: "Xóa",
     };
     const entityLabel: Record<EntityType, { singular: string; path: string }> = {
         order: { singular: "đơn hàng", path: "/orders" },
@@ -270,7 +311,7 @@ export const notifyEntityAdmins = async (
     };
 
     const entity = entityLabel[entityType];
-    const title = `${actorName} ${actionLabel[action]} ${entity.singular}`;
+    const title = `${actionLabel[action]} ${entity.singular} bởi ${actorName}`;
     const message = "Click vào để xem thêm";
     const pushMeta: EntityMeta = { entityId, entityType, url: `${entity.path}?edit=${entityId}` };
 
