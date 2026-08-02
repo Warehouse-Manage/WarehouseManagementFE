@@ -3,7 +3,11 @@ import {
     UserSubscription,
     UserNotificationStatus,
     ToggleNotificationResponse,
-    UserWithNotification
+    UserWithNotification,
+    NotificationHistoryItem,
+    NotificationHistoryCreateInput,
+    NotificationUnreadCount,
+    NotificationMarkReadResponse,
 } from '../types';
 
 export const notificationApi = {
@@ -25,5 +29,30 @@ export const notificationApi = {
 
     getUsersWithSubscriptions: async (): Promise<UserWithNotification[]> => {
         return api.get<UserWithNotification[]>('/api/notification/users-with-subscriptions');
-    }
+    },
+
+    saveHistory: async (notification: NotificationHistoryCreateInput): Promise<NotificationHistoryItem> => {
+        return api.post<NotificationHistoryItem>('/api/notification/history', notification);
+    },
+
+    getHistory: async (userId: string, take = 50, skip = 0): Promise<NotificationHistoryItem[]> => {
+        return api.get<NotificationHistoryItem[]>(
+            `/api/notification/history/${userId}?take=${take}&skip=${skip}`,
+        );
+    },
+
+    getUnreadCount: async (userId: string): Promise<NotificationUnreadCount> => {
+        return api.get<NotificationUnreadCount>(`/api/notification/history/${userId}/unread-count`);
+    },
+
+    markRead: async (id: number, userId: string): Promise<NotificationMarkReadResponse> => {
+        return api.put<NotificationMarkReadResponse>(
+            `/api/notification/history/${id}/read?userId=${userId}`,
+            {},
+        );
+    },
+
+    markAllRead: async (userId: string): Promise<NotificationMarkReadResponse> => {
+        return api.put<NotificationMarkReadResponse>(`/api/notification/history/${userId}/read-all`, {});
+    },
 };
