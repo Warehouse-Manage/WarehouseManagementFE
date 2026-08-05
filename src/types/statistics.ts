@@ -30,6 +30,42 @@ export interface DepartmentSpendingResponse {
     percentage: number;
 }
 
+export interface MaterialPurchaseSummary {
+    purchaseCount: number;
+    totalPurchased: number;
+    totalPaid: number;
+    totalDebt: number;
+    partnerCount: number;
+    pendingRequestCount: number;
+    partners: PartnerPurchaseSummary[];
+    workerCount?: number;
+    workerTotalPurchased?: number;
+    workerTotalPaid?: number;
+    workerTotalDebt?: number;
+    workers?: MaterialWorkerPurchaseSummary[];
+}
+
+export interface MaterialWorkerPurchaseSummary {
+    workerId: number;
+    workerName: string;
+    phoneNumber: string;
+    note?: string;
+    totalPurchased: number;
+    totalPaid: number;
+    debt: number;
+    purchaseCount: number;
+}
+
+export interface PartnerPurchaseSummary {
+    partnerId: number;
+    partnerName: string;
+    phoneNumber: string;
+    totalPurchased: number;
+    totalPaid: number;
+    debt: number;
+    purchaseCount: number;
+}
+
 export interface StatisticsData {
     totalRequests: number;
     approvedRequests: number;
