@@ -11,6 +11,7 @@ export * from './inventoryApi';
 export * from './inventoryReceiptApi';
 export * from './financeApi';
 export * from './partnerApi';
+export * from './materialWorkerApi';
 export * from './importProductChartApi';
 export * from './teamPaymentApi';
 export * from './revenueApi';

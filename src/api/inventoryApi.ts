@@ -63,6 +63,7 @@ export const inventoryApi = {
         totalAmount: number;
         paidAmount: number;
         partnerId: number;
+        materialWorkerId?: number | null;
         createdUserId: number;
     }): Promise<{ rawMaterial: RawMaterial; partner: unknown; fund?: unknown }> => {
         return api.post('/api/rawmaterial/import', data);
