@@ -1,5 +1,4 @@
 export * from './material';
-export * from './materialWorker';
 export * from './request';
 export * from './auth';
 export * from './statistics';

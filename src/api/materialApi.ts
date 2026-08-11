@@ -48,19 +48,7 @@ export const materialApi = {
         return api.get<ApiRequest[]>(url);
     },
 
-    approveRequest: async (
-        requestId: number,
-        data: {
-            approverId: number;
-            comments?: string;
-            discountAmount?: number | '';
-            finalTotal?: number;
-            rawMaterialId?: number;
-            partnerId?: number;
-            paidAmount?: number;
-            items?: Array<{ materialId: number; quantity: number; unitPrice: number }>;
-        }
-    ): Promise<unknown> => {
+    approveRequest: async (requestId: number, data: unknown): Promise<unknown> => {
         return api.put(`/api/materialrequests/${requestId}/approve`, data);
     },
 
