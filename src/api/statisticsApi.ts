@@ -3,8 +3,7 @@ import {
     StatisticsSummary,
     MonthlySpendingResponse,
     TopMaterialResponse,
-    DepartmentSpendingResponse,
-    MaterialPurchaseSummary
+    DepartmentSpendingResponse
 } from '../types';
 
 export const statisticsApi = {
@@ -18,10 +17,6 @@ export const statisticsApi = {
 
     getDepartmentSpending: async (): Promise<DepartmentSpendingResponse[]> => {
         return api.get<DepartmentSpendingResponse[]>('/api/statistics/department-spending');
-    },
-
-    getMaterialPurchaseSummary: async (): Promise<MaterialPurchaseSummary> => {
-        return api.get<MaterialPurchaseSummary>('/api/statistics/material-purchases');
     },
 
     getTopMaterials: async (limit: number = 10): Promise<TopMaterialResponse[]> => {
