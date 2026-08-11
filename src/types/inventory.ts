@@ -80,16 +80,10 @@ export interface RawMaterialImport {
     createdUserId: number;
     dateCreated: string;
     fundId?: number; // Liên kết sổ quỹ
-    materialWorkerId?: number | null;
     rawMaterial?: RawMaterial;
     partner?: {
         id: number;
         name: string;
-    };
-    materialWorker?: {
-        id: number;
-        name: string;
-        phoneNumber?: string;
     };
     createdUser?: {
         id: number;
@@ -106,8 +100,6 @@ export interface RawMaterialImportFormData {
     totalAmount: number;
     paidAmount: number;
     partnerId: number;
-    materialWorkerId?: number | null;
-    clearMaterialWorkerId?: boolean;
     fundId?: number; // Liên kết sổ quỹ
 }
 
