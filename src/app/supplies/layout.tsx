@@ -2,21 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ClipboardList, CheckCircle2, BarChart3 } from 'lucide-react';
+import { Package, BarChart3 } from 'lucide-react';
 
 export default function VatTuLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const sidebarLinks = [
     {
-      href: '/supplies/requests',
+      href: '/supplies',
       label: 'Yêu cầu vật tư',
-      icon: <ClipboardList className="w-5 h-5" />,
-    },
-    {
-      href: '/supplies/approve',
-      label: 'Phê duyệt yêu cầu',
-      icon: <CheckCircle2 className="w-5 h-5" />,
+      icon: <Package className="w-5 h-5" />,
     },
     {
       href: '/supplies/statistics',
@@ -26,9 +21,6 @@ export default function VatTuLayout({ children }: { children: React.ReactNode })
   ];
 
   const isActive = (href: string) => {
-    if (href === '/supplies/requests') {
-      return pathname === '/supplies/requests' || pathname === '/supplies';
-    }
     return pathname === href || pathname?.startsWith(href);
   };
 
