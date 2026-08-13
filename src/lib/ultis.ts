@@ -56,19 +56,28 @@ export function deleteCookie(name: string): void {
 	}
 }
 
-export const formatNumberInput = (value: number | '' | null | undefined): string => {
+export const formatNumberInput = (value: number | string | '' | null | undefined): string => {
 	if (value === '' || value === null || value === undefined) return '';
-	if (typeof value !== 'number') return '';
-	
-	// Tách phần nguyên và phần thập phân
-	const parts = value.toString().split('.');
+	if (typeof value !== 'number' && typeof value !== 'string') return '';
+
+	const raw = typeof value === 'number' ? value.toString() : value;
+	if (raw === '') return '';
+
+	// Bỏ dấu phẩy phân cách hàng nghìn để chuẩn hóa, rồi kiểm tra định dạng.
+	const cleaned = raw.replace(/,/g, '').trim();
+	if (cleaned === '' || cleaned === '.' || cleaned === '-') return cleaned === '-' ? '-' : '';
+
+	// Chỉ chấp nhận một dấu chấm thập phân và một dấu trừ ở đầu.
+	if (!/^-?\d*\.?\d*$/.test(cleaned)) return '';
+
+	const num = Number(cleaned);
+	if (Number.isNaN(num)) return '';
+
+	const parts = cleaned.split('.');
 	const integerPart = parts[0];
 	const decimalPart = parts[1];
-	
-	// Format phần nguyên với dấu phẩy ngăn cách hàng nghìn
 	const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-	
-	// Nếu có phần thập phân thì giữ lại với dấu chấm
+
 	return decimalPart !== undefined ? `${formattedInteger}.${decimalPart}` : formattedInteger;
 };
 
@@ -83,6 +92,56 @@ export const parseNumberInput = (input: string): number | '' => {
 	const num = Number(cleaned);
 	return Number.isNaN(num) ? '' : num;
 };
+
+/**
+ * Live role helpers — read the `role` cookie on every call so logout /
+ * login changes are picked up immediately instead of waiting for a
+ * useEffect-driven state refresh.
+ *
+ * The role values come from the BE's `UserRoles` constants
+ * (`SuperAdmin = "Admin"`, `CompanyAdmin = "admin company"`). The check
+ * is case-insensitive to match the BE's `UserRoles.HasCompanyAdminPrivileges`.
+ */
+
+const normalizeRole = (raw: string | null | undefined): string => (raw ?? '').trim().toLowerCase();
+
+/** Reads the `role` cookie directly (no React state). */
+export function getUserRole(): string {
+    return normalizeRole(getCookie('role'));
+}
+
+/** Reads the `userId` cookie directly (no React state). */
+export function getUserId(): string | null {
+    return getCookie('userId');
+}
+
+/** Reads the `userName` cookie directly (no React state). */
+export function getUserName(): string | null {
+    return getCookie('userName');
+}
+
+/** Reads the `department` cookie directly (no React state). */
+export function getUserDepartment(): string {
+    return getCookie('department') ?? '';
+}
+
+/** Reads the `companyId` cookie directly (no React state). */
+export function getCompanyId(): string | null {
+    return getCookie('companyId');
+}
+
+/** True when the current cookie role is `Admin` or `admin company`. */
+export function isAdminUser(): boolean {
+    const role = getUserRole();
+    return role === 'admin' || role === 'admin company';
+}
+
+/** True when the current cookie role can approve material requests
+ *  (Admin, admin company, or approver). */
+export function canApproveRequests(): boolean {
+    const role = getUserRole();
+    return role === 'admin' || role === 'admin company' || role === 'approver';
+}
 
 export const printHtmlContent = (html: string): void => {
 	const iframe = document.createElement('iframe');

@@ -302,6 +302,7 @@ export default function AttendancePage() {
       options: [
         { label: 'Tổ máy', value: 'Tổ máy' },
         { label: 'Tổ đốt', value: 'Tổ đốt' },
+        { label: 'Vật tư', value: 'Vật tư' },
       ],
     },
     { name: 'displayOrder', label: 'Thứ tự', type: 'number', placeholder: '0' },
@@ -2448,7 +2449,9 @@ export default function AttendancePage() {
                                 ? 'bg-blue-100 text-blue-700'
                                 : w.team === 'Tổ đốt'
                                   ? 'bg-orange-100 text-orange-700'
-                                  : 'bg-gray-100 text-gray-500'
+                                  : w.team === 'Vật tư'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-gray-100 text-gray-500'
                             }`}>
                               {w.team || '—'}
                             </span>

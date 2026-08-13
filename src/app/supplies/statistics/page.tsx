@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCookie } from '@/lib/ultis';
+import { getUserId, getUserName, getUserRole } from '@/lib/ultis';
 import { statisticsApi } from '@/api/statisticsApi';
 import { StatisticsData } from '@/types';
 import { DataTable } from '@/components/shared';
@@ -22,9 +22,9 @@ export default function ThongKePage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
-    const role = getCookie('role');
-    const userId = getCookie('userId');
-    const userName = getCookie('userName');
+    const role = getUserRole();
+    const userId = getUserId();
+    const userName = getUserName();
 
     // Redirect to login if userId or userName is missing
     if (!userId || !userName) {

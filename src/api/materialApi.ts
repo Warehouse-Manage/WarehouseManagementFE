@@ -1,5 +1,5 @@
 import { api } from './api';
-import { Material, ApiRequest } from '../types';
+import { Material, ApiRequest, MaterialPartner } from '../types';
 
 export interface RequestQueryParams {
     status?: string;
@@ -21,17 +21,7 @@ export const materialApi = {
         return api.post<Material>('/api/materials', data);
     },
 
-    createMaterialRequest: async (data: {
-        requesterId: number;
-        department: string;
-        requestDate: string;
-        description: string;
-        items: {
-            materialId: number;
-            requestedQuantity: number;
-            note: string;
-        }[];
-    }): Promise<unknown> => {
+    createMaterialRequest: async (data: unknown): Promise<unknown> => {
         return api.post('/api/materialrequests', data);
     },
 
@@ -54,5 +44,52 @@ export const materialApi = {
 
     rejectRequest: async (requestId: number, data: unknown): Promise<unknown> => {
         return api.put(`/api/materialrequests/${requestId}/reject`, data);
+    },
+
+    updateMaterialRequest: async (
+        requestId: number,
+        data: {
+            partnerId?: number | null;
+            department?: string;
+            requestDate?: string;
+            description?: string;
+            paidAmount?: number;
+            EditorUserId: number;
+            items: {
+                materialId: number;
+                requestedQuantity: number;
+                unitPrice?: number;
+                discountAmount?: number;
+                note?: string;
+            }[];
+        }
+    ): Promise<unknown> => {
+        return api.put(`/api/materialrequests/${requestId}`, data);
+    },
+
+    deleteMaterialRequest: async (requestId: number, userId: number): Promise<unknown> => {
+        return api.delete(`/api/materialrequests/${requestId}?userId=${userId}`);
+    },
+
+    // MaterialPartner APIs
+    getMaterialPartners: async (params?: { search?: string; isEmployee?: boolean }): Promise<MaterialPartner[]> => {
+        const query = new URLSearchParams();
+        if (params?.search) query.append('search', params.search);
+        if (params?.isEmployee !== undefined) query.append('isEmployee', params.isEmployee.toString());
+        const queryString = query.toString();
+        const url = `/api/materialpartners${queryString ? `?${queryString}` : ''}`;
+        return api.get<MaterialPartner[]>(url);
+    },
+
+    createMaterialPartner: async (data: { name: string; phoneNumber: string; isEmployee: boolean }): Promise<MaterialPartner> => {
+        return api.post<MaterialPartner>('/api/materialpartners', data);
+    },
+
+    updateMaterialPartner: async (id: number, data: { name?: string; phoneNumber?: string; isEmployee?: boolean }): Promise<MaterialPartner> => {
+        return api.put<MaterialPartner>(`/api/materialpartners/${id}`, data);
+    },
+
+    deleteMaterialPartner: async (id: number): Promise<void> => {
+        return api.delete(`/api/materialpartners/${id}`);
     }
 };
