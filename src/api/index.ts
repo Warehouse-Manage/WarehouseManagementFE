@@ -14,3 +14,4 @@ export * from './partnerApi';
 export * from './importProductChartApi';
 export * from './teamPaymentApi';
 export * from './revenueApi';
+export * from './taxApi';
