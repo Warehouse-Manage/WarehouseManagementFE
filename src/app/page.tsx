@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getCookie } from '@/lib/ultis';
 import { CalendarDays, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react';
 import { revenueApi, RevenueChartPoint, RevenueChartResponse } from '@/api';
+import TaxCircleButton from '@/components/TaxCircleButton';
 
 type ChartMode = 'hour' | 'day' | 'month' | 'year' | 'years';
 
@@ -152,6 +153,9 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Nút tròn đỏ ở giữa trang chủ - ẩn nếu IsTaxMode = true */}
+            <TaxCircleButton />
 
             <div className="bg-white p-4 sm:p-6 rounded-3xl border border-gray-100 shadow-xl shadow-gray-50/50">
                 <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-5">
