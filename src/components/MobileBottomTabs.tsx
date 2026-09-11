@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { getCookie } from '@/lib/ultis';
 
-type KeToanKey = 'nhap-hang' | 'nguyen-lieu' | 'doi-tac' | 'san-pham' | 'dat-hang' | 'khach-hang' | 'giao-hang' | 'so-quy';
+type KeToanKey = 'nhap-hang' | 'nguyen-lieu' | 'doi-tac' | 'san-pham' | 'dat-hang' | 'don-hang' | 'khach-hang' | 'giao-hang' | 'so-quy';
 
 const KE_TOAN_ITEMS: { key: KeToanKey; label: string; href: string }[] = [
     { key: 'nhap-hang', label: 'Nhập hàng', href: '/import-goods' },
@@ -22,6 +22,7 @@ const KE_TOAN_ITEMS: { key: KeToanKey; label: string; href: string }[] = [
     { key: 'doi-tac', label: 'Đối tác', href: '/partners' },
     { key: 'san-pham', label: 'Sản phẩm', href: '/products' },
     { key: 'dat-hang', label: 'Đặt hàng', href: '/place-order' },
+    { key: 'don-hang', label: 'Đơn hàng', href: '/orders' },
     { key: 'khach-hang', label: 'Khách hàng', href: '/customers' },
     { key: 'giao-hang', label: 'Giao hàng', href: '/delivers' },
     { key: 'so-quy', label: 'Sổ quỹ', href: '/funds' },
